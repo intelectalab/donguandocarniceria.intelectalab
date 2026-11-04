@@ -1,0 +1,153 @@
+{
+ "groups": [
+  {
+   "name": "Plataforma",
+   "mods": [
+    "PLT",
+    "SEG",
+    "MAE",
+    "INT",
+    "AUD"
+   ]
+  },
+  {
+   "name": "Ventas y canales",
+   "mods": [
+    "CAT",
+    "CLI",
+    "PED",
+    "POS",
+    "WEB"
+   ]
+  },
+  {
+   "name": "Atención y marketing",
+   "mods": [
+    "CRM",
+    "ADS",
+    "TEL"
+   ]
+  },
+  {
+   "name": "Almacén y reparto",
+   "mods": [
+    "ALM",
+    "PRE",
+    "DEL"
+   ]
+  },
+  {
+   "name": "Finanzas e indicadores",
+   "mods": [
+    "FAC",
+    "CAJ",
+    "GAS",
+    "TAB"
+   ]
+  },
+  {
+   "name": "Producción y calidad",
+   "mods": [
+    "PRO",
+    "DES",
+    "REC",
+    "CAL",
+    "EQU",
+    "ETQ"
+   ]
+  },
+  {
+   "name": "Abastecimiento y contabilidad",
+   "mods": [
+    "COM",
+    "GRJ",
+    "CNT"
+   ]
+  },
+  {
+   "name": "Nuevos canales",
+   "mods": [
+    "CON",
+    "B2B",
+    "CMP"
+   ]
+  },
+  {
+   "name": "Control fino",
+   "mods": [
+    "FLO",
+    "PER",
+    "PRS"
+   ]
+  },
+  {
+   "name": "Producto SaaS",
+   "mods": [
+    "SUS",
+    "ONB",
+    "SEP",
+    "OPS",
+    "API"
+   ]
+  }
+ ],
+ "screenOnly": {
+  "VENDEDORA": {
+   "DEL": [
+    "DEL-07",
+    "DEL-08",
+    "DEL-16",
+    "DEL-18",
+    "DEL-19"
+   ],
+   "PRE": [
+    "PRE-03",
+    "PRE-11"
+   ],
+   "WEB": [
+    "WEB-04",
+    "WEB-08"
+   ],
+   "CMP": [
+    "CMP-09",
+    "CMP-12"
+   ],
+   "CAJ": [
+    "CAJ-02",
+    "CAJ-03",
+    "CAJ-05",
+    "CAJ-11"
+   ],
+   "CRM": [
+    "CRM-01",
+    "CRM-02",
+    "CRM-03",
+    "CRM-04",
+    "CRM-05",
+    "CRM-09",
+    "CRM-10",
+    "CRM-15",
+    "CRM-16",
+    "CRM-17",
+    "CRM-18"
+   ],
+   "TAB": [
+    "TAB-02",
+    "TAB-07"
+   ]
+  },
+  "REPARTIDOR": {
+   "DEL": [
+    "DEL-04",
+    "DEL-05",
+    "DEL-06",
+    "DEL-17",
+    "DEL-18",
+    "DEL-21"
+   ],
+   "FLO": [
+    "FLO-15"
+   ]
+  }
+ }
+}

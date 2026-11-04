@@ -1,0 +1,9 @@
+# Cada app tiene su propio .gitignore (vendor, node_modules, .env, .next…)
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+
+# Configuración local de Claude Code (servidores de vista previa)
+.claude/

@@ -1,0 +1,4 @@
+# Los scripts que corren dentro de los contenedores necesitan fin de línea LF
+*.sh text eol=lf
+*.php text eol=lf
+*.sql text eol=lf

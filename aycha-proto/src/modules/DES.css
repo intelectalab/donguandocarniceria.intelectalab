@@ -1,0 +1,22 @@
+/* DES · despiece: barras de composición, fichas de la tableta, ecuación del balance y pasos del costeo */
+.des-seg { display: flex; height: 14px; border-radius: 99px; overflow: hidden; background: var(--surface-2); border: 1px solid var(--line); }
+.des-seg i { display: block; height: 100%; min-width: 2px; }
+.des-seg .co, .des-dot.co { background: var(--primary); }
+.des-seg .by, .des-dot.by { background: var(--accent); }
+.des-seg .wa, .des-dot.wa { background: var(--muted); }
+.des-seg .gap, .des-dot.gap { background: var(--bad-soft); }
+.des-dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+.des-tile { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 9px 11px; display: grid; gap: 5px; min-width: 0; }
+.des-tile.ok { border-left: 4px solid var(--ok); }
+.des-tile.bad { border-left: 4px solid var(--bad); background: var(--bad-soft); }
+.des-in { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+.des-in .input { min-height: 40px; font-size: 1rem; }
+.des-eq { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-size: 1.05rem; color: var(--muted); }
+.des-eq span { display: grid; text-align: center; color: var(--ink); }
+.des-eq span b { font-family: var(--font-display); font-size: 1.3rem; }
+.des-eq span small { color: var(--muted); font-size: .72rem; }
+.des-eq span.bad b { color: var(--bad); }
+.des-steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: .9rem; overflow-wrap: anywhere; }
+.des-grid > * { min-width: 0; }
+.des-grid .stack, .des-tile { grid-template-columns: minmax(0, 1fr); }
+.des-nw { white-space: nowrap; }

@@ -1,0 +1,2 @@
+/* FLO · cifras y códigos de las tablas de flota en una sola línea (la tabla ya tiene scroll propio) */
+.flo-body .tbl td.mono, .flo-body .tbl td.r { white-space: nowrap; }

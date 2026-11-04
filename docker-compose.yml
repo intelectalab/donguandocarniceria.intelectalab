@@ -1,0 +1,42 @@
+# Infraestructura local de Aycha · Don Guando Comercial.
+# Puertos distintos a erp-saas (5432/6379) para poder levantar los dos proyectos a la vez.
+services:
+  postgres:
+    image: postgres:17
+    container_name: aycha_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: aycha
+      # Dueño de las tablas: solo para migrar. La app entra como aycha_app (respeta RLS).
+      POSTGRES_USER: aycha_owner
+      POSTGRES_PASSWORD: aycha_owner_local
+      AYCHA_APP_PASSWORD: aycha_app_local
+      TZ: America/Lima
+    ports:
+      - "5433:5432"
+    volumes:
+      - aycha_postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aycha_owner -d aycha"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:8-alpine
+    container_name: aycha_redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    volumes:
+      - aycha_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  aycha_postgres_data:
+  aycha_redis_data:

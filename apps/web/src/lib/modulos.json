@@ -1,0 +1,3906 @@
+[
+ {
+  "code": "AUD",
+  "name": "Auditoría",
+  "title": "Auditoría: cambios, bitácora de accesos, exportaciones y retención",
+  "phase": 0,
+  "objective": "Saber siempre quién hizo qué, cuándo y desde dónde. En Don Guando la gerencia necesita revisar qué cambió una vendedora en un pedido, quién reabrió un mes, quién descargó la lista de clientes con teléfonos o quién escuchó una grabación (Ley 29733 de Protección de Datos Personales). AUD guarda el antes y el después de cada cambio sin que nadie lo pueda alterar, la bitácora de ingresos y accesos sen",
+  "screens": [
+   {
+    "code": "AUD-01",
+    "name": "Consulta de cambios",
+    "desc": "Busca por tabla, registro, usuario y rango de fechas; muestra operación, antes y después campo por campo, en hora de Lima",
+    "roles": null
+   },
+   {
+    "code": "AUD-02",
+    "name": "Historia del registro",
+    "desc": "Pestaña «Historia» en cualquier ficha (pedido, cliente, comprobante, parámetro) con la línea de tiempo de cambios y accesos de ese registro",
+    "roles": null
+   },
+   {
+    "code": "AUD-03",
+    "name": "Bitácora de accesos",
+    "desc": "Ingresos correctos y fallidos, segundo factor, bloqueos, cierres de sesión, recuperaciones, 403 por usuario, IP y dispositivo",
+    "roles": null
+   },
+   {
+    "code": "AUD-04",
+    "name": "Accesos a datos sensibles",
+    "desc": "Descargas de archivos confidenciales, reproducciones de grabaciones, exportaciones con datos personales y vistas de datos sensibles, por usuario y fecha",
+    "roles": null
+   },
+   {
+    "code": "AUD-05",
+    "name": "Exportaciones",
+    "desc": "Solicitar una exportación (reporte, filtros, formato, motivo), ver las propias, aprobar las de otros y descargar con enlace temporal",
+    "roles": null
+   },
+   {
+    "code": "AUD-06",
+    "name": "Políticas de retención",
+    "desc": "Meses de conservación por categoría (cambios, accesos, exportaciones, notificaciones, webhooks, outbox, grabaciones, archivos) y si se archiva antes de depurar",
+    "roles": null
+   },
+   {
+    "code": "AUD-07",
+    "name": "Corridas de depuración",
+    "desc": "Cada corrida de archivo y depuración con categoría, fecha de corte, filas archivadas y depuradas, archivo generado y resultado",
+    "roles": null
+   },
+   {
+    "code": "AUD-08",
+    "name": "Revisión de accesos",
+    "desc": "Revisión trimestral: lista de usuarios con roles, alcance y último ingreso; marcar «mantener», «cambiar» o «desactivar»; cerrar la revisión con sus hallazgos",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "INT",
+  "name": "Integraciones",
+  "title": "Integraciones: conectores, credenciales, webhooks, outbox, idempotencia, notificaciones y archivos",
+  "phase": 0,
+  "objective": "Don Guando depende de muchos servicios externos: WooCommerce y Mercado Pago en la web, 6 números de WhatsApp por la API oficial, Google, Meta y TikTok Ads, el OSE/PSE de comprobantes, mapas para las direcciones con pin, empresas de delivery y, más adelante, telefonía y balanzas conectables. INT es la puerta única para todos: cada proveedor queda detrás de una interfaz con un **adaptador falso** pa",
+  "screens": [
+   {
+    "code": "INT-01",
+    "name": "Conectores",
+    "desc": "Lista por tipo (mensajería, comprobantes, pagos, anuncios, telefonía, mapas, comercio, balanzas, delivery, granja, correo, push, tipo de cambio), marca, local, entorno y estado, con última conexión correcta y último error",
+    "roles": null
+   },
+   {
+    "code": "INT-02",
+    "name": "Ficha del conector",
+    "desc": "Configuración no secreta, entorno, módulo dueño, marca y local; botón «Probar conexión»; historial de errores; activar y desactivar",
+    "roles": null
+   },
+   {
+    "code": "INT-03",
+    "name": "Credenciales",
+    "desc": "Credenciales del conector mostradas solo como «••••3456», versión, vencimiento; cargar, rotar y revocar",
+    "roles": null
+   },
+   {
+    "code": "INT-04",
+    "name": "Webhooks de entrada",
+    "desc": "URL de cada endpoint (/hooks/{token}), esquema de firma, módulo dueño y estado; regenerar el token",
+    "roles": null
+   },
+   {
+    "code": "INT-05",
+    "name": "Bitácora de webhooks",
+    "desc": "Eventos recibidos con estado (recibido, procesado, fallido, rechazado, ignorado), duplicados, intentos y error; ver el cuerpo crudo; reprocesar un fallido",
+    "roles": null
+   },
+   {
+    "code": "INT-06",
+    "name": "Mensajes salientes",
+    "desc": "Outbox por módulo, evento, estado, intentos, próximo intento y último error; filtros por conector y fecha",
+    "roles": null
+   },
+   {
+    "code": "INT-07",
+    "name": "Cola muerta",
+    "desc": "Mensajes que agotaron los reintentos; reintentar o cancelar con motivo",
+    "roles": null
+   },
+   {
+    "code": "INT-08",
+    "name": "Corridas programadas",
+    "desc": "Importaciones y sincronizaciones (gasto de anuncios, tipo de cambio, catálogo y stock de WooCommerce) con inicio, fin, ítems correctos y fallidos",
+    "roles": null
+   },
+   {
+    "code": "INT-09",
+    "name": "Centro de notificaciones",
+    "desc": "Campana del armazón con no leídas, severidad y enlace al registro; marcar como leídas",
+    "roles": null
+   },
+   {
+    "code": "INT-10",
+    "name": "Preferencias de notificación",
+    "desc": "Por tipo de aviso y canal (en la app, correo, push); los avisos críticos no se pueden apagar",
+    "roles": null
+   },
+   {
+    "code": "INT-11",
+    "name": "Archivos adjuntos",
+    "desc": "Panel reutilizable en cualquier ficha: subir (cámara o archivo), ver miniatura, descargar con enlace temporal, eliminar con motivo; muestra clasificación y tamaño",
+    "roles": null
+   },
+   {
+    "code": "INT-12",
+    "name": "Salud de integraciones",
+    "desc": "Tablero con conectores en error, cola muerta, latencia de webhooks, éxito del outbox y credenciales por vencer",
+    "roles": null
+   },
+   {
+    "code": "INT-13",
+    "name": "Simulador de integraciones",
+    "desc": "Solo en prueba: dispara webhooks de ejemplo firmados (pago aprobado de Mercado Pago, mensaje entrante de WhatsApp, pedido de WooCommerce) contra el adaptador falso",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "MAE",
+  "name": "Maestros comunes",
+  "title": "Maestros comunes: trabajadores, medios de pago, tipo de cambio, unidades, catálogos SUNAT y ubigeo",
+  "phase": 0,
+  "objective": "Tener una sola vez, y bien, los datos que todos los módulos necesitan. En Don Guando se cobra por **efectivo, Yape, Plin, POS de tarjeta Visa en el mostrador, Mercado Pago en la web, transferencia y crédito** a restaurantes; cada medio tiene su comisión y su plazo de abono, y sin eso la conciliación (CAJ) y el costo real de cobrar son una suposición. Los productos se venden por unidad y por kilo, ",
+  "screens": [
+   {
+    "code": "MAE-01",
+    "name": "Trabajadores",
+    "desc": "Lista con documento, nombre, cargo, local, estado y usuario vinculado; filtros por local, cargo y estado; importar desde CSV",
+    "roles": null
+   },
+   {
+    "code": "MAE-02",
+    "name": "Ficha del trabajador",
+    "desc": "Documento (DNI, CE o pasaporte), datos de contacto, cargo, local, centro de costo, fecha de ingreso, usuario vinculado; botón «Dar de baja» con fecha y motivo",
+    "roles": null
+   },
+   {
+    "code": "MAE-03",
+    "name": "Medios de pago",
+    "desc": "Los 7 medios de Don Guando con tipo, entidad, si exige número de operación, canales (mostrador, delivery, WhatsApp, TikTok, web, B2B, consignación), plazo de abono, conector y estado",
+    "roles": null
+   },
+   {
+    "code": "MAE-04",
+    "name": "Comisiones por medio de pago",
+    "desc": "Historial de comisiones por vigencia (porcentaje, monto fijo, IGV incluido o no) con simulador «cobro de S/ 100,00 el día X»",
+    "roles": null
+   },
+   {
+    "code": "MAE-05",
+    "name": "Tipo de cambio",
+    "desc": "Calendario de compra y venta por moneda, origen (SUNAT, manual, importado), días sin carga resaltados; corregir con motivo",
+    "roles": null
+   },
+   {
+    "code": "MAE-06",
+    "name": "Unidades y conversiones",
+    "desc": "Unidades con código SUNAT, tipo (unidad, peso, volumen, servicio, empaque) y decimales; conversiones (1 kg = 1000 g) con calculadora",
+    "roles": null
+   },
+   {
+    "code": "MAE-07",
+    "name": "Catálogos SUNAT",
+    "desc": "Consulta de los catálogos (01 comprobantes, 03 unidades, 06 documentos de identidad, 07 afectación del IGV…) con vigencia",
+    "roles": null
+   },
+   {
+    "code": "MAE-08",
+    "name": "Ubigeo",
+    "desc": "Consulta de departamento, provincia y distrito; el operador de plataforma importa el archivo oficial del INEI",
+    "roles": null
+   },
+   {
+    "code": "MAE-09",
+    "name": "Entidades financieras",
+    "desc": "Bancos, billeteras (Yape, Plin), adquirentes (Niubiz, Izipay) y pasarelas (Mercado Pago)",
+    "roles": null
+   },
+   {
+    "code": "MAE-10",
+    "name": "Importar trabajadores",
+    "desc": "Carga de un CSV con validación fila por fila, vista previa y reporte de errores antes de grabar",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "PLT",
+  "name": "Plataforma",
+  "title": "Plataforma: empresas, locales, marcas, series, períodos, parámetros y módulos",
+  "phase": 0,
+  "objective": "Dar a Don Guando una sola plataforma multiempresa donde viven su RUC, sus **5 marcas** (Don Guando y 4 comerciales), sus **2 locales de producción** (uno con mostrador), sus centros de costo, sus series de comprobantes y sus parámetros. Hoy cada marca opera por su lado y nada se puede medir por marca o local. Con PLT toda transacción nace con empresa, local, marca y centro de costo; la numeración ",
+  "screens": [
+   {
+    "code": "PLT-01",
+    "name": "Armazón de la aplicación",
+    "desc": "Barra superior con logo y colores de la marca activa, selector de marca y local (solo los del alcance del usuario), campana de notificaciones, menú lateral con los módulos activos y permitidos, interruptor claro/oscuro/sistema y el código de la pantalla actual (por ejemplo «PED-03») en el pie. En celular el menú es inferior con botones grandes",
+    "roles": null
+   },
+   {
+    "code": "PLT-02",
+    "name": "Búsqueda global",
+    "desc": "Caja de búsqueda en el armazón (atajo «/»). Busca desde 3 caracteres en clientes, pedidos, comprobantes, productos, trabajadores y conversaciones que los módulos publican; agrupa por tipo, respeta permisos, alcance y módulos activos; abre la ficha con un toque",
+    "roles": null
+   },
+   {
+    "code": "PLT-03",
+    "name": "Empresas",
+    "desc": "Razón social, RUC con validación del dígito verificador, régimen (MYPE para Don Guando), domicilio fiscal con ubigeo, moneda y zona horaria. Muestra marcas, locales y series de cada empresa",
+    "roles": null
+   },
+   {
+    "code": "PLT-04",
+    "name": "Locales",
+    "desc": "Código interno, nombre, tipo (planta, tienda, almacén, oficina o mixto), código de establecimiento anexo SUNAT, dirección con pin en el mapa y estado. Don Guando: Local 1 (producción y mostrador) y Local 2 (producción)",
+    "roles": null
+   },
+   {
+    "code": "PLT-05",
+    "name": "Marcas",
+    "desc": "Código, nombre, empresa que factura, logo, pie legal de la representación impresa, web, nombre visible en WhatsApp, orden y estado (activa, inactiva o separada)",
+    "roles": null
+   },
+   {
+    "code": "PLT-06",
+    "name": "Colores por marca",
+    "desc": "Tokens de color del modo claro y del modo oscuro (primario, primario oscuro, acento, fondo, superficie, texto, texto sobre primario) con vista previa de botones, tablas y comprobante, y el contraste calculado de cada par",
+    "roles": null
+   },
+   {
+    "code": "PLT-07",
+    "name": "Centros de costo",
+    "desc": "Árbol por área (producción, calidad, almacén, delivery, ventas, marketing, administración, finanzas, RR. HH.) con local y marca opcionales; activar y desactivar",
+    "roles": null
+   },
+   {
+    "code": "PLT-08",
+    "name": "Series y numeración",
+    "desc": "Series por empresa, tipo de documento, local y marca; correlativo siguiente, uso del rango con aviso al 95 %, electrónica o interna, activar y desactivar",
+    "roles": null
+   },
+   {
+    "code": "PLT-09",
+    "name": "Períodos",
+    "desc": "Calendario de meses por empresa con estado (abierto, en cierre, cerrado), botón Cerrar y botón Reabrir con motivo; historial de cada período",
+    "roles": null
+   },
+   {
+    "code": "PLT-10",
+    "name": "Parámetros",
+    "desc": "Lista por módulo con valor vigente, ámbito (tenant, empresa, local, marca), unidad, rango permitido y descripción; editar exige motivo",
+    "roles": null
+   },
+   {
+    "code": "PLT-11",
+    "name": "Historial de parámetros",
+    "desc": "Quién cambió qué parámetro, cuándo, valor anterior y nuevo, y motivo. Filtro por módulo, clave y usuario",
+    "roles": null
+   },
+   {
+    "code": "PLT-12",
+    "name": "Módulos activables",
+    "desc": "Interruptor por módulo con fase, dependencias y estado. Al apagar o encender muestra qué depende de qué. TEL muestra su lista de activación (proveedor, números, desvíos, aviso de grabación, política firmada)",
+    "roles": null
+   },
+   {
+    "code": "PLT-13",
+    "name": "Dominio de acceso",
+    "desc": "Subdominio o dominio propio con el que entran los usuarios de la empresa y su estado",
+    "roles": null
+   },
+   {
+    "code": "PLT-14",
+    "name": "Asistente de configuración inicial",
+    "desc": "Lista guiada para poner en marcha la empresa: datos de la empresa, marcas y colores, locales, centros de costo, series, usuarios iniciales, medios de pago y módulos; muestra el avance",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "SEG",
+  "name": "Seguridad",
+  "title": "Seguridad: usuarios, inicio de sesión, segundo factor, roles, permisos, alcance, sesiones y dispositivos",
+  "phase": 0,
+  "objective": "Que cada persona de Don Guando entre con su propio usuario, vea solo lo que le toca y deje rastro. Hoy las vendedoras atienden desde celulares con WhatsApp vinculado por QR y se detectó a una que coordinaba productos que la empresa no vende. Con SEG cada vendedora entra con correo y contraseña, ve solo las bandejas y pedidos de sus marcas, la gerencia y la contadora usan segundo factor, los repart",
+  "screens": [
+   {
+    "code": "SEG-01",
+    "name": "Inicio de sesión",
+    "desc": "Correo y contraseña sobre el dominio de la empresa, con los colores de la marca principal. Mensaje de error único («Correo o contraseña incorrectos») y enlace «Olvidé mi contraseña»",
+    "roles": null
+   },
+   {
+    "code": "SEG-02",
+    "name": "Verificación del segundo factor",
+    "desc": "Pide el código de 6 dígitos de la aplicación autenticadora o un código de recuperación",
+    "roles": null
+   },
+   {
+    "code": "SEG-03",
+    "name": "Activar segundo factor",
+    "desc": "Muestra el QR del secreto, pide confirmar con un código y entrega 10 códigos de recuperación para guardar o imprimir. Es obligatoria en el primer ingreso de los roles que lo exigen",
+    "roles": null
+   },
+   {
+    "code": "SEG-04",
+    "name": "Olvidé mi contraseña",
+    "desc": "Pide el correo y siempre responde «Si el correo existe, te enviamos un enlace»",
+    "roles": null
+   },
+   {
+    "code": "SEG-05",
+    "name": "Nueva contraseña",
+    "desc": "Desde el enlace del correo: pide la contraseña nueva dos veces y muestra la política (largo, letras y números, no repetir las 5 anteriores)",
+    "roles": null
+   },
+   {
+    "code": "SEG-06",
+    "name": "Mi cuenta",
+    "desc": "Datos, cambiar contraseña, segundo factor (activar, regenerar códigos), marca por defecto, modo claro/oscuro/sistema y preferencias de notificación",
+    "roles": null
+   },
+   {
+    "code": "SEG-07",
+    "name": "Mis sesiones y dispositivos",
+    "desc": "Sesiones abiertas (dispositivo, IP, última actividad) con botón «Cerrar» y «Cerrar todas las demás»; dispositivos registrados",
+    "roles": null
+   },
+   {
+    "code": "SEG-08",
+    "name": "Usuarios",
+    "desc": "Lista con rol, alcance, estado (activo, bloqueado, inactivo), segundo factor y último ingreso; filtros por rol, local, marca y estado; alta e invitación por correo",
+    "roles": null
+   },
+   {
+    "code": "SEG-09",
+    "name": "Ficha del usuario",
+    "desc": "Roles, locales y marcas permitidos, trabajador vinculado, estado; acciones: desbloquear, reiniciar segundo factor, cerrar sesiones, desactivar; pestaña con su bitácora de accesos (AUD-03)",
+    "roles": null
+   },
+   {
+    "code": "SEG-10",
+    "name": "Roles",
+    "desc": "Roles del sistema y propios con descripción, si exigen segundo factor, alcance (todo o asignado) y cantidad de usuarios; copiar un rol del sistema para crear uno propio",
+    "roles": null
+   },
+   {
+    "code": "SEG-11",
+    "name": "Permisos del rol",
+    "desc": "Matriz de permisos agrupada por módulo y recurso, con los módulos apagados en gris; los permisos especiales muestran su explicación",
+    "roles": null
+   },
+   {
+    "code": "SEG-12",
+    "name": "Matriz de roles y permisos",
+    "desc": "Vista de solo lectura de todos los roles contra todos los permisos, exportable para la revisión de accesos (AUD-08)",
+    "roles": null
+   },
+   {
+    "code": "SEG-13",
+    "name": "Dispositivos de la app",
+    "desc": "Celulares de repartidores y visitadores pendientes de aprobación, aprobados y revocados; aprobar o revocar con motivo",
+    "roles": null
+   },
+   {
+    "code": "SEG-14",
+    "name": "Política de contraseñas y sesiones",
+    "desc": "Parámetros de SEG (largo mínimo, historial, intentos, bloqueo, inactividad, sesiones simultáneas) con su historial (PLT-11)",
+    "roles": null
+   },
+   {
+    "code": "SEG-15",
+    "name": "Sesiones activas de la empresa",
+    "desc": "Todas las sesiones abiertas por usuario, dispositivo e IP; cerrar una o todas las de un usuario",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "DEL",
+  "name": "Delivery",
+  "title": "Delivery: rutas, app del repartidor, terceros, provincia y costo por entrega",
+  "phase": 1,
+  "objective": "Don Guando reparte en Lima con motos y autos propios y alquilados, con empresas de delivery y por agencia a provincia, pero no sabe cuánto le cuesta cada entrega ni si el «delivery gratis desde 3 unidades o kg» de la web le hace perder plata. DEL arma las rutas por zona y franja con orden sugerido, da al repartidor una app Android con paradas, navegación, cobro y prueba de entrega, sigue el repart",
+  "screens": [
+   {
+    "code": "DEL-01",
+    "name": "Planificador de rutas",
+    "desc": "Pedidos listos o por preparar del día por zona y franja en el mapa; crear rutas, mover pedidos entre rutas y ver kg y número de paradas por ruta",
+    "roles": [
+     "GERENTE",
+     "ADMIN_SISTEMA",
+     "ADMINISTRACION",
+     "SUPERVISORA_VENTAS",
+     "VENDEDORA",
+     "CAJERO",
+     "ALMACENERO",
+     "PREPARADOR",
+     "COORDINADOR_DELIVERY",
+     "MARKETING",
+     "JEFE_PRODUCCION",
+     "OPERARIO_PRODUCCION",
+     "CALIDAD",
+     "COMPRAS",
+     "CONTADORA",
+     "PRACTICANTE_CONTABLE",
+     "VISITADOR_CONSIGNACION",
+     "RRHH",
+     "SOPORTE_PLATAFORMA",
+     "AUDITOR"
+    ]
+   },
+   {
+    "code": "DEL-02",
+    "name": "Asignación",
+    "desc": "Por ruta: modalidad (propia, alquilada, tercero), vehículo, repartidor o empresa de delivery; avisa documentos vencidos y capacidad en kg",
+    "roles": [
+     "GERENTE",
+     "ADMIN_SISTEMA",
+     "ADMINISTRACION",
+     "SUPERVISORA_VENTAS",
+     "VENDEDORA",
+     "CAJERO",
+     "ALMACENERO",
+     "PREPARADOR",
+     "COORDINADOR_DELIVERY",
+     "MARKETING",
+     "JEFE_PRODUCCION",
+     "OPERARIO_PRODUCCION",
+     "CALIDAD",
+     "COMPRAS",
+     "CONTADORA",
+     "PRACTICANTE_CONTABLE",
+     "VISITADOR_CONSIGNACION",
+     "RRHH",
+     "SOPORTE_PLATAFORMA",
+     "AUDITOR"
+    ]
+   },
+   {
+    "code": "DEL-03",
+    "name": "Hoja de ruta",
+    "desc": "Paradas en orden sugerido (editable) con dirección, referencia, franja, bolsas, monto a cobrar y teléfono enmascarado",
+    "roles": [
+     "GERENTE",
+     "ADMIN_SISTEMA",
+     "ADMINISTRACION",
+     "SUPERVISORA_VENTAS",
+     "VENDEDORA",
+     "CAJERO",
+     "ALMACENERO",
+     "PREPARADOR",
+     "COORDINADOR_DELIVERY",
+     "MARKETING",
+     "JEFE_PRODUCCION",
+     "OPERARIO_PRODUCCION",
+     "CALIDAD",
+     "COMPRAS",
+     "CONTADORA",
+     "PRACTICANTE_CONTABLE",
+     "VISITADOR_CONSIGNACION",
+     "RRHH",
+     "SOPORTE_PLATAFORMA",
+     "AUDITOR"
+    ]
+   },
+   {
+    "code": "DEL-04",
+    "name": "App: mis rutas",
+    "desc": "Rutas del día del repartidor, avance y paradas pendientes; funciona sin conexión",
+    "roles": [
+     "REPARTIDOR",
+     "COORDINADOR_DELIVERY"
+    ]
+   },
+   {
+    "code": "DEL-05",
+    "name": "App: parada",
+    "desc": "Navegación, «Llegué», llamar o WhatsApp por el número de la empresa, cobro contra entrega, foto y código o firma, no entregado con motivo y foto, incidencias",
+    "roles": [
+     "REPARTIDOR",
+     "COORDINADOR_DELIVERY"
+    ]
+   },
+   {
+    "code": "DEL-06",
+    "name": "App: liquidación",
+    "desc": "Al volver: efectivo y cobros digitales esperados, efectivo contado y diferencia; se envía a CAJ (driver_settlements)",
+    "roles": [
+     "REPARTIDOR",
+     "COORDINADOR_DELIVERY",
+     "ADMINISTRACION",
+     "CAJERO"
+    ]
+   },
+   {
+    "code": "DEL-07",
+    "name": "Seguimiento en mapa",
+    "desc": "Rutas en curso con última posición, paradas hechas y atrasadas, entregas fuera del radio",
+    "roles": [
+     "GERENTE",
+     "ADMIN_SISTEMA",
+     "ADMINISTRACION",
+     "SUPERVISORA_VENTAS",
+     "VENDEDORA",
+     "CAJERO",
+     "ALMACENERO",
+     "PREPARADOR",
+     "COORDINADOR_DELIVERY",
+     "MARKETING",
+     "JEFE_PRODUCCION",
+     "OPERARIO_PRODUCCION",
+     "CALIDAD",
+     "COMPRAS",
+     "CONTADORA",
+     "PRACTICANTE_CONTABLE",
+     "VISITADOR_CONSIGNACION",
+     "RRHH",
+     "SOPORTE_PLATAFORMA",
+     "AUDITOR"
+    ]
+   },
+   {
+    "code": "DEL-08",
+    "name": "Enlace de seguimiento",
+    "desc": "Página pública por pedido: estado, hora estimada, nombre de pila del repartidor; sin datos de otros clientes",
+    "roles": [
+     "GERENTE",
+     "ADMIN_SISTEMA",
+     "ADMINISTRACION",
+     "SUPERVISORA_VENTAS",
+     "VENDEDORA",
+     "CAJERO",
+     "ALMACENERO",
+     "PREPARADOR",
+     "COORDINADOR_DELIVERY",
+     "MARKETING",
+     "JEFE_PRODUCCION",
+     "OPERARIO_PRODUCCION",
+     "CALIDAD",
+     "COMPRAS",
+     "CONTADORA",
+     "PRACTICANTE_CONTABLE",
+     "VISITADOR_CONSIGNACION",
+     "RRHH",
+     "SOPORTE_PLATAFORMA",
+     "AUDITOR"
+    ]
+   },
+   {
+    "code": "DEL-09",
+    "name": "Empresas de delivery y tarifas",
+    "desc": "Proveedores de tipo empresa de delivery, tarifas por envío, zona, día o kg con vigencia",
+    "roles": [
+     "GERENTE",
+     "ADMIN_SISTEMA",
+     "ADMINISTRACION",
+     "SUPERVISORA_VENTAS",
+     "VENDEDORA",
+     "CAJERO",
+     "ALMACENERO",
+     "PREPARADOR",
+     "COORDINADOR_DELIVERY",
+     "MARKETING",
+     "JEFE_PRODUCCION",
+     "OPERARIO_PRODUCCION",
+     "CALIDAD",
+     "COMPRAS",
+     "CONTADORA",
+     "PRACTICANTE_CONTABLE",
+     "VISITADOR_CONSIGNACION",
+     "RRHH",
+     "SOPORTE_PLATAFORMA",
+     "AUDITOR"
+    ]
+   },
+   {
+    "code": "DEL-10",
+    "name": "Conciliación de terceros",
+    "desc": "Factura de la empresa contra envíos registrados × tarifa; líneas no registradas, no facturadas y con diferencia",
+    "roles": [
+     "GERENTE",
+     "ADMIN_SISTEMA",
+     "ADMINISTRACION",
+     "SUPERVISORA_VENTAS",
+     "VENDEDORA",
+     "CAJERO",
+     "ALMACENERO",
+     "PREPARADOR",
+     "COORDINADOR_DELIVERY",
+     "MARKETING",
+     "JEFE_PRODUCCION",
+     "OPERARIO_PRODUCCION",
+     "CALIDAD",
+     "COMPRAS",
+     "CONTADORA",
+     "PRACTICANTE_CONTABLE",
+     "VISITADOR_CONSIGNACION",
+     "RRHH",
+     "SOPORTE_PLATAFORMA",
+     "AUDITOR"
+    ]
+   },
+   {
+    "code": "DEL-11",
+    "name": "Envíos a provincia",
+    "desc": "Agencia, destino, embalaje, guía de remisión (FAC), número de seguimiento, flete y costo de empaque",
+    "roles": [
+     "GERENTE",
+     "ADMIN_SISTEMA",
+     "ADMINISTRACION",
+     "SUPERVISORA_VENTAS",
+     "VENDEDORA",
+     "CAJERO",
+     "ALMACENERO",
+     "PREPARADOR",
+     "COORDINADOR_DELIVERY",
+     "MARKETING",
+     "JEFE_PRODUCCION",
+     "OPERARIO_PRODUCCION",
+     "CALIDAD",
+     "COMPRAS",
+     "CONTADORA",
+     "PRACTICANTE_CONTABLE",
+     "VISITADOR_CONSIGNACION",
+     "RRHH",
+     "SOPORTE_PLATAFORMA",
+     "AUDITOR"
+    ]
+   },
+   {
+    "code": "DEL-12",
+    "name": "Vehículos",
+    "desc": "Propios y alquilados: placa, tipo, capacidad, refrigerado, SOAT y revisión técnica con aviso, odómetro, tarifa de alquiler",
+    "roles": [
+     "GERENTE",
+     "ADMIN_SISTEMA",
+     "ADMINISTRACION",
+     "SUPERVISORA_VENTAS",
+     "VENDEDORA",
+     "CAJERO",
+     "ALMACENERO",
+     "PREPARADOR",
+     "COORDINADOR_DELIVERY",
+     "MARKETING",
+     "JEFE_PRODUCCION",
+     "OPERARIO_PRODUCCION",
+     "CALIDAD",
+     "COMPRAS",
+     "CONTADORA",
+     "PRACTICANTE_CONTABLE",
+     "VISITADOR_CONSIGNACION",
+     "RRHH",
+     "SOPORTE_PLATAFORMA",
+     "AUDITOR"
+    ]
+   },
+   {
+    "code": "DEL-13",
+    "name": "Costos de reparto",
+    "desc": "Combustible con vale, galones y odómetro; mantenimiento, SOAT, alquiler, peajes, estacionamiento, multas; sueldo, jornal, alimentación, movilidad y bono del repartidor",
+    "roles": [
+     "GERENTE",
+     "ADMIN_SISTEMA",
+     "ADMINISTRACION",
+     "SUPERVISORA_VENTAS",
+     "VENDEDORA",
+     "CAJERO",
+     "ALMACENERO",
+     "PREPARADOR",
+     "COORDINADOR_DELIVERY",
+     "MARKETING",
+     "JEFE_PRODUCCION",
+     "OPERARIO_PRODUCCION",
+     "CALIDAD",
+     "COMPRAS",
+     "CONTADORA",
+     "PRACTICANTE_CONTABLE",
+     "VISITADOR_CONSIGNACION",
+     "RRHH",
+     "SOPORTE_PLATAFORMA",
+     "AUDITOR"
+    ]
+   },
+   {
+    "code": "DEL-14",
+    "name": "Costo por entrega",
+    "desc": "Por mes, zona, modalidad, vehículo, repartidor y ruta: costo total, entregas, costo por entrega, por kg, por km y subsidio del delivery gratis; recalcular con nueva corrida",
+    "roles": [
+     "GERENTE",
+     "ADMIN_SISTEMA",
+     "ADMINISTRACION",
+     "SUPERVISORA_VENTAS",
+     "VENDEDORA",
+     "CAJERO",
+     "ALMACENERO",
+     "PREPARADOR",
+     "COORDINADOR_DELIVERY",
+     "MARKETING",
+     "JEFE_PRODUCCION",
+     "OPERARIO_PRODUCCION",
+     "CALIDAD",
+     "COMPRAS",
+     "CONTADORA",
+     "PRACTICANTE_CONTABLE",
+     "VISITADOR_CONSIGNACION",
+     "RRHH",
+     "SOPORTE_PLATAFORMA",
+     "AUDITOR"
+    ]
+   },
+   {
+    "code": "DEL-15",
+    "name": "Comparativo por zona",
+    "desc": "Costo por entrega propio frente a alquilado y tercero por zona, con la tarifa del tercero y la sugerencia de tercerizar o no",
+    "roles": [
+     "GERENTE",
+     "ADMIN_SISTEMA",
+     "ADMINISTRACION",
+     "SUPERVISORA_VENTAS",
+     "VENDEDORA",
+     "CAJERO",
+     "ALMACENERO",
+     "PREPARADOR",
+     "COORDINADOR_DELIVERY",
+     "MARKETING",
+     "JEFE_PRODUCCION",
+     "OPERARIO_PRODUCCION",
+     "CALIDAD",
+     "COMPRAS",
+     "CONTADORA",
+     "PRACTICANTE_CONTABLE",
+     "VISITADOR_CONSIGNACION",
+     "RRHH",
+     "SOPORTE_PLATAFORMA",
+     "AUDITOR"
+    ]
+   },
+   {
+    "code": "DEL-16",
+    "name": "No entregados",
+    "desc": "Paradas fallidas con motivo, foto y reprogramación (PED-08); bolsas devueltas al almacén",
+    "roles": [
+     "GERENTE",
+     "ADMIN_SISTEMA",
+     "ADMINISTRACION",
+     "SUPERVISORA_VENTAS",
+     "VENDEDORA",
+     "CAJERO",
+     "ALMACENERO",
+     "PREPARADOR",
+     "COORDINADOR_DELIVERY",
+     "MARKETING",
+     "JEFE_PRODUCCION",
+     "OPERARIO_PRODUCCION",
+     "CALIDAD",
+     "COMPRAS",
+     "CONTADORA",
+     "PRACTICANTE_CONTABLE",
+     "VISITADOR_CONSIGNACION",
+     "RRHH",
+     "SOPORTE_PLATAFORMA",
+     "AUDITOR"
+    ]
+   },
+   {
+    "code": "DEL-17",
+    "name": "App: gastos de la ruta",
+    "desc": "",
+    "roles": [
+     "REPARTIDOR",
+     "COORDINADOR_DELIVERY"
+    ]
+   },
+   {
+    "code": "DEL-18",
+    "name": "Ticket de entrega",
+    "desc": "",
+    "roles": [
+     "GERENTE",
+     "ADMIN_SISTEMA",
+     "ADMINISTRACION",
+     "SUPERVISORA_VENTAS",
+     "VENDEDORA",
+     "CAJERO",
+     "ALMACENERO",
+     "PREPARADOR",
+     "COORDINADOR_DELIVERY",
+     "MARKETING",
+     "JEFE_PRODUCCION",
+     "OPERARIO_PRODUCCION",
+     "CALIDAD",
+     "COMPRAS",
+     "CONTADORA",
+     "PRACTICANTE_CONTABLE",
+     "VISITADOR_CONSIGNACION",
+     "RRHH",
+     "SOPORTE_PLATAFORMA",
+     "AUDITOR",
+     "REPARTIDOR"
+    ]
+   },
+   {
+    "code": "DEL-19",
+    "name": "Calidad de direcciones",
+    "desc": "",
+    "roles": [
+     "GERENTE",
+     "ADMIN_SISTEMA",
+     "ADMINISTRACION",
+     "SUPERVISORA_VENTAS",
+     "VENDEDORA",
+     "CAJERO",
+     "ALMACENERO",
+     "PREPARADOR",
+     "COORDINADOR_DELIVERY",
+     "MARKETING",
+     "JEFE_PRODUCCION",
+     "OPERARIO_PRODUCCION",
+     "CALIDAD",
+     "COMPRAS",
+     "CONTADORA",
+     "PRACTICANTE_CONTABLE",
+     "VISITADOR_CONSIGNACION",
+     "RRHH",
+     "SOPORTE_PLATAFORMA",
+     "AUDITOR"
+    ]
+   },
+   {
+    "code": "DEL-20",
+    "name": "Apoyo y derivaciones",
+    "desc": "",
+    "roles": [
+     "GERENTE",
+     "ADMIN_SISTEMA",
+     "ADMINISTRACION",
+     "SUPERVISORA_VENTAS",
+     "VENDEDORA",
+     "CAJERO",
+     "ALMACENERO",
+     "PREPARADOR",
+     "COORDINADOR_DELIVERY",
+     "MARKETING",
+     "JEFE_PRODUCCION",
+     "OPERARIO_PRODUCCION",
+     "CALIDAD",
+     "COMPRAS",
+     "CONTADORA",
+     "PRACTICANTE_CONTABLE",
+     "VISITADOR_CONSIGNACION",
+     "RRHH",
+     "SOPORTE_PLATAFORMA",
+     "AUDITOR"
+    ]
+   },
+   {
+    "code": "DEL-21",
+    "name": "App: mensajes a control",
+    "desc": "",
+    "roles": [
+     "REPARTIDOR",
+     "COORDINADOR_DELIVERY"
+    ]
+   },
+   {
+    "code": "DEL-22",
+    "name": "Mensajes del reparto",
+    "desc": "",
+    "roles": [
+     "GERENTE",
+     "ADMIN_SISTEMA",
+     "ADMINISTRACION",
+     "SUPERVISORA_VENTAS",
+     "VENDEDORA",
+     "CAJERO",
+     "ALMACENERO",
+     "PREPARADOR",
+     "COORDINADOR_DELIVERY",
+     "MARKETING",
+     "JEFE_PRODUCCION",
+     "OPERARIO_PRODUCCION",
+     "CALIDAD",
+     "COMPRAS",
+     "CONTADORA",
+     "PRACTICANTE_CONTABLE",
+     "VISITADOR_CONSIGNACION",
+     "RRHH",
+     "SOPORTE_PLATAFORMA",
+     "AUDITOR"
+    ]
+   }
+  ]
+ },
+ {
+  "code": "ADS",
+  "name": "Publicidad y atribución",
+  "title": "Gasto de anuncios y atribución a ventas cobradas",
+  "phase": 1,
+  "objective": "La mayoría de los ~1000 pedidos mensuales de Don Guando llega por anuncios de Google Ads, TikTok Ads y Meta Ads, pero hoy no se sabe cuántos soles cobrados deja cada sol invertido ni qué anuncio trae clientes nuevos. ADS importa cada día el gasto por campaña y anuncio, une cada anuncio con sus leads, pedidos y cobros (enlace con código, UTM o referral del anuncio de clic a WhatsApp) y calcula cost",
+  "screens": [
+   {
+    "code": "ADS-01",
+    "name": "Cuentas publicitarias",
+    "desc": "Conectar cuentas de Google Ads, Meta Ads y TikTok Ads; marca, moneda, zona horaria, proveedor para la factura y estado de la última importación",
+    "roles": null
+   },
+   {
+    "code": "ADS-02",
+    "name": "Campañas y anuncios",
+    "desc": "Lista por plataforma y marca con destino (WhatsApp, web, TikTok), número de WhatsApp, código de rastreo y UTM; marca los anuncios activos «sin rastreo»",
+    "roles": null
+   },
+   {
+    "code": "ADS-03",
+    "name": "Enlaces de rastreo",
+    "desc": "Genera el enlace wa.me con el texto «Hola, vi el anuncio DG-A12» y la URL con UTM para cada anuncio; copia y código QR",
+    "roles": null
+   },
+   {
+    "code": "ADS-04",
+    "name": "Importaciones",
+    "desc": "Corridas diarias por cuenta con filas leídas y actualizadas, errores y botón para reimportar un rango",
+    "roles": null
+   },
+   {
+    "code": "ADS-05",
+    "name": "Resultados por anuncio",
+    "desc": "Inversión, leads, pedidos, clientes nuevos, cobrado, costo por lead, por pedido, por cliente nuevo y retorno, con filtros por plataforma, marca, campaña y fechas; baja a los pedidos",
+    "roles": null
+   },
+   {
+    "code": "ADS-06",
+    "name": "Embudo de atribución",
+    "desc": "Anuncio → leads → pedidos → cobros; lista de pedidos digitales sin atribución y corrección manual con motivo",
+    "roles": null
+   },
+   {
+    "code": "ADS-07",
+    "name": "Facturas de plataformas",
+    "desc": "Factura o recibo de Google, Meta o TikTok contra el gasto importado del período; diferencia, estado y envío a GAS como gasto",
+    "roles": null
+   },
+   {
+    "code": "ADS-08",
+    "name": "Creadores de contenido",
+    "desc": "Gastos de creadores (recibo por honorarios) por campaña y su peso en el costo de la campaña",
+    "roles": null
+   },
+   {
+    "code": "ADS-09",
+    "name": "Comparativo de plataformas",
+    "desc": "Google, Meta y TikTok lado a lado: inversión, ventas cobradas, retorno, inversión sobre ventas y porcentaje de leads por anuncios de clic a WhatsApp",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "TEL",
+  "name": "Telefonía (incluida y apagada)",
+  "title": "Telefonía con grabación (incluida y desactivada)",
+  "phase": 1,
+  "objective": "Don Guando decidió el 10/10/2026 incluir la central de llamadas grabadas en la Fase 1 **pero desactivada**: se activa más adelante por configuración, sin desarrollo adicional. El objetivo es cerrar el último canal por fuera del control de la empresa (las llamadas a los celulares de las vendedoras): todas las llamadas pasan por números de la empresa, se graban con aviso, se transcriben si se quiere",
+  "screens": [
+   {
+    "code": "TEL-01",
+    "name": "Lista de activación",
+    "desc": "Los 6 pasos (proveedor y números, desvío del operador, aviso grabado, usuarios de vendedoras, política firmada, encendido) con responsable, fecha y evidencia; pasa de SETUP a LIVE. Visible solo con el módulo encendido",
+    "roles": null
+   },
+   {
+    "code": "TEL-02",
+    "name": "Ajustes",
+    "desc": "Proveedor (FAKE o TWILIO) y su conector, grabación sí/no, transcripción sí/no, días de retención, texto y audio del aviso, reparto, tiempo de timbre, plazo para devolver llamadas y «solo llamar a clientes registrados»",
+    "roles": null
+   },
+   {
+    "code": "TEL-03",
+    "name": "Números y desvíos",
+    "desc": "Números de la central por marca o general, con menú o grupo de llamada y los celulares de la publicidad desviados",
+    "roles": null
+   },
+   {
+    "code": "TEL-04",
+    "name": "Menú de voz y horario",
+    "desc": "Saludo, opciones por marca (1 Don Guando, 2 Marca 2…), horario de atención y qué pasa fuera de horario (buzón o tarea de devolución)",
+    "roles": null
+   },
+   {
+    "code": "TEL-05",
+    "name": "Grupos de llamada",
+    "desc": "Vendedoras por marca con prioridad; estrategia por turno o todas a la vez",
+    "roles": null
+   },
+   {
+    "code": "TEL-06",
+    "name": "Teléfono en la app",
+    "desc": "Softphone en la computadora o el celular de la empresa; al sonar abre la ficha 360 del cliente o crea el lead",
+    "roles": null
+   },
+   {
+    "code": "TEL-07",
+    "name": "Llamar desde la ficha o el pedido",
+    "desc": "Botón «Llamar» (click-to-call) con el número de la marca; el cliente nunca ve el número personal",
+    "roles": null
+   },
+   {
+    "code": "TEL-08",
+    "name": "Historial de llamadas",
+    "desc": "Por cliente, pedido y vendedora: dirección, estado, espera, duración, grabación y pedido creado",
+    "roles": null
+   },
+   {
+    "code": "TEL-09",
+    "name": "Llamadas perdidas",
+    "desc": "Tareas de devolver la llamada con vencimiento y responsable; se cierran solas si el cliente vuelve a llamar y se le atiende",
+    "roles": null
+   },
+   {
+    "code": "TEL-10",
+    "name": "Grabación y transcripción",
+    "desc": "Reproductor con registro de acceso, texto de la transcripción y alertas encontradas",
+    "roles": null
+   },
+   {
+    "code": "TEL-11",
+    "name": "Panel de supervisión",
+    "desc": "En vivo: llamadas en curso, en espera y perdidas; del día: atendidas, tiempos y alertas por vendedora",
+    "roles": null
+   },
+   {
+    "code": "TEL-12",
+    "name": "Escuchas y retención",
+    "desc": "Bitácora de escuchas y descargas, grabaciones por vencer, retención legal y corridas de purga",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "TAB",
+  "name": "Tablero e indicadores",
+  "title": "Tablero e indicadores",
+  "phase": 1,
+  "objective": "Gerencia, ventas, la supervisora, delivery, almacén y marketing de Don Guando necesitan ver, cada uno en una pantalla, los números que deciden su día: pedidos y ventas cobradas, tiempo de respuesta y alertas de vendedoras, error de armado, costo por entrega, retorno de la publicidad, gastos. TAB es el motor común: un catálogo de indicadores con fórmula visible que cada módulo registra, metas con t",
+  "screens": [
+   {
+    "code": "TAB-01",
+    "name": "Tablero de gerencia",
+    "desc": "Ventas cobradas por marca y canal, pedidos, ticket promedio, costo por entrega, error de armado, retorno de la publicidad, costo de WhatsApp por pedido, gastos frente a meta y alertas de control confirmadas, con el semáforo de cada uno",
+    "roles": [
+     "ADMINISTRACION",
+     "CONTADORA"
+    ]
+   },
+   {
+    "code": "TAB-02",
+    "name": "Tablero de ventas",
+    "desc": "Pedidos y ventas por canal, número de WhatsApp, vendedora y franja; conversión de leads, clientes nuevos y recurrentes, recompra",
+    "roles": [
+     "SUPERVISORA_VENTAS",
+     "VENDEDORA",
+     "MARKETING",
+     "ADMINISTRACION",
+     "CAJERO"
+    ]
+   },
+   {
+    "code": "TAB-03",
+    "name": "Tablero de la supervisora",
+    "desc": "Chats sin responder, primera respuesta por vendedora, alertas abiertas y confirmadas, chats sin pedido, ventas cobradas por vendedora y, si TEL está activo, llamadas atendidas, perdidas y devoluciones a tiempo",
+    "roles": [
+     "SUPERVISORA_VENTAS"
+    ]
+   },
+   {
+    "code": "TAB-04",
+    "name": "Tablero de delivery",
+    "desc": "Entregas, a tiempo, no entregados, costo por entrega, por kg y por zona y modalidad, subsidio, descuadres de caja, vehículos y documentos por vencer",
+    "roles": [
+     "COORDINADOR_DELIVERY",
+     "ADMINISTRACION"
+    ]
+   },
+   {
+    "code": "TAB-05",
+    "name": "Tablero de almacén y preparación",
+    "desc": "Pedidos por preparar por franja, preparados por hora-persona, errores bloqueados y escapados, listos a tiempo, desviación de peso, más los indicadores de ALM",
+    "roles": [
+     "ALMACENERO",
+     "PREPARADOR",
+     "JEFE_PRODUCCION",
+     "CALIDAD"
+    ]
+   },
+   {
+    "code": "TAB-06",
+    "name": "Tablero de marketing",
+    "desc": "Inversión por plataforma, costo por lead, por pedido y por cliente nuevo, retorno, leads por anuncios de clic a WhatsApp, costo de creadores y costo de WhatsApp",
+    "roles": [
+     "MARKETING"
+    ]
+   },
+   {
+    "code": "TAB-07",
+    "name": "Catálogo de indicadores",
+    "desc": "Todos los indicadores registrados con fórmula, unidad, sentido, frecuencia, dimensiones, módulo, fuente y pantalla de detalle; activar o desactivar",
+    "roles": null
+   },
+   {
+    "code": "TAB-08",
+    "name": "Metas y semáforo",
+    "desc": "Meta por indicador, marca y local con vigencia y tolerancia; vista previa del semáforo",
+    "roles": null
+   },
+   {
+    "code": "TAB-09",
+    "name": "Cierre de indicadores",
+    "desc": "Meses congelados con su corrida vigente; congelar un mes terminado o recalcularlo con motivo",
+    "roles": null
+   },
+   {
+    "code": "TAB-10",
+    "name": "Detalle y exportación",
+    "desc": "Bajada al detalle de cualquier valor (por ejemplo, del costo por entrega a las rutas y costos que lo componen) y exportación del tablero o del detalle a Excel y PDF",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "CAJ",
+  "name": "Cajas, cobros y conciliación",
+  "title": "Cajas, cobros y conciliación",
+  "phase": 1,
+  "objective": "Saber en todo momento cuánto se cobró, dónde está el dinero y qué falta conciliar. Don Guando cobra por Yape, Plin, transferencia, Mercado Pago en la web, POS de tarjeta Visa en el mostrador y efectivo contra entrega. Hoy los repartidores rinden en un cuaderno y nadie cruza los abonos de Mercado Pago y del adquirente con sus comisiones. CAJ registra cada cobro con su número de operación, lo aplica",
+  "screens": [
+   {
+    "code": "CAJ-01",
+    "name": "Cuentas",
+    "desc": "Cuentas por tipo con saldo, local, marca, titular, comisión y días de abono",
+    "roles": null
+   },
+   {
+    "code": "CAJ-02",
+    "name": "Registrar cobro",
+    "desc": "Medio, cuenta, monto, fecha y número de operación; foto del voucher o captura de Yape; aplicación al pedido o comprobante",
+    "roles": null
+   },
+   {
+    "code": "CAJ-03",
+    "name": "Cobros",
+    "desc": "Lista por fecha, medio, cuenta, marca, vendedora, repartidor y estado de conciliación; reverso con motivo",
+    "roles": null
+   },
+   {
+    "code": "CAJ-04",
+    "name": "Aplicar cobro",
+    "desc": "Reparte un cobro entre pedidos y comprobantes del cliente; muestra lo que queda sin aplicar",
+    "roles": null
+   },
+   {
+    "code": "CAJ-05",
+    "name": "Mensaje de pago",
+    "desc": "Arma el mensaje para el cliente con el monto, el enlace de Mercado Pago o el QR oficial de Yape o Plin de la marca; la vendedora no puede editar los datos de la cuenta",
+    "roles": null
+   },
+   {
+    "code": "CAJ-06",
+    "name": "Caja del repartidor",
+    "desc": "Cobros contra entrega del día por repartidor, entregados y pendientes",
+    "roles": null
+   },
+   {
+    "code": "CAJ-07",
+    "name": "Liquidación del repartidor",
+    "desc": "Al volver de ruta: efectivo esperado, efectivo entregado, diferencia, motivo y quién recibe; traspaso automático a la caja receptora",
+    "roles": null
+   },
+   {
+    "code": "CAJ-08",
+    "name": "Abonos de pasarela y adquirente",
+    "desc": "Registro del abono en el banco (bruto, comisión, IGV de la comisión, neto) y selección de los cobros que incluye; cuadre automático",
+    "roles": null
+   },
+   {
+    "code": "CAJ-09",
+    "name": "Conciliación pendiente",
+    "desc": "Cobros digitales sin conciliar por antigüedad, con alerta a los caj_reconciliation_alert_days días",
+    "roles": null
+   },
+   {
+    "code": "CAJ-10",
+    "name": "Saldos a favor",
+    "desc": "Clientes con saldo a favor, movimientos y uso en un pedido o devolución",
+    "roles": null
+   },
+   {
+    "code": "CAJ-11",
+    "name": "Cuentas por cobrar",
+    "desc": "Comprobantes con saldo por cliente y antigüedad (0–30, 31–60, más de 60 días), con vencimiento",
+    "roles": null
+   },
+   {
+    "code": "CAJ-12",
+    "name": "Traslados entre cuentas",
+    "desc": "Depósitos y fondos entre cuentas con referencia",
+    "roles": null
+   },
+   {
+    "code": "CAJ-13",
+    "name": "Cierre diario de caja",
+    "desc": "Resumen del día por cuenta y medio: cobrado, trasladado, conciliado y diferencias",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "FAC",
+  "name": "Comprobantes y guías",
+  "title": "Comprobantes electrónicos y guía de remisión",
+  "phase": 1,
+  "objective": "Emitir con el único RUC de Don Guando las facturas, boletas, notas de crédito y débito y guías de remisión de las 5 marcas, cada una con su logo y, si se desea, su serie. El envío al OSE o PSE es asíncrono y con reintentos, así el mostrador y el despacho no se detienen si SUNAT tarda. El peso variable se resuelve antes de facturar (el comprobante sale con el peso real) y, si hay devolución o difer",
+  "screens": [
+   {
+    "code": "FAC-01",
+    "name": "Comprobantes",
+    "desc": "Lista por tipo, serie, marca, local, cliente, fecha y estado SUNAT; totales; reenvío y descarga de XML, CDR y PDF",
+    "roles": null
+   },
+   {
+    "code": "FAC-02",
+    "name": "Emitir desde el pedido",
+    "desc": "Toma el pedido entregado o listo con peso real, sugiere factura o boleta según el cliente, muestra la serie de la marca y el local, y emite",
+    "roles": null
+   },
+   {
+    "code": "FAC-03",
+    "name": "Emisión directa",
+    "desc": "Comprobante sin pedido (venta de servicio, ajuste) con productos del catálogo",
+    "roles": null
+   },
+   {
+    "code": "FAC-04",
+    "name": "Detalle del comprobante",
+    "desc": "Cabecera, líneas, IGV, adquirente congelado, pedido, cobros aplicados, intentos de envío y respuestas",
+    "roles": null
+   },
+   {
+    "code": "FAC-05",
+    "name": "Nota de crédito",
+    "desc": "Contra una factura o boleta: motivo del catálogo 09 (anulación, devolución total o por ítem, disminución de valor por peso, descuento), líneas y montos; reingreso de stock si es devolución",
+    "roles": null
+   },
+   {
+    "code": "FAC-06",
+    "name": "Nota de débito",
+    "desc": "Contra una factura o boleta: motivo del catálogo 10 (intereses, aumento de valor, penalidades)",
+    "roles": null
+   },
+   {
+    "code": "FAC-07",
+    "name": "Cola de envío",
+    "desc": "Comprobantes y guías pendientes, con error o en reintento; próximo intento; reenvío manual",
+    "roles": null
+   },
+   {
+    "code": "FAC-08",
+    "name": "Resumen diario y bajas",
+    "desc": "Resúmenes de boletas y comunicaciones de baja con su ticket y estado",
+    "roles": null
+   },
+   {
+    "code": "FAC-09",
+    "name": "Guía de remisión",
+    "desc": "Emisión con motivo de traslado (catálogo 20), modalidad, transportista o vehículo y conductor, partida, llegada, peso bruto, bultos y líneas; desde el pedido, la transferencia o directa",
+    "roles": null
+   },
+   {
+    "code": "FAC-10",
+    "name": "Series",
+    "desc": "Series por tipo, marca y local, con correlativo siguiente y estado",
+    "roles": null
+   },
+   {
+    "code": "FAC-11",
+    "name": "Plantillas impresas",
+    "desc": "Diseño por marca: logo, colores, pie legal y leyendas; vista previa A4 y 80 mm",
+    "roles": null
+   },
+   {
+    "code": "FAC-12",
+    "name": "Comprobantes del período",
+    "desc": "Resumen por tipo, marca y estado para la contadora; exportación a Excel",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "GAS",
+  "name": "Gastos",
+  "title": "Gastos con comprobante, centro de costo, aprobaciones y caja chica",
+  "phase": 1,
+  "objective": "En Don Guando los gastos no tienen dueño, categoría ni centro de costo, y la contadora recibe papeles sueltos. GAS registra cada gasto desde el celular con la foto del comprobante, proveedor, categoría y centro de costo (local, área, marca y canal), lo hace aprobar por monto, maneja la caja chica de cada local con su rendición, marca para la contadora el gasto sin comprobante válido y alimenta el ",
+  "screens": [
+   {
+    "code": "GAS-01",
+    "name": "Registrar gasto",
+    "desc": "Desde el celular: foto del comprobante, proveedor por RUC, tipo y número, fecha, montos, categoría y centro de costo; pide vehículo, ruta, campaña o trabajador según la categoría",
+    "roles": null
+   },
+   {
+    "code": "GAS-02",
+    "name": "Mis gastos",
+    "desc": "Gastos propios con estado, observaciones y rechazos",
+    "roles": null
+   },
+   {
+    "code": "GAS-03",
+    "name": "Bandeja de aprobación",
+    "desc": "Gastos enviados que el usuario puede aprobar según su nivel; aprobar o rechazar con comentario",
+    "roles": null
+   },
+   {
+    "code": "GAS-04",
+    "name": "Gastos por pagar y pagados",
+    "desc": "Gastos aprobados pendientes de pago y su pago desde CAJ",
+    "roles": null
+   },
+   {
+    "code": "GAS-05",
+    "name": "Categorías",
+    "desc": "Categorías con grupo, área por defecto, tipo de costo de reparto y si exigen vehículo o campaña",
+    "roles": null
+   },
+   {
+    "code": "GAS-06",
+    "name": "Reglas de aprobación",
+    "desc": "Montos por nivel y permiso que aprueba, por categoría o local si se necesita",
+    "roles": null
+   },
+   {
+    "code": "GAS-07",
+    "name": "Caja chica",
+    "desc": "Fondos por local con responsable, monto del fondo y máximo por gasto; saldo disponible",
+    "roles": null
+   },
+   {
+    "code": "GAS-08",
+    "name": "Rendición de caja chica",
+    "desc": "Gastos del período del fondo, total, reposición pedida, envío y aprobación",
+    "roles": null
+   },
+   {
+    "code": "GAS-09",
+    "name": "Bandeja de la contadora",
+    "desc": "Gastos sin comprobante válido u observados, con su foto, para clasificar o pedir corrección",
+    "roles": null
+   },
+   {
+    "code": "GAS-10",
+    "name": "Reparto entre centros de costo",
+    "desc": "Porcentajes y montos por centro de costo, marca y canal de un gasto",
+    "roles": null
+   },
+   {
+    "code": "GAS-11",
+    "name": "Reporte de gastos",
+    "desc": "Por mes, categoría, centro de costo, local, marca y canal; exportación",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "ALM",
+  "name": "Almacenes y lotes",
+  "title": "Almacenes, lotes, FEFO y movimientos de inventario",
+  "phase": 1,
+  "objective": "Un solo stock por lote y vencimiento para el mostrador, la web, WhatsApp y los pedidos B2B. Don Guando tiene 2 almacenes principales con cámaras y congeladoras, un mostrador, stock en tránsito entre sus 2 locales y en los vehículos. Hoy no se sabe qué lote salió en cada pedido ni qué vence esta semana. ALM recibe con control de calidad mínimo (temperatura, peso y aspecto; el lote nace en cuarenten",
+  "screens": [
+   {
+    "code": "ALM-01",
+    "name": "Almacenes y ubicaciones",
+    "desc": "Árbol por local: almacén, cámaras, congeladoras, mostrador, tránsito y vehículos; tipo, rango de temperatura, si vende y prioridad de salida",
+    "roles": null
+   },
+   {
+    "code": "ALM-02",
+    "name": "Stock",
+    "desc": "Saldo por almacén, variante y lote con disponible, reservado, peso, costo promedio y vencimiento; filtros por marca, línea y estado del lote",
+    "roles": null
+   },
+   {
+    "code": "ALM-03",
+    "name": "Kardex",
+    "desc": "Movimientos por variante, lote o almacén con tipo, origen (pedido, recepción, transferencia, conteo, merma), cantidad, peso, costo y usuario",
+    "roles": null
+   },
+   {
+    "code": "ALM-04",
+    "name": "Recepción",
+    "desc": "Documento de recepción: origen, proveedor o granja, comprobante del proveedor, temperatura del vehículo, líneas con cantidad, peso, vencimiento, temperatura del producto, aspecto y resultado del control",
+    "roles": null
+   },
+   {
+    "code": "ALM-05",
+    "name": "Lotes",
+    "desc": "Lista de lotes con estado (cuarentena, liberado, bloqueado, rechazado, retirado), vencimiento, stock por almacén y pedidos que lo usaron",
+    "roles": null
+   },
+   {
+    "code": "ALM-06",
+    "name": "Liberar o bloquear lote",
+    "desc": "Cambio de estado con motivo; historial de cambios del lote",
+    "roles": null
+   },
+   {
+    "code": "ALM-07",
+    "name": "Transferencias",
+    "desc": "Solicitud entre almacenes o locales, despacho con GRE (cuando cambia de local), recepción con lo recibido y diferencias con motivo",
+    "roles": null
+   },
+   {
+    "code": "ALM-08",
+    "name": "Conteos",
+    "desc": "Conteo ciego por almacén o ubicación desde el celular con lector; comparación con el sistema; aprobación y ajuste",
+    "roles": null
+   },
+   {
+    "code": "ALM-09",
+    "name": "Mermas",
+    "desc": "Registro con motivo, cantidad, peso, foto y costo estimado; aprobación sobre el umbral",
+    "roles": null
+   },
+   {
+    "code": "ALM-10",
+    "name": "Reservas",
+    "desc": "Reservas activas por pedido, lote y almacén; liberación manual con motivo (permiso)",
+    "roles": null
+   },
+   {
+    "code": "ALM-11",
+    "name": "Alertas de vencimiento",
+    "desc": "Lotes con stock que vencen en 3 y 7 días y vencidos, con valor en soles y acción sugerida (vender primero, promoción, merma)",
+    "roles": null
+   },
+   {
+    "code": "ALM-12",
+    "name": "Stock en tránsito",
+    "desc": "Transferencias despachadas sin recibir, con antigüedad",
+    "roles": null
+   },
+   {
+    "code": "ALM-13",
+    "name": "Motivos de merma",
+    "desc": "Catálogo con foto obligatoria, umbral de aprobación y si cuenta como vencido",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "PRE",
+  "name": "Preparación de pedidos",
+  "title": "Preparación con escaneo, bolsas numeradas y carga verificada",
+  "phase": 1,
+  "objective": "Hoy en Don Guando varias personas arman bolsas sin verificar contra el pedido y los pedidos se cruzan: un cuy entero va donde pidieron pollo, la bolsa 2 de un cliente llega a otro. PRE organiza los ~1000 pedidos al mes en olas por ruta o franja, obliga a escanear cada paquete contra el pedido (bloquea producto, cliente o lote equivocado), registra el peso real que define el precio final, numera la",
+  "screens": [
+   {
+    "code": "PRE-01",
+    "name": "Planificador de olas",
+    "desc": "Pedidos confirmados por fecha, franja, zona y ruta; crea la ola y la libera (los pedidos pasan a EN PREPARACIÓN)",
+    "roles": null
+   },
+   {
+    "code": "PRE-02",
+    "name": "Lista consolidada",
+    "desc": "Por producto y corte: cantidad, kg estimados, lote sugerido por FEFO y ubicación (cámara o congeladora)",
+    "roles": null
+   },
+   {
+    "code": "PRE-03",
+    "name": "Lista por pedido",
+    "desc": "Ticket de preparación del pedido: líneas, cortes, notas, número de bolsas sugerido y parada",
+    "roles": null
+   },
+   {
+    "code": "PRE-04",
+    "name": "Armado con escaneo",
+    "desc": "Pantalla de celular: escanear cada paquete; verde si corresponde, rojo con sonido y motivo si no; avance por línea",
+    "roles": [
+     "PREPARADOR",
+     "ALMACENERO"
+    ]
+   },
+   {
+    "code": "PRE-05",
+    "name": "Pesado",
+    "desc": "Peso de la etiqueta de balanza o digitado; diferencia frente al estimado y aviso cuando supera la tolerancia (PED-07)",
+    "roles": null
+   },
+   {
+    "code": "PRE-06",
+    "name": "Bolsas y etiquetas",
+    "desc": "Número de bolsas o cajas térmicas e impresión de etiquetas con pedido, número de bolsa, total, ruta y parada",
+    "roles": null
+   },
+   {
+    "code": "PRE-07",
+    "name": "Verificación",
+    "desc": "Otra persona revisa el pedido armado y toma la foto obligatoria; marca VERIFIED",
+    "roles": [
+     "PREPARADOR",
+     "ALMACENERO"
+    ]
+   },
+   {
+    "code": "PRE-08",
+    "name": "Carga del vehículo",
+    "desc": "Escaneo de cada bolsa al subirla: ruta correcta y orden inverso de paradas; avance de la carga por ruta",
+    "roles": [
+     "PREPARADOR",
+     "ALMACENERO",
+     "REPARTIDOR",
+     "COORDINADOR_DELIVERY"
+    ]
+   },
+   {
+    "code": "PRE-09",
+    "name": "Faltantes",
+    "desc": "Líneas sin stock o incompletas: motivo y aprobación de la supervisora; aviso a la vendedora para hablar con el cliente",
+    "roles": null
+   },
+   {
+    "code": "PRE-10",
+    "name": "Errores de armado",
+    "desc": "Registro con tipo, etapa en que se detectó, responsable, costo y acción correctiva",
+    "roles": null
+   },
+   {
+    "code": "PRE-11",
+    "name": "Tablero de preparación",
+    "desc": "Olas del día, avance por pedido y preparador, pedidos atrasados respecto de su franja",
+    "roles": null
+   },
+   {
+    "code": "PRE-12",
+    "name": "Autorizaciones FEFO",
+    "desc": "Bandeja de lecturas bloqueadas por FEFO para que la supervisora autorice o pida otro lote",
+    "roles": [
+     "PREPARADOR",
+     "ALMACENERO",
+     "COORDINADOR_DELIVERY",
+     "SUPERVISORA_VENTAS",
+     "REPARTIDOR"
+    ]
+   }
+  ]
+ },
+ {
+  "code": "CAT",
+  "name": "Catálogo y listas de precio",
+  "title": "Catálogo, cortes, peso variable y listas de precio",
+  "phase": 1,
+  "objective": "Que todo lo que Don Guando vende exista una sola vez, con su marca, su corte y su precio vigente por canal. Hoy la vendedora escribe «cuy entero grande» o «2 kg de conejo deshuesado» a mano, y el precio depende de quién atiende. Con CAT, cada presentación tiene su SKU, su modo de venta (unidad, kg o unidad de peso variable) y su tolerancia de peso; el pedido solo admite productos del catálogo y el",
+  "screens": [
+   {
+    "code": "CAT-01",
+    "name": "Productos",
+    "desc": "Lista filtrable por marca, línea, categoría, estado, almacenamiento (refrigerado, congelado, ambiente) y publicación web. Muestra variantes, precio vigente del canal WhatsApp y alerta de registro sanitario",
+    "roles": null
+   },
+   {
+    "code": "CAT-02",
+    "name": "Ficha del producto",
+    "desc": "Marca, categoría, tipo (bien, servicio, combo, insumo, empaque), origen (reventa o producido), almacenamiento, vida útil en días, control por lote, afectación del IGV (catálogo 07), código de producto SUNAT y si admite descuento",
+    "roles": null
+   },
+   {
+    "code": "CAT-03",
+    "name": "Variantes y cortes",
+    "desc": "Alta de SKU por corte: tipo de corte, unidad, modo de venta, peso nominal, mínimo y máximo, tolerancia, código de barras, PLU de balanza, cantidad mínima y múltiplo de pedido",
+    "roles": null
+   },
+   {
+    "code": "CAT-04",
+    "name": "Tipos de corte",
+    "desc": "Catálogo editable de cortes con las líneas a las que aplican (cuy: entero, sin cabeza y sin patas, en mitades; conejo: entero, deshuesado; aves: entera, sin piel, presas)",
+    "roles": null
+   },
+   {
+    "code": "CAT-05",
+    "name": "Listas de precio",
+    "desc": "Lista por marca, canal y tipo de cliente; incluye IGV sí o no; vigencia desde y hasta; prioridad. Copiar lista, programar una nueva vigencia y ver las que aplican a un caso",
+    "roles": null
+   },
+   {
+    "code": "CAT-06",
+    "name": "Precios de la lista",
+    "desc": "Grilla variante × precio con base (unidad o kg), cantidad mínima y vigencia propia. Importación desde CSV con validación previa y vista de los cambios frente al precio actual",
+    "roles": null
+   },
+   {
+    "code": "CAT-07",
+    "name": "Simulador de precio",
+    "desc": "Dado canal, marca, tipo de cliente, fecha y cantidad, muestra la lista y el precio que el sistema elegiría y por qué (RN-CAT-05)",
+    "roles": null
+   },
+   {
+    "code": "CAT-08",
+    "name": "Combos",
+    "desc": "Componentes del combo con cantidad, peso estimado y porcentaje del precio; validación de que la suma sea 100 % y de que haya stock de cada componente",
+    "roles": null
+   },
+   {
+    "code": "CAT-09",
+    "name": "Publicación web",
+    "desc": "Productos y variantes marcados para la web por tienda, con título, descripción, imagen y estado de sincronización (lo envía WEB)",
+    "roles": null
+   },
+   {
+    "code": "CAT-10",
+    "name": "Registros sanitarios",
+    "desc": "Productos con autoridad, número de registro y vencimiento; semáforo a 90, 30 y 0 días; adjunto del certificado",
+    "roles": null
+   },
+   {
+    "code": "CAT-11",
+    "name": "Etiquetas de balanza",
+    "desc": "Configuración del formato EAN-13 prefijo 2 (posición del PLU y del valor, peso en gramos o precio en céntimos) y prueba de lectura de una etiqueta",
+    "roles": null
+   },
+   {
+    "code": "CAT-12",
+    "name": "Historial de precios",
+    "desc": "Cambios de precio por variante y lista con usuario, fecha y precio anterior (desde la auditoría)",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "CLI",
+  "name": "Clientes y zonas de reparto",
+  "title": "Clientes, direcciones con pin y zonas de reparto",
+  "phase": 1,
+  "objective": "Que cada cliente de Don Guando exista una sola vez para las 5 marcas, con su celular en formato internacional, su documento validado y sus direcciones con **pin en el mapa y referencia**. Hoy la dirección se pierde en el chat y el repartidor llama para preguntar; el sistema exige el pin y la referencia la primera vez y los reutiliza en la siguiente compra. La zona de reparto y su tarifa salen sola",
+  "screens": [
+   {
+    "code": "CLI-01",
+    "name": "Clientes",
+    "desc": "Búsqueda por celular, nombre, documento o correo (el celular es la búsqueda por defecto). Filtros por tipo, marca de su última compra, zona, estado y vendedora asignada",
+    "roles": null
+   },
+   {
+    "code": "CLI-02",
+    "name": "Ficha del cliente",
+    "desc": "Datos, documento validado, teléfonos, consentimiento, vendedora asignada, saldo a favor (CAJ), cuentas por cobrar, pedidos por marca y canal, direcciones y alertas (bloqueado, duplicado posible)",
+    "roles": null
+   },
+   {
+    "code": "CLI-03",
+    "name": "Alta rápida desde el pedido o el chat",
+    "desc": "Celular, nombre y tipo; si el celular ya existe, abre el cliente en vez de crear otro. Sirve para la vendedora y para el mostrador",
+    "roles": null
+   },
+   {
+    "code": "CLI-04",
+    "name": "Validar documento",
+    "desc": "Consulta DNI o RUC con el proveedor; trae nombre o razón social, estado y condición del contribuyente y dirección fiscal; guarda fuente y fecha",
+    "roles": null
+   },
+   {
+    "code": "CLI-05",
+    "name": "Direcciones",
+    "desc": "Lista de direcciones del cliente con su zona, predeterminada y última vez usada",
+    "roles": null
+   },
+   {
+    "code": "CLI-06",
+    "name": "Mapa de la dirección",
+    "desc": "Pin arrastrable sobre el mapa, búsqueda por texto (geocodificación), «usar mi ubicación» para el enlace que se envía al cliente, distrito, referencia obligatoria y contacto que recibe",
+    "roles": null
+   },
+   {
+    "code": "CLI-07",
+    "name": "Enlace de ubicación para el cliente",
+    "desc": "Genera un enlace de un solo uso que el cliente abre en su celular para marcar su pin y escribir la referencia; el resultado llega a la ficha",
+    "roles": null
+   },
+   {
+    "code": "CLI-08",
+    "name": "Zonas de reparto",
+    "desc": "Polígonos dibujados en el mapa o lista de distritos, local que atiende, tarifa, pedido mínimo, gratis desde unidades, kg o monto, prioridad y zona de provincia",
+    "roles": null
+   },
+   {
+    "code": "CLI-09",
+    "name": "Simulador de zona y tarifa",
+    "desc": "Dado un pin o un distrito y un carrito, muestra la zona, la tarifa y si aplica el delivery gratis",
+    "roles": null
+   },
+   {
+    "code": "CLI-10",
+    "name": "Duplicados",
+    "desc": "Pares de clientes posiblemente duplicados con el motivo y el puntaje; fusionar o descartar",
+    "roles": null
+   },
+   {
+    "code": "CLI-11",
+    "name": "Fusión de clientes",
+    "desc": "Elige el sobreviviente, muestra lo que se moverá (pedidos, direcciones, saldo, conversaciones) y registra el motivo",
+    "roles": null
+   },
+   {
+    "code": "CLI-12",
+    "name": "Importar clientes",
+    "desc": "Carga desde CSV o Excel (agenda de WhatsApp, base de la web) con normalización de celulares a E.164 y reporte de duplicados antes de confirmar",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "CRM",
+  "name": "Bandeja omnicanal",
+  "title": "Bandeja omnicanal, leads y control de vendedoras",
+  "phase": 1,
+  "objective": "Don Guando recibe la mayoría de sus ~1000 pedidos al mes por WhatsApp (6 números: 2 de Don Guando y 1 por marca), Messenger, Instagram y TikTok, casi siempre desde anuncios. Hoy las vendedoras se conectan escaneando el QR: nadie asigna los chats, no se miden tiempos, si una vendedora se va la conversación se va con ella y se detectó a una vendedora coordinando productos que la empresa no vende. CR",
+  "screens": [
+   {
+    "code": "CRM-01",
+    "name": "Bandeja",
+    "desc": "Lista de conversaciones de los números y cuentas donde la usuaria es miembro, con filtros por número, marca, red, estado, asignada, «sin responder», «ventana por vencer» y «llegó por anuncio». Cada fila muestra la red, el número, el tiempo sin respuesta y el contador de la ventana (24 h, 48 h o 72 h gratis)",
+    "roles": null
+   },
+   {
+    "code": "CRM-02",
+    "name": "Conversación",
+    "desc": "Hilo con texto, fotos, audios con su transcripción, documentos y ubicación. Barra para responder con respuestas rápidas, catálogo, plantillas y adjuntos. Indica si el próximo mensaje se cobra y cuánto. Botón «Crear pedido» y panel lateral con la ficha del cliente",
+    "roles": null
+   },
+   {
+    "code": "CRM-03",
+    "name": "Crear pedido desde el chat",
+    "desc": "Abre el pedido de PED en borrador con cliente, celular, canal, número de WhatsApp, marca, vendedora y anuncio ya llenos, y la última dirección guardada. Al guardar envía el resumen completo en un solo mensaje con el enlace de pago de la empresa",
+    "roles": null
+   },
+   {
+    "code": "CRM-04",
+    "name": "Ficha 360 del cliente",
+    "desc": "Datos, direcciones con pin, pedidos y saldos, chats de todos los números y redes, llamadas (si TEL está activo), encuestas y reclamos, consentimientos, perfil de recompra y valor de vida",
+    "roles": null
+   },
+   {
+    "code": "CRM-05",
+    "name": "Leads",
+    "desc": "Lista y embudo NEW → CONTACTED → QUALIFIED → WON o LOST/DISCARDED por marca, red, número, anuncio y vendedora, con motivo de pérdida",
+    "roles": null
+   },
+   {
+    "code": "CRM-06",
+    "name": "Supervisión en vivo",
+    "desc": "Para la supervisora: chats abiertos por vendedora, cola sin asignar, sin responder más de 15 min, tiempos de primera respuesta del día, vendedoras en línea; reasignar o tomar un chat",
+    "roles": null
+   },
+   {
+    "code": "CRM-07",
+    "name": "Números y cuentas",
+    "desc": "Conectar cada número de WhatsApp (coexistencia con BSP) o cuenta de red una sola vez; marca, modo de conexión, cuota de respuestas gratis, saludo automático y aviso de registro; estado de la conexión",
+    "roles": null
+   },
+   {
+    "code": "CRM-08",
+    "name": "Equipos y turnos",
+    "desc": "Miembros por número (vendedora o supervisora), turnos por día, tope de chats abiertos y modo de asignación (turno rotativo, menos chats o manual)",
+    "roles": null
+   },
+   {
+    "code": "CRM-09",
+    "name": "Plantillas",
+    "desc": "Plantillas de utilidad y marketing por marca, con variables, propósito, estado de aprobación en Meta y costo por envío",
+    "roles": null
+   },
+   {
+    "code": "CRM-10",
+    "name": "Respuestas rápidas y catálogo",
+    "desc": "Atajos por marca o personales (/delivery, /pago, /peso) y catálogo de WhatsApp sincronizado con CAT (solo productos activos)",
+    "roles": null
+   },
+   {
+    "code": "CRM-11",
+    "name": "Costo de WhatsApp",
+    "desc": "Costo del mes por número, marca, vendedora y pedido; respuestas gratis usadas de las 1000 por número; mensajes gratis por ventana de anuncio; proyección del mes",
+    "roles": null
+   },
+   {
+    "code": "CRM-12",
+    "name": "Alertas de control",
+    "desc": "Alertas abiertas por vendedora, regla y gravedad, con el extracto y el enlace al mensaje o la llamada; revisar, descartar o confirmar con nota",
+    "roles": null
+   },
+   {
+    "code": "CRM-13",
+    "name": "Reglas e identificadores oficiales",
+    "desc": "Frases de alerta, términos del rubro fuera del catálogo, patrones de celulares y cuentas, y lista de números, cuentas, Yape y Plin de la empresa",
+    "roles": null
+   },
+   {
+    "code": "CRM-14",
+    "name": "Revisión por muestreo",
+    "desc": "Muestra semanal de conversaciones cerradas sin pedido por vendedora; resultado OK, observado o incidente con nota",
+    "roles": null
+   },
+   {
+    "code": "CRM-15",
+    "name": "Recompra",
+    "desc": "Clientes por avisar, en riesgo y perdidos por marca, con su frecuencia y la tarea de recompra",
+    "roles": null
+   },
+   {
+    "code": "CRM-16",
+    "name": "Encuesta posentrega",
+    "desc": "Resultados por marca y vendedora; respuestas «no recibí lo que pedí» o «compré algo que no está en la web» resaltadas",
+    "roles": null
+   },
+   {
+    "code": "CRM-17",
+    "name": "Mis tareas",
+    "desc": "Tareas de la vendedora: devolver llamada, recompra, seguimiento de encuesta, chat sin responder; con vencimiento",
+    "roles": null
+   },
+   {
+    "code": "CRM-18",
+    "name": "Consentimientos y avisos",
+    "desc": "Historial por cliente de aviso de registro, tratamiento de datos, marketing y bajas; textos de los avisos por número",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "PED",
+  "name": "Pedidos",
+  "title": "Pedidos de todos los canales",
+  "phase": 1,
+  "objective": "Que ninguno de los ~1000 pedidos al mes se pierda ni se confunda. Hoy el pedido se anota libre en WhatsApp o en papel y se olvida la dirección, la franja o el comprobante. En PED el pedido nace en borrador desde cualquier canal (web, 6 números de WhatsApp, TikTok, Facebook, Instagram, teléfono, mostrador, B2B, consignación) y **no se confirma sin sus datos obligatorios**. El precio final se calcul",
+  "screens": [
+   {
+    "code": "PED-01",
+    "name": "Pedidos",
+    "desc": "Lista por estado, fecha de entrega, franja, marca, canal, zona, vendedora y local; contadores por estado; resalta pedidos con datos faltantes, aviso de peso pendiente y franja llena",
+    "roles": null
+   },
+   {
+    "code": "PED-02",
+    "name": "Nuevo pedido",
+    "desc": "Formulario de una pantalla, pensado para el celular: cliente (búsqueda por celular), marca, canal, entrega, dirección con mapa, fecha y franja, productos, pago, comprobante y notas. Muestra en vivo los datos que faltan",
+    "roles": null
+   },
+   {
+    "code": "PED-03",
+    "name": "Detalle del pedido",
+    "desc": "Datos, líneas con peso estimado y real, totales estimado y final, pagos aplicados, comprobantes, guía, historial de estados, reprogramaciones y avisos al cliente",
+    "roles": null
+   },
+   {
+    "code": "PED-04",
+    "name": "Selector de productos",
+    "desc": "Búsqueda por nombre, SKU o código de barras dentro de la marca del pedido; muestra el corte, el modo de venta, el precio vigente del canal y el stock disponible. No permite texto libre",
+    "roles": null
+   },
+   {
+    "code": "PED-05",
+    "name": "Confirmación con el cliente",
+    "desc": "Resumen listo para enviar por WhatsApp (plantilla de utilidad de CRM) o leer por teléfono; registra cuándo y por qué canal confirmó el cliente",
+    "roles": null
+   },
+   {
+    "code": "PED-06",
+    "name": "Franjas de entrega",
+    "desc": "Calendario de franjas por local y zona con cupo, ocupación y hora de corte",
+    "roles": null
+   },
+   {
+    "code": "PED-07",
+    "name": "Diferencia de peso",
+    "desc": "Pedidos pesados con diferencia sobre la tolerancia: estimado frente a real, mensaje sugerido al cliente (dentro de la ventana de servicio del chat o por teléfono; una tercera plantilla de utilidad exige crm.template.send_extra, RN-CRM-07), registro de envío y respuesta",
+    "roles": null
+   },
+   {
+    "code": "PED-08",
+    "name": "Reprogramar",
+    "desc": "Nueva fecha y franja con motivo; muestra cuántas veces se reprogramó",
+    "roles": null
+   },
+   {
+    "code": "PED-09",
+    "name": "Cancelar o registrar no entrega",
+    "desc": "Motivo del catálogo y nota cuando el motivo la exige; libera reservas",
+    "roles": null
+   },
+   {
+    "code": "PED-10",
+    "name": "Aprobación de descuentos",
+    "desc": "Bandeja de solicitudes de descuento sobre el límite del rol: pedido, vendedora, porcentaje, monto y motivo; aprobar o rechazar",
+    "roles": null
+   },
+   {
+    "code": "PED-11",
+    "name": "Pedidos de provincia",
+    "desc": "Pedidos con envío por agencia: agencia, destino, embalaje térmico, guía de remisión y número de seguimiento",
+    "roles": null
+   },
+   {
+    "code": "PED-12",
+    "name": "Saldo del pedido",
+    "desc": "Total final frente a pagado: saldo a favor del cliente, devolución o cobro contra entrega, con la decisión registrada",
+    "roles": null
+   },
+   {
+    "code": "PED-13",
+    "name": "Motivos y límites",
+    "desc": "Catálogo de motivos de cancelación y no entrega; límites de descuento por rol y marca",
+    "roles": null
+   },
+   {
+    "code": "PED-14",
+    "name": "Tablero del día",
+    "desc": "Pedidos de hoy por franja y estado, pedidos confirmados sin preparar a la hora de corte y pedidos en ruta",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "POS",
+  "name": "Mostrador",
+  "title": "Mostrador",
+  "phase": 1,
+  "objective": "Abrir el mostrador del local de Don Guando sin crear un segundo inventario ni una segunda caja aparte. La cajera vende por peso con la balanza (hoy manual: digita el peso y el sistema lo valida; mañana balanza conectada o etiqueta con el peso en el código de barras), emite boleta o factura al instante, cobra con efectivo, POS de tarjeta Visa, Yape o Plin (también mezclados) y cierra el turno con a",
+  "screens": [
+   {
+    "code": "POS-01",
+    "name": "Abrir turno",
+    "desc": "Elige la caja, cuenta el fondo inicial por denominación y abre el turno; bloquea si la caja o la cajera ya tienen un turno abierto",
+    "roles": null
+   },
+   {
+    "code": "POS-02",
+    "name": "Venta",
+    "desc": "Pantalla táctil: buscador, lector, accesos rápidos por línea (cuy, conejo, aves, embutidos), carrito con peso y precio por kg, cliente opcional y total",
+    "roles": null
+   },
+   {
+    "code": "POS-03",
+    "name": "Ingreso de peso",
+    "desc": "Teclado numérico para el peso en kg con 3 decimales; muestra el rango aceptado de la variante; con balanza conectada, toma el peso estable; con etiqueta, lo lee del código",
+    "roles": null
+   },
+   {
+    "code": "POS-04",
+    "name": "Cobro",
+    "desc": "Medios de pago mezclados: efectivo con vuelto, tarjeta (operación, marca, 4 dígitos), Yape o Plin (operación) y saldo a favor del cliente",
+    "roles": null
+   },
+   {
+    "code": "POS-05",
+    "name": "Comprobante",
+    "desc": "Boleta o factura con la serie de la caja y el logo de la marca; impresión térmica de 80 mm o envío por WhatsApp o correo",
+    "roles": null
+   },
+   {
+    "code": "POS-06",
+    "name": "Ingresos y retiros",
+    "desc": "Retiro a caja fuerte, depósito, gasto menor, ingreso de sencillo; con autorización sobre el límite",
+    "roles": null
+   },
+   {
+    "code": "POS-07",
+    "name": "Cerrar turno",
+    "desc": "Arqueo por medio de pago: efectivo contado por denominación, tarjeta según el cierre del POS, Yape y Plin según los avisos; diferencia y motivo",
+    "roles": null
+   },
+   {
+    "code": "POS-08",
+    "name": "Aprobación de cierre",
+    "desc": "La supervisora revisa el arqueo y aprueba; ve la diferencia por medio y el historial del cajero",
+    "roles": null
+   },
+   {
+    "code": "POS-09",
+    "name": "Devolución",
+    "desc": "Busca el comprobante del día, elige líneas y peso devuelto, emite nota de crédito y devuelve por el mismo medio o como saldo a favor",
+    "roles": null
+   },
+   {
+    "code": "POS-10",
+    "name": "Ventas del turno",
+    "desc": "Tickets del turno con medio, comprobante y estado SUNAT; reimpresión",
+    "roles": null
+   },
+   {
+    "code": "POS-11",
+    "name": "Cajas registradoras",
+    "desc": "Configuración: local, almacén, caja de efectivo, cuenta del adquirente, series, modo de balanza y lista de precios por defecto",
+    "roles": null
+   },
+   {
+    "code": "POS-12",
+    "name": "Pedidos por recoger",
+    "desc": "Pedidos LISTO con recojo en este local: busca por número o celular, cobra el saldo y entrega",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "WEB",
+  "name": "Tienda web y Mercado Pago",
+  "title": "Tienda WooCommerce y pasarela Mercado Pago",
+  "phase": 1,
+  "objective": "Que la web donguando.com (WordPress con WooCommerce y el tema WoodMart) y el sistema hablen el mismo idioma: el catálogo, los precios y el stock salen del sistema por marca, y cada pedido web entra a PED una sola vez, con su cliente, su dirección y su pago de Mercado Pago confirmado por webhook. Hoy los pedidos web se copian a mano y el stock de la web no sabe lo que se vendió por WhatsApp o en el",
+  "screens": [
+   {
+    "code": "WEB-01",
+    "name": "Tiendas",
+    "desc": "Alta de la tienda: URL, marca, lista de precios, local, almacenes de stock, margen de seguridad, vendedora por defecto y qué se sincroniza; prueba de conexión",
+    "roles": null
+   },
+   {
+    "code": "WEB-02",
+    "name": "Mapeo de productos",
+    "desc": "Variantes del catálogo frente a productos y variaciones de WooCommerce por SKU; vincular, desvincular, crear en la web y ver el último precio y stock enviados",
+    "roles": null
+   },
+   {
+    "code": "WEB-03",
+    "name": "Sincronización",
+    "desc": "Corridas de catálogo, precios, stock y pedidos con resultado, ítems con error y botón para correr ahora",
+    "roles": null
+   },
+   {
+    "code": "WEB-04",
+    "name": "Bandeja de pedidos web",
+    "desc": "Pedidos externos recibidos con su estado (recibido, procesado, error, ignorado), enlace al pedido creado y pago de la pasarela",
+    "roles": null
+   },
+   {
+    "code": "WEB-05",
+    "name": "Resolver error",
+    "desc": "Detalle del error (SKU sin mapeo, dirección sin pin, celular inválido, producto inactivo) con la acción para corregir y reprocesar",
+    "roles": null
+   },
+   {
+    "code": "WEB-06",
+    "name": "Pagos de la pasarela",
+    "desc": "Transacciones de Mercado Pago con estado, monto, comisión, neto, fecha de liberación, pedido y cobro creado",
+    "roles": null
+   },
+   {
+    "code": "WEB-07",
+    "name": "Eventos de webhook",
+    "desc": "Eventos crudos recibidos (de INT) con firma, deduplicación y resultado del procesamiento",
+    "roles": null
+   },
+   {
+    "code": "WEB-08",
+    "name": "Stock publicado",
+    "desc": "Por SKU: disponible en los almacenes de la tienda, reservado, margen y cantidad publicada",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "CNT",
+  "name": "Contabilidad",
+  "title": "Contabilidad",
+  "phase": 2,
+  "objective": "La contabilidad de Don Guando la lleva **una contadora de la empresa con practicantes**, hoy fuera del sistema. CNT la trae adentro: **plan contable PCGE** configurable, **reglas de asiento** por tipo de documento, **asientos automáticos** de ventas, compras, gastos, cobros, pagos, planilla, consumos de producción y costo de ventas, una **bandeja de la contadora** (la practicante clasifica, la con",
+  "screens": [
+   {
+    "code": "CNT-01",
+    "name": "Plan de cuentas",
+    "desc": "Árbol PCGE por empresa: código, nombre, naturaleza, si recibe movimientos, si exige centro de costo o tercero, y cuentas de destino (amarre a clase 9 y 79)",
+    "roles": null
+   },
+   {
+    "code": "CNT-02",
+    "name": "Reglas de asiento",
+    "desc": "Por origen (venta, compra, NTI, gasto, cobro, pago, planilla, consumo, producción, costo de ventas, ajuste de inventario) y subtipo: líneas al debe y al haber con la cuenta y el importe que toman (base, IGV, total, costo)",
+    "roles": null
+   },
+   {
+    "code": "CNT-03",
+    "name": "Asientos",
+    "desc": "Lista y detalle con origen, estado, número, período, quién preparó y quién aprobó; filtros por marca, local y cuenta",
+    "roles": null
+   },
+   {
+    "code": "CNT-04",
+    "name": "Asiento manual",
+    "desc": "Registro con validación de cuadre, cuentas, centro de costo y tercero; queda pendiente de aprobación",
+    "roles": null
+   },
+   {
+    "code": "CNT-05",
+    "name": "Bandeja de la contadora",
+    "desc": "Documentos sin regla, con cuenta o centro de costo faltante, observados por el cruce de tres vías o por SIRE; la practicante clasifica y la contadora aprueba o devuelve",
+    "roles": null
+   },
+   {
+    "code": "CNT-06",
+    "name": "Propuesta SIRE de compras",
+    "desc": "Importación del archivo de la propuesta del Registro de Compras y cruce con los comprobantes registrados: coincide, diferencia de importe, falta en el sistema, falta en la propuesta",
+    "roles": null
+   },
+   {
+    "code": "CNT-07",
+    "name": "SIRE de ventas",
+    "desc": "Comparación de la propuesta del Registro de Ventas con los comprobantes emitidos (FAC) y preparación de la respuesta",
+    "roles": null
+   },
+   {
+    "code": "CNT-08",
+    "name": "Envíos SIRE",
+    "desc": "Por período y registro: acción (aceptar, reemplazar, ajustar), archivo generado, ticket, constancia y estado",
+    "roles": null
+   },
+   {
+    "code": "CNT-09",
+    "name": "Libros y PLE",
+    "desc": "Libros que exige el régimen del año, generación en PDF, Excel o TXT PLE, con huella y fecha",
+    "roles": null
+   },
+   {
+    "code": "CNT-10",
+    "name": "Régimen y libros del año",
+    "desc": "Ingresos del año, valor de la UIT del año, umbral en UIT y resultado: libros simplificados o contabilidad completa",
+    "roles": null
+   },
+   {
+    "code": "CNT-11",
+    "name": "Conciliación bancaria",
+    "desc": "Extracto importado, cruce con cobros, pagos y asientos de la cuenta, partidas pendientes y diferencia final",
+    "roles": null
+   },
+   {
+    "code": "CNT-12",
+    "name": "Cierre mensual",
+    "desc": "Lista de tareas (comprobantes con asiento, bandeja vacía, SIRE conciliado, bancos conciliados, producción e inventario cerrados, conciliación con la granja, estados financieros) y botones Cerrar y Reabrir",
+    "roles": null
+   },
+   {
+    "code": "CNT-13",
+    "name": "Estados financieros",
+    "desc": "Estado de situación financiera y estado de resultados por función y por naturaleza, por marca, local y consolidado; comparativo mensual",
+    "roles": null
+   },
+   {
+    "code": "CNT-14",
+    "name": "Balance de comprobación",
+    "desc": "Saldos por cuenta, período, marca y local; libro mayor con detalle",
+    "roles": null
+   },
+   {
+    "code": "CNT-15",
+    "name": "Importación de planilla",
+    "desc": "Resumen mensual de planilla (Ayni HR o archivo) que genera su asiento",
+    "roles": null
+   },
+   {
+    "code": "CNT-16",
+    "name": "Tablero contable",
+    "desc": "KPI-CNT-01 a KPI-CNT-06",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "COM",
+  "name": "Compras y cuentas por pagar",
+  "title": "Compras y cuentas por pagar",
+  "phase": 2,
+  "objective": "Don Guando compra a productores, al camal, a Granja Don Guando, a proveedores de empaques (bolsas, botellas, etiquetas), de servicios y de publicidad. Hoy la compra no se valoriza al recibirla y no se sabe el costo real por kg comprado ni cuánto se debe a cada proveedor. COM cubre el ciclo completo: **proveedores**, **órdenes de compra con aprobación**, **recepción valorizada con peso y temperatur",
+  "screens": [
+   {
+    "code": "COM-01",
+    "name": "Proveedores",
+    "desc": "RUC o DNI, razón social, tipo (productor, camal, granja relacionada, empaques, insumos, servicios, publicidad, creador de contenido…), condiciones de pago, cuenta bancaria, empresa relacionada y estado",
+    "roles": null
+   },
+   {
+    "code": "COM-02",
+    "name": "Catálogo por proveedor",
+    "desc": "Variante, código del proveedor, unidad, último precio, pedido mínimo, plazo de entrega e historial de precios",
+    "roles": null
+   },
+   {
+    "code": "COM-03",
+    "name": "Requerimientos",
+    "desc": "Desde el plan de producción (PRO-03) o un almacén: variante, cantidad y fecha; se agrupan en órdenes de compra",
+    "roles": null
+   },
+   {
+    "code": "COM-04",
+    "name": "Órdenes de compra",
+    "desc": "Proveedor, local, almacén de destino, líneas con precio por unidad o por kg, IGV, total, fecha esperada y estado",
+    "roles": null
+   },
+   {
+    "code": "COM-05",
+    "name": "Aprobación de órdenes",
+    "desc": "Bandeja del aprobador con las órdenes que superan el umbral",
+    "roles": null
+   },
+   {
+    "code": "COM-06",
+    "name": "Recepción",
+    "desc": "Contra la OC o sin ella: kg y unidades, temperatura por línea, temperatura del vehículo, lote del proveedor, vencimiento, balanza usada, inspección de recepción (CAL-03) y aceptación o rechazo por línea",
+    "roles": null
+   },
+   {
+    "code": "COM-07",
+    "name": "Comprobantes del proveedor",
+    "desc": "Tipo SUNAT, serie, número, fechas, moneda y tipo de cambio, base gravada, IGV, no gravado, total, archivo PDF y XML, recepciones y OC vinculadas, centro de costo y marca",
+    "roles": null
+   },
+   {
+    "code": "COM-08",
+    "name": "Cruce de tres vías",
+    "desc": "Diferencias de cantidad y precio entre OC, recepción y comprobante, con tolerancia y aprobación",
+    "roles": null
+   },
+   {
+    "code": "COM-09",
+    "name": "Cuentas por pagar",
+    "desc": "Saldo por proveedor y comprobante, vencimiento, antigüedad (0–30, 31–60, más de 60 días) y programación de pagos",
+    "roles": null
+   },
+   {
+    "code": "COM-10",
+    "name": "Pagos a proveedores",
+    "desc": "Pago desde una cuenta bancaria o caja, con número de operación, aplicado a uno o varios comprobantes",
+    "roles": null
+   },
+   {
+    "code": "COM-11",
+    "name": "Evaluación de proveedores",
+    "desc": "Puntualidad, recepciones observadas por calidad, diferencias de peso y precio, por mes",
+    "roles": null
+   },
+   {
+    "code": "COM-12",
+    "name": "Tablero de compras",
+    "desc": "KPI-COM-01 a KPI-COM-06",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "GRJ",
+  "name": "Integración con la granja",
+  "title": "Integración con el SaaS de Granja Don Guando",
+  "phase": 2,
+  "objective": "La mayor parte de la carne de Don Guando viene de **Granja Don Guando**, que opera en el SaaS de Granja. Hoy la granja comparte el RUC de la comercializadora, así que sus entregas se documentan con una **Nota de Transferencia Interna (NTI) sin IGV**; en unos meses podría tener RUC propio (*spin-off*) y facturar. GRJ recibe lo que la granja envía, lo convierte en una recepción de COM con el documen",
+  "screens": [
+   {
+    "code": "GRJ-01",
+    "name": "Vínculo con la granja",
+    "desc": "Proveedor, modo (NTI o INVOICE), vigencia, identificador del tenant de la granja, RUC emisor y estado del conector",
+    "roles": null
+   },
+   {
+    "code": "GRJ-02",
+    "name": "Mapeo de productos",
+    "desc": "Código e ítem de la granja → variante de Aycha, factor de conversión y estado; muestra ítems sin mapear",
+    "roles": null
+   },
+   {
+    "code": "GRJ-03",
+    "name": "Envíos de la granja",
+    "desc": "Lista de envíos recibidos por webhook o carga manual: documento (NTI, factura, guía), fecha, kg y valor enviados, estado",
+    "roles": null
+   },
+   {
+    "code": "GRJ-04",
+    "name": "Recepción de un envío",
+    "desc": "Por línea: kg y unidades enviados frente a recibidos, temperatura, lote de la granja, lote local creado, diferencia y motivo",
+    "roles": null
+   },
+   {
+    "code": "GRJ-05",
+    "name": "Conciliación mensual",
+    "desc": "Kg y valor enviados frente a recibidos por mes y producto, diferencias pendientes y acuerdo con la granja",
+    "roles": null
+   },
+   {
+    "code": "GRJ-06",
+    "name": "Cambio a factura (spin-off)",
+    "desc": "Asistente: fecha de corte, nuevo RUC de la granja, cierre del vínculo NTI y apertura del vínculo con factura desde el día siguiente",
+    "roles": null
+   },
+   {
+    "code": "GRJ-07",
+    "name": "Tablero de la granja",
+    "desc": "KPI-GRJ-01 a KPI-GRJ-03",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "CAL",
+  "name": "Calidad",
+  "title": "Calidad",
+  "phase": 2,
+  "objective": "Hoy «la calidad depende de la persona» y no queda registro. CAL da evidencia: **checklists por etapa** (recepción, proceso, empaque, despacho), **registro de temperaturas** de cámaras, ollas y vehículos con alertas, **liberación de lote solo por el responsable de calidad**, no conformidades con acción correctiva y seguimiento, BPM y limpieza, **registros sanitarios SENASA y DIGESA** por producto c",
+  "screens": [
+   {
+    "code": "CAL-01",
+    "name": "Plantillas de checklist",
+    "desc": "Por etapa, con preguntas (sí/no, número con rango, texto, foto), ítems críticos y versión",
+    "roles": null
+   },
+   {
+    "code": "CAL-02",
+    "name": "Programación",
+    "desc": "Qué checklist, en qué local y área, con qué frecuencia (por turno, diaria, semanal, mensual) y qué rol lo hace",
+    "roles": null
+   },
+   {
+    "code": "CAL-03",
+    "name": "Inspección",
+    "desc": "Llenado en celular o tableta: respuestas, fotos y resultado calculado; vinculada a un lote, orden, recepción, pedido o vehículo",
+    "roles": null
+   },
+   {
+    "code": "CAL-04",
+    "name": "Puntos de temperatura",
+    "desc": "Cámaras, congeladoras, ollas, vehículos y exhibidoras con su rango, frecuencia de lectura y equipo o almacén asociado",
+    "roles": null
+   },
+   {
+    "code": "CAL-05",
+    "name": "Registro de temperaturas",
+    "desc": "Lectura manual (con foto opcional del termómetro) o de sensor; semáforo por punto",
+    "roles": null
+   },
+   {
+    "code": "CAL-06",
+    "name": "Excursiones y alertas",
+    "desc": "Lecturas fuera de rango agrupadas en una excursión con su desviación máxima, duración, lotes expuestos y acción tomada",
+    "roles": null
+   },
+   {
+    "code": "CAL-07",
+    "name": "Lotes por liberar",
+    "desc": "Lotes en cuarentena con su orden, inspecciones, lecturas de puntos de control y no conformidades; botones Liberar, Liberar con observación, Retener y Rechazar",
+    "roles": null
+   },
+   {
+    "code": "CAL-08",
+    "name": "No conformidades",
+    "desc": "Origen, severidad, lote, proveedor o equipo, causa raíz, responsable, plazo y estado",
+    "roles": null
+   },
+   {
+    "code": "CAL-09",
+    "name": "Acciones correctivas",
+    "desc": "Corrección, acción correctiva y preventiva con responsable, plazo, evidencia y verificación",
+    "roles": null
+   },
+   {
+    "code": "CAL-10",
+    "name": "Historial de registros sanitarios",
+    "desc": "Amplía CAT-10 (fase 1): por producto, todos sus registros o autorizaciones (SENASA o DIGESA) con tipo, número, emisión, vencimiento y archivo, y sus renovaciones. El vigente se copia al producto; el semáforo y la lista de vencimientos siguen en CAT-10",
+    "roles": null
+   },
+   {
+    "code": "CAL-11",
+    "name": "Reclamos de calidad",
+    "desc": "Desde el CRM o el pedido: cliente, pedido, comprobante, lote, tipo, fotos y resolución (reposición, nota de crédito, devolución)",
+    "roles": null
+   },
+   {
+    "code": "CAL-12",
+    "name": "Limpieza y BPM",
+    "desc": "Cumplimiento de la programación por local y área, con evidencias",
+    "roles": null
+   },
+   {
+    "code": "CAL-13",
+    "name": "Tablero de calidad",
+    "desc": "KPI-CAL-01 a KPI-CAL-08",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "DES",
+  "name": "Despiece y costeo conjunto",
+  "title": "Despiece y costeo conjunto",
+  "phase": 2,
+  "objective": "Un cordero en canal, un cuy entero o una pierna de cerdo se convierten en varios cortes, subproductos (huesos para caldo, menudencia, grasa para manteca) y merma. Sin despiece registrado, el costo por kg de cada corte es una suposición y no se sabe si el operario saca lo que debería. DES define **plantillas por especie** con el rendimiento estándar de cada corte y aplica el **costeo conjunto por v",
+  "screens": [
+   {
+    "code": "DES-01",
+    "name": "Plantillas de despiece",
+    "desc": "Lista por especie y producto de entrada (canal de cordero, cuy entero, pierna de cerdo…), versión, estado y tolerancia de balance",
+    "roles": null
+   },
+   {
+    "code": "DES-02",
+    "name": "Editor de plantilla",
+    "desc": "Cortes de salida con variante, rol (CO_PRODUCT, BY_PRODUCT, WASTE), rendimiento estándar en %, precio de referencia y costo adicional de venta para el VNR; suma visible que debe dar 100 %",
+    "roles": null
+   },
+   {
+    "code": "DES-03",
+    "name": "Precios de referencia",
+    "desc": "Precio de mercado por kg de cada corte con vigencia; se toma de la lista de precios del canal web o se escribe; historial",
+    "roles": null
+   },
+   {
+    "code": "DES-04",
+    "name": "Despiece en curso",
+    "desc": "Desde la tableta: lote de canal que entra con su peso, y por cada corte los kg pesados y el lote nuevo; avisa al instante si un corte se aleja del estándar",
+    "roles": null
+   },
+   {
+    "code": "DES-05",
+    "name": "Balance de masa",
+    "desc": "Kg de entrada = Σ cortes + subproductos + merma registrada; diferencia y tolerancia; bloqueo del cierre fuera de tolerancia",
+    "roles": null
+   },
+   {
+    "code": "DES-06",
+    "name": "Costeo conjunto",
+    "desc": "Costo conjunto (canal + mano de obra + equipos), VNR de subproductos, reparto por valor relativo y costo por kg de cada corte, con el redondeo explicado",
+    "roles": null
+   },
+   {
+    "code": "DES-07",
+    "name": "Rendimiento por corte",
+    "desc": "Real frente al estándar por corte, especie, operario, proveedor de la canal y mes",
+    "roles": null
+   },
+   {
+    "code": "DES-08",
+    "name": "Comparación de proveedores",
+    "desc": "Rendimiento y costo por kg de corte útil por proveedor de canal (camal, productores, Granja Don Guando)",
+    "roles": null
+   },
+   {
+    "code": "DES-09",
+    "name": "Tablero de despiece",
+    "desc": "KPI-DES-01 a KPI-DES-04",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "EQU",
+  "name": "Equipos y mantenimiento",
+  "title": "Equipos, calibración y mantenimiento",
+  "phase": 2,
+  "objective": "En los 2 locales de Don Guando trabajan selladoras al vacío, cocinas, ollas, balanzas, cámaras, congeladoras, molinos y embutidoras. Una balanza descalibrada cobra mal el peso variable y una cámara sin mantenimiento rompe la cadena de frío. EQU lleva el maestro de equipos con QR, la **calibración obligatoria de balanzas con certificado**, el mantenimiento preventivo y correctivo con su costo, y **",
+  "screens": [
+   {
+    "code": "EQU-01",
+    "name": "Equipos",
+    "desc": "Código, QR, nombre, categoría (SEALER, STOVE, POT, SCALE, COLD_ROOM, FREEZER, GRINDER, STUFFER, SAW, SLICER, LABEL_PRINTER, OTHER), local, almacén asociado (cámaras y congeladoras), marca, modelo, serie, estado",
+    "roles": null
+   },
+   {
+    "code": "EQU-02",
+    "name": "Ficha del equipo",
+    "desc": "Datos de compra, vida útil, carga por hora, potencia, fotos y manuales; historial de calibraciones, mantenimientos, fallas, horas de uso y costo acumulado",
+    "roles": null
+   },
+   {
+    "code": "EQU-03",
+    "name": "Calibraciones",
+    "desc": "Registro con fecha, vigencia, proveedor, número y archivo del certificado, error máximo encontrado, resultado y costo",
+    "roles": null
+   },
+   {
+    "code": "EQU-04",
+    "name": "Calendario de calibraciones",
+    "desc": "Balanzas y termómetros por vencer en 30 días, vencidos y bloqueados",
+    "roles": null
+   },
+   {
+    "code": "EQU-05",
+    "name": "Planes preventivos",
+    "desc": "Actividad, frecuencia en días u horas de uso, responsable y repuestos esperados",
+    "roles": null
+   },
+   {
+    "code": "EQU-06",
+    "name": "Órdenes de mantenimiento",
+    "desc": "Preventivas (desde el plan) o correctivas (desde una falla): diagnóstico, repuestos, horas, servicio externo, costo y tiempo fuera de servicio",
+    "roles": null
+   },
+   {
+    "code": "EQU-07",
+    "name": "Reporte de falla",
+    "desc": "Desde el celular: escaneo del QR, descripción y foto; crea la orden correctiva",
+    "roles": null
+   },
+   {
+    "code": "EQU-08",
+    "name": "Uso del equipo",
+    "desc": "Horas por orden de producción (PRO-09) y lecturas de horómetro",
+    "roles": null
+   },
+   {
+    "code": "EQU-09",
+    "name": "Tablero de equipos",
+    "desc": "KPI-EQU-01 a KPI-EQU-04",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "ETQ",
+  "name": "Etiquetas y trazabilidad",
+  "title": "Etiquetas, trazabilidad y retiro de lotes",
+  "phase": 2,
+  "objective": "Cada paquete de Don Guando debe salir con una etiqueta que diga producto, marca, peso, precio, lote, fechas de producción y vencimiento, registro sanitario y un QR. Esa etiqueta es la que PRE escanea para no cruzar pedidos. Si un lote sale mal, hoy no se sabe a qué clientes llegó. ETQ imprime etiquetas por plantilla de marca en ZPL o ESC/POS, da **trazabilidad hacia atrás y hacia adelante** (prove",
+  "screens": [
+   {
+    "code": "ETQ-01",
+    "name": "Plantillas de etiqueta",
+    "desc": "Por marca: nombre, formato (ZPL, ESCPOS, PDF), tamaño en mm, cuerpo con campos {{...}}, QR sí o no y vista previa",
+    "roles": null
+   },
+   {
+    "code": "ETQ-02",
+    "name": "Impresión de etiquetas",
+    "desc": "Lote, variante, peso real, precio (lista del canal × kg), copias e impresora; muestra el bloqueo si el lote no se puede etiquetar",
+    "roles": null
+   },
+   {
+    "code": "ETQ-03",
+    "name": "Historial de impresiones",
+    "desc": "Quién, cuándo, qué lote, cuántas copias, reimpresiones con motivo",
+    "roles": null
+   },
+   {
+    "code": "ETQ-04",
+    "name": "Trazabilidad de un lote",
+    "desc": "Árbol hacia atrás y hacia adelante, con kg, documentos y fechas; exportable a PDF",
+    "roles": null
+   },
+   {
+    "code": "ETQ-05",
+    "name": "Retiros de lote",
+    "desc": "Lista de retiros con estado, lotes, clientes afectados y avance de contacto",
+    "roles": null
+   },
+   {
+    "code": "ETQ-06",
+    "name": "Nuevo retiro",
+    "desc": "Motivo, clase de riesgo, lotes, inclusión de lotes derivados y vista previa de clientes y stock que se bloquea",
+    "roles": null
+   },
+   {
+    "code": "ETQ-07",
+    "name": "Seguimiento del retiro",
+    "desc": "Por cliente: pedido, comprobante, kg, contacto (plantilla de WhatsApp desde el CRM), resultado y kg recuperados",
+    "roles": null
+   },
+   {
+    "code": "ETQ-08",
+    "name": "Página pública del QR",
+    "desc": "Sin inicio de sesión: producto, marca, lote, fechas, registro sanitario y, si viene de Granja Don Guando, el origen «de nuestra granja a tu mesa»",
+    "roles": null
+   },
+   {
+    "code": "ETQ-09",
+    "name": "Tablero de trazabilidad",
+    "desc": "KPI-ETQ-01 a KPI-ETQ-03",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "PRO",
+  "name": "Órdenes de producción",
+  "title": "Órdenes de producción",
+  "phase": 2,
+  "objective": "Don Guando transforma en **2 locales**: cortes, empaque al vacío, mantecas, caldos, embutidos artesanales y mermeladas. Hoy no sabe cuánto le cuesta cada kg producido, ni cuánto se pierde en cada proceso, ni qué lotes de insumo entraron en un lote de chorizo. PRO convierte cada producción en una **orden** con insumos consumidos por lote (FEFO), producto terminado como **lote nuevo en cuarentena**,",
+  "screens": [
+   {
+    "code": "PRO-01",
+    "name": "Líneas de producción",
+    "desc": "Por local: código, nombre, tipo de línea (CUTTING, VACUUM_PACK, LARD, BROTH, SAUSAGE, JAM, OTHER), almacén de insumos, almacén de producto terminado, centro de costo y estado",
+    "roles": null
+   },
+   {
+    "code": "PRO-02",
+    "name": "Plan semanal",
+    "desc": "Necesidad por producto = pedidos confirmados + stock de seguridad − stock liberado − órdenes abiertas. Sugiere órdenes por línea y local",
+    "roles": null
+   },
+   {
+    "code": "PRO-03",
+    "name": "Requerimiento de insumos",
+    "desc": "Explosión de las órdenes planificadas con la receta escalada; compara con el stock liberado y propone requerimientos de compra (COM-03)",
+    "roles": null
+   },
+   {
+    "code": "PRO-04",
+    "name": "Órdenes de producción",
+    "desc": "Lista con filtros por local, línea, marca, estado y fecha; semáforo de rendimiento y de costo frente al estándar",
+    "roles": null
+   },
+   {
+    "code": "PRO-05",
+    "name": "Nueva orden",
+    "desc": "Tipo, línea, producto, receta (versión aprobada fijada) o plantilla de despiece, kg planificados, factor de escala calculado, fecha, supervisor y marca",
+    "roles": null
+   },
+   {
+    "code": "PRO-06",
+    "name": "Consumo de insumos",
+    "desc": "Desde la tableta: escaneo del lote, kg teóricos de la receta escalada frente a kg reales, sugerencia FEFO y motivo si se toma otro lote",
+    "roles": null
+   },
+   {
+    "code": "PRO-07",
+    "name": "Puntos de control",
+    "desc": "Lectura de cada punto de control de la receta (temperatura de cocción, tiempo, pH, salmuera) con su rango; fuera de rango exige acción correctiva",
+    "roles": null
+   },
+   {
+    "code": "PRO-08",
+    "name": "Registro de producción",
+    "desc": "Kg producidos por variante con su lote nuevo (en cuarentena), balanza usada, subproductos y mermas con motivo",
+    "roles": null
+   },
+   {
+    "code": "PRO-09",
+    "name": "Personal y equipos",
+    "desc": "Operarios con su función y horas, equipos con sus horas; tarifa por hora del trabajador y carga por hora del equipo",
+    "roles": null
+   },
+   {
+    "code": "PRO-10",
+    "name": "Cierre de la orden",
+    "desc": "Muestra rendimiento real frente al esperado, merma, costo total y costo por kg; pide motivo si la desviación supera la tolerancia; emite production_order.closed",
+    "roles": null
+   },
+   {
+    "code": "PRO-11",
+    "name": "Ficha de la orden",
+    "desc": "Toda la historia: lotes que entraron y salieron, lecturas, personas, equipos, costos y decisiones de calidad del lote producido",
+    "roles": null
+   },
+   {
+    "code": "PRO-12",
+    "name": "Tablero de producción",
+    "desc": "KPI-PRO-01 a KPI-PRO-07 por local, línea, producto y mes",
+    "roles": null
+   },
+   {
+    "code": "PRO-13",
+    "name": "Anulación",
+    "desc": "Anula una orden sin consumos registrados, con motivo",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "REC",
+  "name": "Recetas y formulación",
+  "title": "Recetas y formulación",
+  "phase": 2,
+  "objective": "Los embutidos artesanales, los caldos, las mermeladas y las mantecas de Don Guando dependen hoy de quien los prepara. REC guarda la **receta oficial** con versiones aprobadas, ingredientes y aditivos con su **código SIN**, rendimiento esperado, costo por kg, pasos y **puntos de control** (temperatura de cocción, tiempo, pH, salmuera), alérgenos y vida útil. La orden de producción toma la versión a",
+  "screens": [
+   {
+    "code": "REC-01",
+    "name": "Recetas",
+    "desc": "Lista por producto, tipo, marca y estado de la versión vigente; costo estándar por kg",
+    "roles": null
+   },
+   {
+    "code": "REC-02",
+    "name": "Editor de versión",
+    "desc": "Kg base de salida, rendimiento esperado calculado, vida útil, conservación y notas; solo editable en DRAFT",
+    "roles": null
+   },
+   {
+    "code": "REC-03",
+    "name": "Ingredientes",
+    "desc": "Producto o insumo, kg por lote base, tolerancia de pesaje, alérgeno y, si es aditivo, su código SIN y dosis en ppm calculada",
+    "roles": null
+   },
+   {
+    "code": "REC-04",
+    "name": "Catálogo de aditivos",
+    "desc": "Código SIN, nombre, función (conservante, antioxidante, espesante, acidulante…), límite máximo configurable y alérgenos",
+    "roles": null
+   },
+   {
+    "code": "REC-05",
+    "name": "Pasos",
+    "desc": "Orden, descripción, tiempo y categoría de equipo (olla, cocina, embutidora, selladora)",
+    "roles": null
+   },
+   {
+    "code": "REC-06",
+    "name": "Puntos de control",
+    "desc": "Variable (temperatura interna, tiempo, pH, % de salmuera, °Brix, actividad de agua), rango mínimo y máximo, unidad, si es crítico y la acción correctiva",
+    "roles": null
+   },
+   {
+    "code": "REC-07",
+    "name": "Revisión y aprobación",
+    "desc": "Comparación con la versión anterior, validaciones (aditivos, puntos de control, vida útil) y aprobación por un usuario distinto del autor",
+    "roles": null
+   },
+   {
+    "code": "REC-08",
+    "name": "Escalado",
+    "desc": "Cantidad deseada → factor y kg de cada ingrediente; lo usa PRO-05",
+    "roles": null
+   },
+   {
+    "code": "REC-09",
+    "name": "Costo de la receta",
+    "desc": "Costo por kg con el costo promedio de cada insumo, y su variación desde la última aprobación",
+    "roles": null
+   },
+   {
+    "code": "REC-10",
+    "name": "Ficha técnica",
+    "desc": "PDF por versión: ingredientes en orden decreciente, aditivos con SIN, alérgenos, vida útil, conservación y registro sanitario (CAL-10)",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "PRS",
+  "name": "Presupuesto",
+  "title": "Presupuesto",
+  "phase": 3,
+  "objective": "Don Guando no tiene control de gastos: no sabe si este mes gastó de más en publicidad, en delivery o en empaques hasta que la contadora cierra. PRS permite armar el presupuesto anual **por marca, área, local y concepto**, con **versiones y aprobación**, y compararlo cada día con lo **real** con semáforo, más una **proyección de cierre del mes** que avisa a tiempo si un concepto se va a pasar.",
+  "screens": [
+   {
+    "code": "PRS-01",
+    "name": "Presupuestos",
+    "desc": "Lista por empresa y año con versión vigente, estado y totales de ingreso, costo y gasto",
+    "roles": null
+   },
+   {
+    "code": "PRS-02",
+    "name": "Conceptos presupuestales",
+    "desc": "Árbol de conceptos (ingresos, costo de ventas, gastos de personal, publicidad, delivery, empaques…) con su tipo, si es fijo o variable, y su mapeo a categorías de gasto y cuentas contables",
+    "roles": null
+   },
+   {
+    "code": "PRS-03",
+    "name": "Edición de versión",
+    "desc": "Matriz concepto × mes con filtros por marca, local y centro de costo; totales por fila y columna",
+    "roles": null
+   },
+   {
+    "code": "PRS-04",
+    "name": "Carga y copia",
+    "desc": "Importa líneas desde Excel con validación, o copia otra versión o el real del año anterior con ajuste %",
+    "roles": null
+   },
+   {
+    "code": "PRS-05",
+    "name": "Envío y aprobación",
+    "desc": "Envía la versión, muestra diferencias con la vigente y la aprueba o rechaza con comentario",
+    "roles": null
+   },
+   {
+    "code": "PRS-06",
+    "name": "Real frente a presupuesto",
+    "desc": "Por concepto y dimensión: presupuesto, real, diferencia, % de ejecución y semáforo; mes y acumulado",
+    "roles": null
+   },
+   {
+    "code": "PRS-07",
+    "name": "Detalle del real",
+    "desc": "Bajada a los gastos, comprobantes, planillas y asientos que forman el real; los gastos de flota muestran su carga de combustible o mantenimiento enlazado",
+    "roles": null
+   },
+   {
+    "code": "PRS-08",
+    "name": "Proyección de cierre",
+    "desc": "Real a la fecha, días transcurridos, proyección al cierre por concepto y % frente al presupuesto",
+    "roles": null
+   },
+   {
+    "code": "PRS-09",
+    "name": "Comparativo de versiones",
+    "desc": "Diferencias entre dos versiones por concepto y mes",
+    "roles": null
+   },
+   {
+    "code": "PRS-10",
+    "name": "Alertas de desviación",
+    "desc": "Conceptos en ámbar o rojo, responsables notificados y comentarios",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "FLO",
+  "name": "Flota avanzada",
+  "title": "Flota avanzada",
+  "phase": 3,
+  "objective": "Don Guando reparte con motos y autos propios, vehículos alquilados y empresas de delivery, y no sabe cuánto le cuesta cada kilómetro ni cuál le conviene. En la fase 1, DEL registra rutas, entregas y costo por entrega. FLO completa el control del vehículo: **GPS en vivo continuo** desde la app Android durante la jornada, **km reales** por día, **combustible y rendimiento** (km por galón) con alerta",
+  "screens": [
+   {
+    "code": "FLO-01",
+    "name": "Mapa en vivo",
+    "desc": "Vehículos en jornada con última posición, velocidad, ruta asignada, próxima parada, temperatura y alertas; filtros por local y modalidad",
+    "roles": null
+   },
+   {
+    "code": "FLO-02",
+    "name": "Recorrido histórico",
+    "desc": "Reproduce el recorrido de un vehículo en una fecha con paradas, detenciones y velocidad",
+    "roles": null
+   },
+   {
+    "code": "FLO-03",
+    "name": "Jornadas y km reales",
+    "desc": "Por vehículo y día: odómetro inicial y final, km por odómetro, km por GPS, entregas, km por entrega y diferencias",
+    "roles": null
+   },
+   {
+    "code": "FLO-04",
+    "name": "Ficha del vehículo",
+    "desc": "Marca, modelo, año, combustible, capacidad del tanque, rendimiento esperado, rango de temperatura, dispositivo GPS o sensor, odómetro actual, modalidad y proveedor",
+    "roles": null
+   },
+   {
+    "code": "FLO-05",
+    "name": "Cargas de combustible",
+    "desc": "Registro desde la app o la web: fecha, odómetro, galones, precio, importe, tanque lleno, grifo, vale y foto; enlace al gasto",
+    "roles": null
+   },
+   {
+    "code": "FLO-06",
+    "name": "Rendimiento de combustible",
+    "desc": "km por galón por vehículo y conductor, frente al esperado, con tendencia y alertas",
+    "roles": null
+   },
+   {
+    "code": "FLO-07",
+    "name": "Plan de mantenimiento",
+    "desc": "Tareas por vehículo (cambio de aceite, llantas, frenos) cada N km y/o N días, último hecho y próximo vencimiento",
+    "roles": null
+   },
+   {
+    "code": "FLO-08",
+    "name": "Órdenes de mantenimiento",
+    "desc": "Preventivo y correctivo: taller, odómetro, repuestos, mano de obra, días fuera de servicio y comprobante",
+    "roles": null
+   },
+   {
+    "code": "FLO-09",
+    "name": "Documentos",
+    "desc": "SOAT, revisión técnica, tarjeta de propiedad, contrato de alquiler y licencias de conducir con vencimiento, archivo y semáforo",
+    "roles": null
+   },
+   {
+    "code": "FLO-10",
+    "name": "Multas",
+    "desc": "Papeleta, fecha, entidad, infracción, conductor, importe, descuento por pronto pago, pago y descuento al conductor",
+    "roles": null
+   },
+   {
+    "code": "FLO-11",
+    "name": "Otros costos del vehículo",
+    "desc": "Alquiler, peajes, cochera, seguros, impuesto vehicular, lavado y otros con su comprobante",
+    "roles": null
+   },
+   {
+    "code": "FLO-12",
+    "name": "Costo total y comparativo",
+    "desc": "Costo mensual por vehículo (combustible, mantenimiento, multas, otros, depreciación, conductor), por km y por entrega; comparativo propio, alquilado y tercero por zona",
+    "roles": null
+   },
+   {
+    "code": "FLO-13",
+    "name": "Temperatura de vehículos",
+    "desc": "Gráfico de temperatura por jornada con el rango permitido, minutos fuera de rango y pedidos afectados",
+    "roles": null
+   },
+   {
+    "code": "FLO-14",
+    "name": "Alertas de flota",
+    "desc": "Bandeja de alertas (rendimiento, mantenimiento, documentos, temperatura, GPS silencioso, odómetro, velocidad) con atención y cierre",
+    "roles": null
+   },
+   {
+    "code": "FLO-15",
+    "name": "App · Jornada",
+    "desc": "Inicio y cierre de jornada con odómetro, foto del tablero y checklist (luces, llantas, caja térmica); bloquea si hay documentos vencidos",
+    "roles": [
+     "REPARTIDOR",
+     "COORDINADOR_DELIVERY"
+    ]
+   }
+  ]
+ },
+ {
+  "code": "B2B",
+  "name": "Clientes empresariales",
+  "title": "Clientes empresariales",
+  "phase": 3,
+  "objective": "Don Guando vende a restaurantes y negocios que compran todas las semanas, piden a crédito y negocian su precio. Hoy el crédito se da «de palabra», nadie bloquea al cliente que debe facturas vencidas y los pedidos fijos (por ejemplo, 10 kg de cuy cada lunes y jueves) se vuelven a escribir por WhatsApp cada vez. B2B da a cada cliente empresarial su condición de crédito con límite, plazo y bloqueo au",
+  "screens": [
+   {
+    "code": "B2B-01",
+    "name": "Clientes empresariales",
+    "desc": "Lista con límite, saldo, vencido, disponible, días de mora, estado (activo, bloqueado, suspendido) y vendedora; filtros por marca, zona y antigüedad de deuda",
+    "roles": null
+   },
+   {
+    "code": "B2B-02",
+    "name": "Ficha de crédito",
+    "desc": "Límite, plazo en días, días de gracia, bloqueo automático por vencido, fecha de revisión, historial de cambios con motivo",
+    "roles": null
+   },
+   {
+    "code": "B2B-03",
+    "name": "Precios del cliente",
+    "desc": "Precio por presentación con vigencia y base (unidad o kg); compara con la lista del canal y el costo promedio; aprobación de precios bajo margen",
+    "roles": null
+   },
+   {
+    "code": "B2B-04",
+    "name": "Excepciones de crédito",
+    "desc": "Bandeja de solicitudes (pedido, monto excedido, vencido) con aprobación o rechazo y vigencia",
+    "roles": null
+   },
+   {
+    "code": "B2B-05",
+    "name": "Pedidos recurrentes",
+    "desc": "Programación por cliente: días de la semana o cada N días, franja, dirección, líneas, anticipación, confirmación automática o revisión",
+    "roles": null
+   },
+   {
+    "code": "B2B-06",
+    "name": "Calendario de corridas",
+    "desc": "Próximas corridas y resultado de las anteriores (creado, omitido, bloqueado por crédito, fallido) con enlace al pedido",
+    "roles": null
+   },
+   {
+    "code": "B2B-07",
+    "name": "Estado de cuenta",
+    "desc": "Por cliente: comprobantes, notas, cobros y saldo, con vencimientos y días de mora; exporta PDF y Excel",
+    "roles": null
+   },
+   {
+    "code": "B2B-08",
+    "name": "Cartera por antigüedad",
+    "desc": "Saldo por tramos (por vencer, 1–15, 16–30, 31–60, más de 60 días) por cliente, vendedora y marca",
+    "roles": null
+   },
+   {
+    "code": "B2B-09",
+    "name": "Recordatorios y promesas",
+    "desc": "Recordatorios programados y enviados por documento; promesas de pago con fecha y cumplimiento",
+    "roles": null
+   },
+   {
+    "code": "B2B-10",
+    "name": "Reclamos B2B",
+    "desc": "Bandeja interna con tipo, evidencia, plazo de respuesta, responsable, resolución y nota de crédito",
+    "roles": null
+   },
+   {
+    "code": "B2B-11",
+    "name": "Accesos al portal",
+    "desc": "Usuarios del cliente (dueño, comprador, contabilidad), invitación, bloqueo y último ingreso",
+    "roles": null
+   },
+   {
+    "code": "B2B-12",
+    "name": "Portal · Catálogo",
+    "desc": "Productos permitidos con el precio del cliente, disponibilidad y presentación",
+    "roles": [
+     "CLIENTE_B2B"
+    ]
+   },
+   {
+    "code": "B2B-13",
+    "name": "Portal · Pedido nuevo y repetir",
+    "desc": "Carrito con pedido mínimo, hora de corte y fecha de entrega; «repetir pedido» copia un pedido anterior con precios actuales y muestra diferencias",
+    "roles": [
+     "CLIENTE_B2B"
+    ]
+   },
+   {
+    "code": "B2B-14",
+    "name": "Portal · Mis pedidos",
+    "desc": "Estado y seguimiento de cada pedido, peso real y monto final",
+    "roles": [
+     "CLIENTE_B2B"
+    ]
+   },
+   {
+    "code": "B2B-15",
+    "name": "Portal · Estado de cuenta y comprobantes",
+    "desc": "Saldo, vencidos, descarga de PDF, XML y CDR de comprobantes aceptados",
+    "roles": [
+     "CLIENTE_B2B"
+    ]
+   },
+   {
+    "code": "B2B-16",
+    "name": "Portal · Reclamos",
+    "desc": "Registro con foto y seguimiento de la respuesta",
+    "roles": [
+     "CLIENTE_B2B"
+    ]
+   },
+   {
+    "code": "B2B-17",
+    "name": "Portal · Usuarios de mi empresa",
+    "desc": "El dueño invita o desactiva compradores y personal de contabilidad",
+    "roles": [
+     "CLIENTE_B2B"
+    ]
+   }
+  ]
+ },
+ {
+  "code": "CMP",
+  "name": "Campañas y fidelización",
+  "title": "Campañas y fidelización",
+  "phase": 3,
+  "objective": "Casi todos los pedidos de Don Guando llegan por anuncios pagados; recuperar a un cliente que ya compró es mucho más barato. Pero en Perú cada plantilla de marketing de WhatsApp cuesta S/ 0,2339 y un envío masivo mal segmentado se come el margen. CMP arma **segmentos dinámicos** (recompra, inactivos, por marca, zona y producto), envía campañas por WhatsApp con el **costo estimado antes de aprobar**",
+  "screens": [
+   {
+    "code": "CMP-01",
+    "name": "Segmentos",
+    "desc": "Lista con tipo, marca, tamaño, clientes con consentimiento y última actualización",
+    "roles": null
+   },
+   {
+    "code": "CMP-02",
+    "name": "Constructor de segmento",
+    "desc": "Reglas: días desde la última compra, frecuencia de recompra, inactivos, marca, zona, producto o línea, canal, ticket promedio y cliente B2B; vista previa del tamaño",
+    "roles": null
+   },
+   {
+    "code": "CMP-03",
+    "name": "Campañas",
+    "desc": "Lista por marca con estado, programación, destinatarios, costo estimado y real, pedidos y retorno",
+    "roles": null
+   },
+   {
+    "code": "CMP-04",
+    "name": "Nueva campaña",
+    "desc": "Segmento, canal, número de WhatsApp de la marca, plantilla de marketing aprobada, cupón, objetivo, ventana de atribución y grupo de control",
+    "roles": null
+   },
+   {
+    "code": "CMP-05",
+    "name": "Estimación y aprobación",
+    "desc": "Destinatarios efectivos, excluidos por consentimiento, por frecuencia y grupo de control; costo de mensajes, costo del proveedor y descuentos esperados; aprobación",
+    "roles": null
+   },
+   {
+    "code": "CMP-06",
+    "name": "Resultados de campaña",
+    "desc": "Entregados, leídos, respuestas, bajas, pedidos, ventas cobradas, costo total, retorno e incremento frente al grupo de control",
+    "roles": null
+   },
+   {
+    "code": "CMP-07",
+    "name": "Cupones",
+    "desc": "Código, tipo, valor, vigencia, mínimo de pedido, límites, cliente, canales y usos",
+    "roles": null
+   },
+   {
+    "code": "CMP-08",
+    "name": "Programa de puntos",
+    "desc": "Puntos por sol cobrado, valor del punto, mínimo de canje, vencimiento, marca",
+    "roles": null
+   },
+   {
+    "code": "CMP-09",
+    "name": "Puntos del cliente",
+    "desc": "Saldo, movimientos (ganados, canjeados, vencidos, reversos) y próximos vencimientos",
+    "roles": null
+   },
+   {
+    "code": "CMP-10",
+    "name": "Referidos",
+    "desc": "Código de cada cliente, referidos, estado y premio",
+    "roles": null
+   },
+   {
+    "code": "CMP-11",
+    "name": "Consentimientos por marca",
+    "desc": "Amplía CRM-18 con la marca (contact_consents.brand_id): consentimientos y bajas por cliente, canal y marca, bajas por palabra clave y bajas atribuidas a cada campaña. El registro es el mismo de CRM",
+    "roles": null
+   },
+   {
+    "code": "CMP-12",
+    "name": "Recompra esperada",
+    "desc": "Clientes que pasaron su frecuencia habitual de compra, por marca y zona, para armar el segmento",
+    "roles": null
+   },
+   {
+    "code": "CMP-13",
+    "name": "Calendario de campañas",
+    "desc": "Vista mensual por marca para no saturar a los mismos clientes",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "CON",
+  "name": "Consignación",
+  "title": "Consignación",
+  "phase": 3,
+  "objective": "Don Guando quiere vender en tiendas comerciales (bodegas, minimarkets, tiendas gourmet) sin que el punto compre la mercadería: se la deja en consignación y se cobra lo que el punto vende. Hoy no hay control de qué se dejó, qué se vendió ni qué venció, y el plazo para facturar lo vendido (9 días hábiles desde la venta del consignatario) se puede pasar sin que nadie lo note. CON da a cada punto su c",
+  "screens": [
+   {
+    "code": "CON-01",
+    "name": "Puntos de consignación",
+    "desc": "Lista y mapa de puntos con estado, visitador, frecuencia, stock valorizado en el punto, vendido del mes, días desde la última visita y semáforo de liquidaciones. Filtros por zona, visitador, marca y estado",
+    "roles": null
+   },
+   {
+    "code": "CON-02",
+    "name": "Ficha del punto",
+    "desc": "Cliente (RUC, razón social, contacto), almacén CONSIGNMENT propio, local que lo abastece, zona, pin del mapa, visitador asignado, frecuencia y días de visita, costo de visita y estado (prospecto, activo, suspendido, cerrado)",
+    "roles": null
+   },
+   {
+    "code": "CON-03",
+    "name": "Contrato del punto",
+    "desc": "Número, vigencia, tipo de compensación (margen o comisión), porcentaje de comisión, días de liquidación, días antes del vencimiento para retirar, acta firmada (PDF), aprobación y versiones",
+    "roles": null
+   },
+   {
+    "code": "CON-04",
+    "name": "Productos permitidos y precios",
+    "desc": "Por contrato: presentación, precio al punto, precio sugerido al público, stock mínimo y máximo en el punto. Muestra margen del punto en soles y %",
+    "roles": null
+   },
+   {
+    "code": "CON-05",
+    "name": "Equipos prestados",
+    "desc": "Congeladoras y exhibidoras en comodato: código, serie, valor, acta de comodato, fecha de entrega, última revisión con foto y temperatura, devolución o baja",
+    "roles": null
+   },
+   {
+    "code": "CON-06",
+    "name": "Nueva entrega",
+    "desc": "Arma la entrega desde el almacén de origen con lotes FEFO; valida productos permitidos, vida útil mínima y stock máximo; solicita la GRE a FAC y despacha",
+    "roles": null
+   },
+   {
+    "code": "CON-07",
+    "name": "Registro de consignaciones",
+    "desc": "Libro por punto y fecha: entregas, ventas informadas, devoluciones, retiros por vencer y reversos, con serie y número de la GRE. Exporta a Excel y PDF para SUNAT",
+    "roles": null
+   },
+   {
+    "code": "CON-08",
+    "name": "Plan de visitas",
+    "desc": "Agenda semanal por visitador generada desde la frecuencia del punto; reprogramación con motivo; visitas no cumplidas",
+    "roles": null
+   },
+   {
+    "code": "CON-09",
+    "name": "App · Conteo",
+    "desc": "Llegada con GPS, lista de productos y lotes en el punto con el stock teórico; el visitador cuenta y el sistema calcula lo vendido",
+    "roles": [
+     "VISITADOR_CONSIGNACION",
+     "ADMINISTRACION",
+     "SUPERVISORA_VENTAS"
+    ]
+   },
+   {
+    "code": "CON-10",
+    "name": "App · Retiros y devoluciones",
+    "desc": "Propone retirar los lotes por vencer; registra devueltos en buen estado y vencidos o dañados con motivo y foto",
+    "roles": [
+     "VISITADOR_CONSIGNACION",
+     "ADMINISTRACION",
+     "SUPERVISORA_VENTAS"
+    ]
+   },
+   {
+    "code": "CON-11",
+    "name": "App · Fotos y equipo",
+    "desc": "Fotos de la exhibición (mínimo configurable), foto del equipo prestado con su termómetro y lectura de temperatura",
+    "roles": [
+     "VISITADOR_CONSIGNACION",
+     "ADMINISTRACION",
+     "SUPERVISORA_VENTAS"
+    ]
+   },
+   {
+    "code": "CON-12",
+    "name": "App · Reposición sugerida",
+    "desc": "Cantidad sugerida por producto según la rotación, editable con motivo; genera la entrega del mismo día si el vehículo trae stock",
+    "roles": [
+     "VISITADOR_CONSIGNACION",
+     "ADMINISTRACION",
+     "SUPERVISORA_VENTAS"
+    ]
+   },
+   {
+    "code": "CON-13",
+    "name": "Liquidaciones",
+    "desc": "Bandeja por punto con importe vendido, comisión, neto, fecha de venta, día límite y semáforo de 9 días hábiles (verde, ámbar, rojo)",
+    "roles": null
+   },
+   {
+    "code": "CON-14",
+    "name": "Detalle de liquidación",
+    "desc": "Líneas por conteo, producto y lote; aprobación; emisión de la factura (FAC) y estado SUNAT; anulación con nota de crédito",
+    "roles": null
+   },
+   {
+    "code": "CON-15",
+    "name": "Incentivos",
+    "desc": "Escalas de margen por volumen por contrato, metas mensuales por punto y ranking de puntos por venta, % vendido y margen neto",
+    "roles": null
+   },
+   {
+    "code": "CON-16",
+    "name": "Rentabilidad por punto",
+    "desc": "Venta − comisión − costo de visitas − vencidos y retirados a costo, por mes; recomendación de mantener, renegociar o cerrar",
+    "roles": null
+   },
+   {
+    "code": "CON-17",
+    "name": "Stock en puntos y vencimientos",
+    "desc": "Stock por punto, producto y lote con días para vencer; lotes retirados del mercado (lot.recalled) ubicados en puntos",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "PER",
+  "name": "Personal",
+  "title": "Personal",
+  "phase": 3,
+  "objective": "En Don Guando las comisiones se discuten porque no se sabe quién vendió ni si el pedido se cobró, los repartidores reciben bonos por entrega anotados a mano, y la asistencia de los 2 locales no se registra de forma confiable. PER ordena a las personas por **puesto, local y área**, registra la **asistencia** con marcación por geolocalización o con el **QR del local**, maneja **adelantos y pagos**, ",
+  "screens": [
+   {
+    "code": "PER-01",
+    "name": "Puestos y funciones",
+    "desc": "Puesto con área, local, funciones, rol del sistema sugerido y forma de pago habitual",
+    "roles": null
+   },
+   {
+    "code": "PER-02",
+    "name": "Ficha del trabajador",
+    "desc": "Amplía el trabajador de MAE: puesto, local principal, centros de costo con %, usuario del sistema, supervisor, estado",
+    "roles": null
+   },
+   {
+    "code": "PER-03",
+    "name": "Condiciones de pago",
+    "desc": "Sueldo mensual, jornal o tarifa por hora con vigencia y fuente de planilla (Ayni HR o contador)",
+    "roles": null
+   },
+   {
+    "code": "PER-04",
+    "name": "Turnos por local",
+    "desc": "Hora de entrada y salida, refrigerio, tolerancia y si cruza medianoche",
+    "roles": null
+   },
+   {
+    "code": "PER-05",
+    "name": "Programación de turnos",
+    "desc": "Semana por local y trabajador; descansos, cambios de turno y feriados",
+    "roles": null
+   },
+   {
+    "code": "PER-06",
+    "name": "App · Marcación",
+    "desc": "Entrada, salida y refrigerio con GPS o lectura del QR del local; foto opcional; funciona sin conexión",
+    "roles": null
+   },
+   {
+    "code": "PER-07",
+    "name": "QR del local",
+    "desc": "Pantalla del local (tablet) que muestra un QR que cambia cada minuto",
+    "roles": null
+   },
+   {
+    "code": "PER-08",
+    "name": "Asistencia diaria",
+    "desc": "Consolidado por día: entrada, salida, minutos trabajados, tardanza, horas extra, falta, permiso; justificación y aprobación",
+    "roles": null
+   },
+   {
+    "code": "PER-09",
+    "name": "Adelantos",
+    "desc": "Solicitud, aprobación, pago y período de descuento",
+    "roles": null
+   },
+   {
+    "code": "PER-10",
+    "name": "Planes de comisión y bono",
+    "desc": "Tipo (comisión sobre cobrado o bono por entrega), marca, canal, porcentaje o monto, tramos y vigencia",
+    "roles": null
+   },
+   {
+    "code": "PER-11",
+    "name": "Comisiones y bonos del período",
+    "desc": "Detalle por cobro asignado o entrega, reversos, totales por persona y estado de cierre",
+    "roles": null
+   },
+   {
+    "code": "PER-12",
+    "name": "Pagos al personal",
+    "desc": "Liquidación por persona y período con líneas (comisiones, bonos, jornales, adelantos, multas), aprobación y pago",
+    "roles": null
+   },
+   {
+    "code": "PER-13",
+    "name": "Supervisión",
+    "desc": "Alertas de control (CRM, TEL, FLO, asistencia) vinculadas al trabajador y a su supervisor, con la acción tomada",
+    "roles": null
+   },
+   {
+    "code": "PER-14",
+    "name": "Costo de personal",
+    "desc": "Por área, local, marca y por pedido entregado, con planilla importada, comisiones y bonos",
+    "roles": null
+   },
+   {
+    "code": "PER-15",
+    "name": "Intercambio con Ayni HR",
+    "desc": "Importa el costo de planilla del mes y exporta asistencia y conceptos variables; o genera el archivo para el contador",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "SEP",
+  "name": "Separación de marcas",
+  "title": "Separación de una marca a otro RUC o a otro sistema",
+  "phase": 4,
+  "objective": "Don Guando opera hoy la línea de café, frutos secos, mermeladas e infusiones como una de sus 5 marcas, facturada con el mismo RUC. Más adelante esa línea irá a **otro RUC** (dentro de la plataforma, con el mismo inicio de sesión) o a **otro sistema**. SEP lo hace con un asistente auditado: fecha de corte en un mes cerrado, nuevas series, traspaso del stock con guía, clientes y pedidos abiertos, nú",
+  "screens": [
+   {
+    "code": "SEP-01",
+    "name": "Separaciones",
+    "desc": "Lista con número, marca, destino, fecha de corte, estado, quién preparó y quién aprobó",
+    "roles": null
+   },
+   {
+    "code": "SEP-02",
+    "name": "Nueva separación: destino y corte",
+    "desc": "Marca, empresa de origen, destino (otro RUC del tenant, otro tenant u otro sistema), empresa destino o datos del nuevo tenant, fecha de corte (solo últimos días de mes)",
+    "roles": null
+   },
+   {
+    "code": "SEP-03",
+    "name": "Validaciones previas",
+    "desc": "Período de corte cerrado, pedidos de la marca en preparación o en ruta, rutas abiertas, comprobantes sin enviar, series y OSE del destino, conteo de stock, decisiones de cobranzas, WhatsApp y usuarios, consignación liquidada; cada una PASS, WARN o FAIL con detalle",
+    "roles": null
+   },
+   {
+    "code": "SEP-04",
+    "name": "Catálogo, precios y series",
+    "desc": "Productos, presentaciones y listas de precio de la marca: mover, copiar o solo exportar; series nuevas del destino y cierre de las series propias de la marca en el origen",
+    "roles": null
+   },
+   {
+    "code": "SEP-05",
+    "name": "Stock al corte y traspaso",
+    "desc": "Stock de la marca por almacén, lote y vencimiento a la fecha de corte; acción por lote (traspaso con comprobante y guía, solo exportar o dejar) y cantidad",
+    "roles": null
+   },
+   {
+    "code": "SEP-06",
+    "name": "Clientes, pedidos abiertos y saldos",
+    "desc": "Clientes de la marca, pedidos confirmados sin despachar (mantener, cancelar con aviso o exportar) y cuentas por cobrar (quedan en el origen o se ceden)",
+    "roles": null
+   },
+   {
+    "code": "SEP-07",
+    "name": "Canales",
+    "desc": "Números de WhatsApp, tienda web, cuentas de anuncios y cajas o pasarelas de la marca, con la acción para cada uno",
+    "roles": null
+   },
+   {
+    "code": "SEP-08",
+    "name": "Usuarios y locales",
+    "desc": "Vendedoras y personal con alcance solo en la marca, locales y almacenes dedicados: mover, quitar alcance o mantener",
+    "roles": null
+   },
+   {
+    "code": "SEP-09",
+    "name": "Resumen, aprobación y ejecución",
+    "desc": "Resumen de todo lo propuesto; aprobación por otra persona; ejecución con avance por elemento y reintento de los que fallan",
+    "roles": null
+   },
+   {
+    "code": "SEP-10",
+    "name": "Exportación completa",
+    "desc": "Genera el paquete (JSON de Aycha y Excel o CSV), muestra su huella y su tamaño, y da el enlace de descarga con vencimiento",
+    "roles": null
+   },
+   {
+    "code": "SEP-11",
+    "name": "Acta",
+    "desc": "PDF con fecha de corte, empresas, saldos trasladados, stock traspasado, comprobantes de traspaso, firmas de quien preparó y aprobó",
+    "roles": null
+   },
+   {
+    "code": "SEP-12",
+    "name": "Historial de la marca",
+    "desc": "Empresas emisoras de la marca por vigencia y separaciones ejecutadas",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "API",
+  "name": "API pública y webhooks",
+  "title": "API pública, claves y webhooks",
+  "phase": 4,
+  "objective": "Que los clientes del SaaS conecten Aycha con sus otros sistemas sin pedir desarrollos: el ERP de un restaurante crea pedidos, una tienda online consulta stock y precios, y el contador o un BI recibe los comprobantes aceptados. Cada empresa crea **claves con alcances y vencimiento**, recibe **webhooks firmados** con reintentos e historial, lee la **documentación OpenAPI** y prueba en un **sandbox**",
+  "screens": [
+   {
+    "code": "API-01",
+    "name": "Claves de API",
+    "desc": "Lista con nombre, entorno (producción o pruebas), prefijo visible, alcances, vencimiento, último uso y estado",
+    "roles": null
+   },
+   {
+    "code": "API-02",
+    "name": "Crear clave",
+    "desc": "Nombre, entorno, alcances, marcas, IP permitidas y vencimiento; muestra el secreto **una sola vez** con botón de copiar",
+    "roles": null
+   },
+   {
+    "code": "API-03",
+    "name": "Detalle de clave",
+    "desc": "Alcances, uso de los últimos 30 días, llamadas rechazadas por límite y revocación con motivo",
+    "roles": null
+   },
+   {
+    "code": "API-04",
+    "name": "Destinos de webhooks",
+    "desc": "Lista con URL, eventos, estado, racha de fallos y última entrega",
+    "roles": null
+   },
+   {
+    "code": "API-05",
+    "name": "Crear o editar destino",
+    "desc": "URL https, eventos, secreto de firma (rotar con período de convivencia), botón de envío de prueba",
+    "roles": null
+   },
+   {
+    "code": "API-06",
+    "name": "Entregas",
+    "desc": "Historial por destino, evento y estado (pendiente, reintentando, entregado, cola muerta); filtros por fecha",
+    "roles": null
+   },
+   {
+    "code": "API-07",
+    "name": "Detalle de entrega",
+    "desc": "Cuerpo enviado, cabeceras de firma, cada intento con código, tiempo y respuesta recortada; reenviar",
+    "roles": null
+   },
+   {
+    "code": "API-08",
+    "name": "Documentación",
+    "desc": "OpenAPI navegable con ejemplos, errores con su código RN y guía de firma de webhooks",
+    "roles": null
+   },
+   {
+    "code": "API-09",
+    "name": "Sandbox",
+    "desc": "Estado del tenant de pruebas, datos de demostración, reinicio y claves de prueba",
+    "roles": null
+   },
+   {
+    "code": "API-10",
+    "name": "Uso de la API",
+    "desc": "Llamadas por día y clave frente al límite del plan, errores 4xx y 5xx, y rechazos por límite",
+    "roles": null
+   },
+   {
+    "code": "API-11",
+    "name": "Eventos y alcances",
+    "desc": "Catálogo de eventos con su alcance requerido, versión del contenido y ejemplo",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "ONB",
+  "name": "Alta de empresas",
+  "title": "Alta de empresas, plantillas por rubro e importadores",
+  "phase": 4,
+  "objective": "Que una distribuidora de carnes, una charcutería, una avícola o una tienda gourmet empiece a vender en días y sin ayuda técnica: se registra con su RUC, un asistente la guía paso a paso (empresa, marcas, locales, almacenes, series, medios de pago, números de WhatsApp, zonas de reparto), una **plantilla de su rubro** le deja catálogo, cortes, despieces, recetas, checklists y metas de ejemplo, y los",
+  "screens": [
+   {
+    "code": "ONB-01",
+    "name": "Registro",
+    "desc": "Formulario público: RUC (trae razón social, estado y condición de SUNAT), contacto, celular, producto y rubro; envía el enlace de verificación del correo",
+    "roles": null
+   },
+   {
+    "code": "ONB-02",
+    "name": "Lista de pasos",
+    "desc": "Pasos obligatorios y opcionales con estado, prerrequisitos, responsable y porcentaje de avance; botón «continuar donde quedé»",
+    "roles": null
+   },
+   {
+    "code": "ONB-03",
+    "name": "Empresa",
+    "desc": "Datos fiscales de SUNAT editables (nombre comercial, domicilio, régimen), logo y colores",
+    "roles": null
+   },
+   {
+    "code": "ONB-04",
+    "name": "Marcas",
+    "desc": "Alta de marcas con logo, color y pie legal; avisa si se acerca al límite del plan",
+    "roles": null
+   },
+   {
+    "code": "ONB-05",
+    "name": "Locales y almacenes",
+    "desc": "Locales con código de anexo SUNAT y tipo; almacenes por local (cámara, congeladora, tienda) con rango de temperatura",
+    "roles": null
+   },
+   {
+    "code": "ONB-06",
+    "name": "Series y comprobante electrónico",
+    "desc": "Series propuestas F001, B001, T001 por empresa o local; último correlativo usado en el sistema anterior; credenciales del OSE y envío de un comprobante de prueba",
+    "roles": null
+   },
+   {
+    "code": "ONB-07",
+    "name": "Medios de pago y cajas",
+    "desc": "Efectivo, Yape, Plin, POS de tarjeta, pasarela web y transferencia; cajas por local",
+    "roles": null
+   },
+   {
+    "code": "ONB-08",
+    "name": "Números de WhatsApp",
+    "desc": "Un número por marca o compartidos; conexión con el registro integrado del proveedor oficial (coexistencia)",
+    "roles": null
+   },
+   {
+    "code": "ONB-09",
+    "name": "Zonas de reparto",
+    "desc": "Zonas por local con polígono o distritos, tarifa y regla de delivery gratis",
+    "roles": null
+   },
+   {
+    "code": "ONB-10",
+    "name": "Plantilla por rubro",
+    "desc": "Vista previa de lo que crea la plantilla (por tipo y por módulo requerido), elección de la marca y aplicación; resultado con lo creado, omitido y fallido",
+    "roles": null
+   },
+   {
+    "code": "ONB-11",
+    "name": "Importar: subir y mapear",
+    "desc": "Descargar la plantilla de Excel del tipo; subir el archivo; asociar columnas; elegir modo (solo nuevos o actualizar) y datos de corte",
+    "roles": null
+   },
+   {
+    "code": "ONB-12",
+    "name": "Importar: validación",
+    "desc": "Resultado por fila con errores por columna; descarga del Excel con una columna de errores; aceptar importar solo las válidas",
+    "roles": null
+   },
+   {
+    "code": "ONB-13",
+    "name": "Importar: ejecución",
+    "desc": "Avance por lotes, filas importadas, omitidas y fallidas; enlace a lo creado",
+    "roles": null
+   },
+   {
+    "code": "ONB-14",
+    "name": "Usuarios e invitaciones",
+    "desc": "Invitar por correo con rol, locales y marcas; segundo factor obligatorio para los roles que lo exigen",
+    "roles": null
+   },
+   {
+    "code": "ONB-15",
+    "name": "Salida a producción",
+    "desc": "Checklist final, primer comprobante real aceptado y fecha de inicio de operación",
+    "roles": null
+   },
+   {
+    "code": "ONB-16",
+    "name": "Registros y altas (consola)",
+    "desc": "Para Intelectalab: registros por estado, rubro y origen; altas en curso con su avance y días transcurridos",
+    "roles": null
+   }
+  ]
+ },
+ {
+  "code": "OPS",
+  "name": "Consola de plataforma y soporte",
+  "title": "Consola de plataforma y soporte",
+  "phase": 4,
+  "objective": "Que Intelectalab opere el SaaS con muchos clientes sin entrar a sus datos cuando no corresponde. La consola muestra cada empresa con su plan, uso, mora y salud; permite suspender y reactivar con motivo; vigila colas, OSE, WhatsApp y pasarelas; gestiona incidentes y anuncios; y calcula las métricas del negocio (MRR, clientes activos, churn). Para resolver un caso, el soporte pide un **acceso tempor",
+  "screens": [
+   {
+    "code": "OPS-01",
+    "name": "Ingreso a la consola",
+    "desc": "Correo, contraseña y segundo factor obligatorio; solo desde redes permitidas si la lista no está vacía",
+    "roles": [
+     "SOPORTE_PLATAFORMA"
+    ]
+   },
+   {
+    "code": "OPS-02",
+    "name": "Empresas",
+    "desc": "Lista de tenants con producto, plan, estado, días en el estado, MRR, uso de límites, puntaje de salud y tickets abiertos; filtros y orden por riesgo",
+    "roles": [
+     "SOPORTE_PLATAFORMA"
+    ]
+   },
+   {
+    "code": "OPS-03",
+    "name": "Ficha de la empresa",
+    "desc": "Suscripción e historial, uso por límite, salud y sus componentes, comprobantes del SaaS, tickets, incidentes que la afectaron, accesos de soporte y acciones de la consola sobre ella",
+    "roles": [
+     "SOPORTE_PLATAFORMA"
+    ]
+   },
+   {
+    "code": "OPS-04",
+    "name": "Suspender o reactivar",
+    "desc": "Cambio de estado con motivo obligatorio y aviso al cliente; muestra el efecto (solo lectura o suspensión total)",
+    "roles": [
+     "SOPORTE_PLATAFORMA"
+    ]
+   },
+   {
+    "code": "OPS-05",
+    "name": "Solicitar acceso de soporte",
+    "desc": "Ticket, motivo, nivel (solo lectura o lectura y escritura), módulos, exportación sí o no y duración sugerida; queda pendiente de aprobación del cliente",
+    "roles": [
+     "SOPORTE_PLATAFORMA"
+    ]
+   },
+   {
+    "code": "OPS-06",
+    "name": "Sesión de soporte",
+    "desc": "Entrada al tenant con el usuario técnico del acceso, franja fija con el tiempo restante y el nivel; cierre manual",
+    "roles": [
+     "SOPORTE_PLATAFORMA"
+    ]
+   },
+   {
+    "code": "OPS-07",
+    "name": "Salud de componentes",
+    "desc": "Estado por componente (aplicación, base de datos, colas, OSE, WhatsApp, pasarelas, mapas, correo, almacenamiento, telefonía, anuncios, WooCommerce, API) con latencia, errores y profundidad de cola",
+    "roles": [
+     "SOPORTE_PLATAFORMA"
+    ]
+   },
+   {
+    "code": "OPS-08",
+    "name": "Incidentes",
+    "desc": "Alta, severidad, componente, tenants afectados, línea de tiempo, mensaje público, causa raíz y post mortem",
+    "roles": [
+     "SOPORTE_PLATAFORMA"
+    ]
+   },
+   {
+    "code": "OPS-09",
+    "name": "Bandeja de tickets",
+    "desc": "Tickets de todos los clientes por prioridad, plazo de primera respuesta y estado; asignación y respuesta",
+    "roles": [
+     "SOPORTE_PLATAFORMA"
+    ]
+   },
+   {
+    "code": "OPS-10",
+    "name": "Métricas del negocio",
+    "desc": "MRR, clientes activos, churn de clientes y de MRR, retención neta, ingreso promedio, conversión de prueba, uso por plan, tiempo de alta, tickets, disponibilidad y mora, por mes",
+    "roles": [
+     "SOPORTE_PLATAFORMA"
+    ]
+   },
+   {
+    "code": "OPS-11",
+    "name": "Anuncios",
+    "desc": "Redactar y programar anuncios por producto, plan o lista de clientes; mantenimientos con anticipación mínima",
+    "roles": [
+     "SOPORTE_PLATAFORMA"
+    ]
+   },
+   {
+    "code": "OPS-12",
+    "name": "Usuarios de plataforma",
+    "desc": "Alta, rol, segundo factor, bloqueo y baja del personal de Intelectalab",
+    "roles": [
+     "SOPORTE_PLATAFORMA"
+    ]
+   },
+   {
+    "code": "OPS-13",
+    "name": "Bitácora de la consola",
+    "desc": "Toda acción de la consola con usuario, tenant, motivo, IP y detalle; solo lectura",
+    "roles": [
+     "SOPORTE_PLATAFORMA"
+    ]
+   },
+   {
+    "code": "OPS-14",
+    "name": "Accesos de soporte (cliente)",
+    "desc": "Para el administrador del cliente: solicitudes pendientes, aprobar o rechazar, accesos vigentes con tiempo restante, revocar y ver lo que hizo el soporte",
+    "roles": [
+     "ADMIN_SISTEMA"
+    ]
+   },
+   {
+    "code": "OPS-15",
+    "name": "Mis tickets (cliente)",
+    "desc": "Abrir un ticket con categoría, prioridad y adjuntos; seguimiento y calificación",
+    "roles": [
+     "ADMIN_SISTEMA"
+    ]
+   },
+   {
+    "code": "OPS-16",
+    "name": "Parámetros de plataforma",
+    "desc": "Parámetros de toda la plataforma con historial y motivo del cambio",
+    "roles": [
+     "SOPORTE_PLATAFORMA"
+    ]
+   }
+  ]
+ },
+ {
+  "code": "SUS",
+  "name": "Planes y suscripciones",
+  "title": "Planes y suscripciones",
+  "phase": 4,
+  "objective": "Que Intelectalab venda Aycha a otras empresas del rubro sin hacer nada a mano: el cliente elige un plan del producto que necesita (Granja, Comercial y, más adelante, Marcas gourmet), el plan **enciende los módulos** que incluye, los límites se miden solos, el cobro es recurrente con tarjeta tokenizada y cada mes recibe su comprobante electrónico emitido por Intelectalab. Si no paga, la empresa pas",
+  "screens": [
+   {
+    "code": "SUS-01",
+    "name": "Mi suscripción",
+    "desc": "Para el administrador del cliente: producto, plan y versión, estado, fin de la prueba o próximo cobro, complementos y barras de uso por límite con su porcentaje",
+    "roles": [
+     "ADMIN_SISTEMA",
+     "ADMINISTRACION",
+     "SOPORTE_PLATAFORMA"
+    ]
+   },
+   {
+    "code": "SUS-02",
+    "name": "Cambiar de plan",
+    "desc": "Comparador de planes publicados del producto con módulos y límites; muestra el prorrateo estimado al subir y, al bajar, qué límites se excederían con el uso actual",
+    "roles": [
+     "ADMIN_SISTEMA",
+     "ADMINISTRACION",
+     "SOPORTE_PLATAFORMA"
+    ]
+   },
+   {
+    "code": "SUS-03",
+    "name": "Complementos",
+    "desc": "Contratar o quitar TEL, CNT, CON, números de WhatsApp, minutos, usuarios, marcas, locales, pedidos y llamadas de API; muestra el módulo que se enciende o el límite que sube",
+    "roles": [
+     "ADMIN_SISTEMA",
+     "ADMINISTRACION",
+     "SOPORTE_PLATAFORMA"
+    ]
+   },
+   {
+    "code": "SUS-04",
+    "name": "Uso del plan",
+    "desc": "Detalle por límite: usado, límite efectivo (plan + complementos), tipo (bloquea o solo avisa) e historial de 12 meses",
+    "roles": [
+     "ADMIN_SISTEMA",
+     "ADMINISTRACION",
+     "SOPORTE_PLATAFORMA"
+    ]
+   },
+   {
+    "code": "SUS-05",
+    "name": "Comprobantes del SaaS",
+    "desc": "Comprobantes emitidos por Intelectalab: período, importe, estado de pago y de SUNAT; descarga de PDF y XML; pagar uno vencido",
+    "roles": [
+     "ADMIN_SISTEMA",
+     "ADMINISTRACION",
+     "SOPORTE_PLATAFORMA"
+    ]
+   },
+   {
+    "code": "SUS-06",
+    "name": "Medio de pago",
+    "desc": "Tarjeta tokenizada en la pasarela (solo se ven la marca y los 4 últimos dígitos), cobro automático sí o no, correo de facturación y RUC o DNI del comprobante",
+    "roles": [
+     "ADMIN_SISTEMA",
+     "ADMINISTRACION",
+     "SOPORTE_PLATAFORMA"
+    ]
+   },
+   {
+    "code": "SUS-07",
+    "name": "Cancelar suscripción",
+    "desc": "Motivo, encuesta corta, fecha efectiva (fin del período), recordatorio de exportación y plazo de conservación de los datos",
+    "roles": [
+     "ADMIN_SISTEMA",
+     "ADMINISTRACION",
+     "SOPORTE_PLATAFORMA"
+    ]
+   },
+   {
+    "code": "SUS-08",
+    "name": "Aviso de mora y solo lectura",
+    "desc": "Franja visible en toda la aplicación con los días de mora y el botón de pago; en solo lectura explica qué se puede hacer (consultar, exportar, pagar)",
+    "roles": [
+     "ADMIN_SISTEMA",
+     "ADMINISTRACION",
+     "SOPORTE_PLATAFORMA"
+    ]
+   },
+   {
+    "code": "SUS-09",
+    "name": "Catálogo de planes (consola)",
+    "desc": "Productos, planes y versiones, módulos incluidos con sus dependencias, límites, precio y prueba; publicar, retirar y crear nueva versión",
+    "roles": [
+     "SOPORTE_PLATAFORMA"
+    ]
+   },
+   {
+    "code": "SUS-10",
+    "name": "Complementos (consola)",
+    "desc": "Complementos por producto con el módulo que encienden o el límite que suben, forma de cobro y precio; publicar o retirar",
+    "roles": [
+     "SOPORTE_PLATAFORMA"
+    ]
+   },
+   {
+    "code": "SUS-11",
+    "name": "Suscripciones de clientes (consola)",
+    "desc": "Lista con producto, plan, estado, días en el estado, MRR y uso; detalle con historial de eventos, extender prueba, descuento pactado y cambio de estado con motivo",
+    "roles": [
+     "SOPORTE_PLATAFORMA"
+    ]
+   },
+   {
+    "code": "SUS-12",
+    "name": "Facturación del SaaS (consola)",
+    "desc": "Corrida mensual de cobro, comprobantes en borrador y emitidos, envío al OSE de Intelectalab, notas de crédito y series de plataforma",
+    "roles": [
+     "SOPORTE_PLATAFORMA"
+    ]
+   },
+   {
+    "code": "SUS-13",
+    "name": "Cobros y conciliación (consola)",
+    "desc": "Intentos de cobro con su resultado, referencia de la pasarela y evento crudo; conciliación con el abono de la pasarela",
+    "roles": [
+     "SOPORTE_PLATAFORMA"
+    ]
+   },
+   {
+    "code": "SUS-14",
+    "name": "Mora (consola)",
+    "desc": "Cola de clientes en mora por días, próximo reintento, paso previsto a solo lectura o suspensión y acciones (recordatorio, prórroga con motivo)",
+    "roles": [
+     "SOPORTE_PLATAFORMA"
+    ]
+   }
+  ]
+ }
+]

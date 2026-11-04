@@ -1,0 +1,123 @@
+@import "tailwindcss";
+
+/* Tokens del prototipo (paleta de donguando.com): vino, granate profundo, dorado y crema.
+   Nunca colores fijos en los componentes: usar estas variables o las clases de Tailwind de abajo. */
+:root {
+  --bg: #fbf8f0;
+  --surface: #fffefb;
+  --surface-2: #f6efe0;
+  --ink: #1d1d1d;
+  --muted: #6a5d5f;
+  --line: #e6dccb;
+  --primary: #922242;
+  --primary-ink: #ffffff;
+  --primary-soft: #f6e3e8;
+  --accent: #b9781a;
+  --accent-soft: #fff1d6;
+  --brand-gold: #ffc676;
+  --side: #6d102b;
+  --side-ink: #fff4e6;
+  --side-muted: #e3b9c1;
+  --side-hover: #ffffff18;
+  --ok: #2f7a43;
+  --ok-soft: #e0efe2;
+  --warn: #a66410;
+  --warn-soft: #f8e8c9;
+  --bad: #c2410c;
+  --bad-soft: #fbe2d4;
+  --info: #2a6a8c;
+  --info-soft: #dbeaf2;
+  --shadow: 0 1px 2px rgba(80, 20, 35, 0.06), 0 6px 18px rgba(80, 20, 35, 0.07);
+  /* Barra lateral (como erp-saas): el vino de la marca oscureciéndose hacia abajo, texto blanco. */
+  --side-bg: linear-gradient(180deg, #922242 0%, #7a1736 24%, #4f0b20 100%);
+  --side-flyout: linear-gradient(180deg, #7a1736 0%, #4f0b20 100%);
+  --side-active: rgb(255 255 255 / 0.16);
+  --side-group-active: rgb(255 255 255 / 0.2);
+  --side-ring: #7a1736;
+  --tooltip: #1d1d1d;
+  --tooltip-text: #ffffff;
+  --overlay: rgb(40 8 18 / 0.5);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161012; --surface: #1f171a; --surface-2: #281e21; --ink: #f3e9e3; --muted: #b3a2a5; --line: #3a2c30;
+    --primary: #e57f9b; --primary-ink: #2a0a14; --primary-soft: #44202b; --accent: #ffc676; --accent-soft: #3d2f17;
+    --side: #2a0912; --side-ink: #f6e6e0; --side-muted: #c4919c; --side-hover: #ffffff12;
+    --ok: #7cc68d; --ok-soft: #1f3524; --warn: #f0b154; --warn-soft: #3b2c14; --bad: #f2895f; --bad-soft: #3e2116;
+    --info: #79b8dc; --info-soft: #18303d; --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 20px rgba(0, 0, 0, 0.35);
+
+    --side-bg: linear-gradient(180deg, #4a0c1f 0%, #33081a 24%, #1e0510 100%); --side-flyout: linear-gradient(180deg, #33081a 0%, #1e0510 100%);
+    --side-active: rgb(229 127 155 / 0.32); --side-group-active: rgb(229 127 155 / 0.24); --side-ring: #33081a;
+    --tooltip: #f3e9e3; --tooltip-text: #161012; --overlay: rgb(0 0 0 / 0.6);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #161012; --surface: #1f171a; --surface-2: #281e21; --ink: #f3e9e3; --muted: #b3a2a5; --line: #3a2c30;
+  --primary: #e57f9b; --primary-ink: #2a0a14; --primary-soft: #44202b; --accent: #ffc676; --accent-soft: #3d2f17;
+  --side: #2a0912; --side-ink: #f6e6e0; --side-muted: #c4919c; --side-hover: #ffffff12;
+  --ok: #7cc68d; --ok-soft: #1f3524; --warn: #f0b154; --warn-soft: #3b2c14; --bad: #f2895f; --bad-soft: #3e2116;
+  --info: #79b8dc; --info-soft: #18303d; --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 20px rgba(0, 0, 0, 0.35);
+
+  --side-bg: linear-gradient(180deg, #4a0c1f 0%, #33081a 24%, #1e0510 100%); --side-flyout: linear-gradient(180deg, #33081a 0%, #1e0510 100%);
+  --side-active: rgb(229 127 155 / 0.32); --side-group-active: rgb(229 127 155 / 0.24); --side-ring: #33081a;
+  --tooltip: #f3e9e3; --tooltip-text: #161012; --overlay: rgb(0 0 0 / 0.6);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-primary: var(--primary);
+  --color-primary-ink: var(--primary-ink);
+  --color-primary-soft: var(--primary-soft);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-gold: var(--brand-gold);
+  --color-side: var(--side);
+  --color-side-ink: var(--side-ink);
+  --color-side-muted: var(--side-muted);
+  --color-side-hover: var(--side-hover);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --shadow-card: var(--shadow);
+  --color-tooltip: var(--tooltip);
+  --color-tooltip-text: var(--tooltip-text);
+  --font-display: var(--font-archivo), "Arial Narrow", system-ui, sans-serif;
+  --font-sans: var(--font-source-sans), "Segoe UI", system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, Consolas, monospace;
+}
+
+/* Con @theme inline, --font-sans y --font-display no existen como variables CSS (solo alimentan las
+   clases font-sans / font-display): aquí se usan las de next/font directamente. */
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-source-sans), "Segoe UI", system-ui, sans-serif;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-archivo), "Arial Narrow", system-ui, sans-serif;
+}
+
+/* Botón de tema: luna en claro, sol en oscuro (sin esperar a que React lea la preferencia). */
+.theme-sun-icon { display: none; }
+[data-theme="dark"] .theme-moon-icon { display: none; }
+[data-theme="dark"] .theme-sun-icon { display: block; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .theme-moon-icon { display: none; }
+  :root:not([data-theme="light"]) .theme-sun-icon { display: block; }
+}
