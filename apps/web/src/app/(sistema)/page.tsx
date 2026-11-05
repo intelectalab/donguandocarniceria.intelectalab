@@ -5,8 +5,8 @@ import { menuDe, rutaPantalla } from "@/lib/modulos";
 import { useSesion } from "@/lib/sesion";
 
 /**
- * Inicio: los módulos del rol por grupo, en el mismo orden del menú (G.GROUPS del prototipo), con
- * las pantallas que ve. Cada tarjeta abre la primera pantalla del módulo, como el prototipo.
+ * Inicio: los módulos del rol por grupo, en el mismo orden del menú, con las pantallas que ve.
+ * Cada tarjeta abre la primera pantalla del módulo.
  */
 export default function Inicio() {
   const { me } = useSesion();

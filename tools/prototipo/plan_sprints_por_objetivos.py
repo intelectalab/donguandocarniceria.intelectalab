@@ -14,7 +14,7 @@ import re
 R = pathlib.Path(__file__).resolve().parents[2]
 spec = json.loads((R / 'aycha-proto/dist/spec.json').read_text(encoding='utf-8'))
 nombre = {m['code']: m['name'] for m in json.loads((R / 'apps/web/src/lib/modulos.json').read_text(encoding='utf-8'))}
-menu = json.loads((R / 'apps/web/src/lib/menu-prototipo.json').read_text(encoding='utf-8'))
+menu = json.loads((R / 'apps/web/src/lib/menu.json').read_text(encoding='utf-8'))
 
 pant = {k: len(v['screens']) for k, v in spec.items()}
 pant['DEL'] += 6  # DEL-17..22 de la ampliación del prototipo

@@ -38,7 +38,7 @@ class MeController extends Controller
                     'actions' => $actions,
                 ];
             })
-            // Como G.canSee del prototipo: el módulo se ve con la letra L (leer) o C (crear).
+            // El módulo se ve en el menú con la letra L (leer) o C (crear).
             ->filter(fn ($m) => (bool) preg_match('/[LC]/', $m['actions']))
             ->values();
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Support\Access;
+use App\Support\Listado;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +24,9 @@ class NotificationController extends Controller
 
     public function index(Request $request)
     {
-        $pagina = $this->mias($request)->orderByDesc('at')->paginate(min((int) $request->query('per_page', 20), 100));
+        $query = $this->mias($request)->when($request->boolean('unread'), fn ($q) => $q->whereNull('read_at'));
+        $pagina = Listado::de($query, $request, buscar: ['title', 'body', 'module'],
+            ordenar: ['at', 'title', 'module'], porDefecto: '-at');
         $pagina->getCollection()->transform($this->fila(...));
 
         return response()->json($pagina);

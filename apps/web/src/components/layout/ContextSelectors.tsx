@@ -3,7 +3,7 @@
 import { useSesion } from "@/lib/sesion";
 
 /**
- * Marca y local del contexto (como la barra superior del prototipo). Filtran las listas de los
+ * Marca y local del contexto. Filtran las listas de los
  * módulos; con una sola opción no hay nada que elegir y no se muestra.
  * variant "sidebar": bajo la empresa en la barra lateral; "header": sobre fondo claro (pantallas que lo necesiten).
  */

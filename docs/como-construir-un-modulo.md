@@ -48,12 +48,15 @@ Con un módulo apagado para la empresa, `modulo:` responde `RN-PLT-07`, aunque e
 | `RuleError::fail('RN-PED-01', 'faltan: dirección con pin, franja.')` | Regla que bloquea. La API responde 422 con `code` = la regla, y el mensaje empieza con su código. |
 | `Params::get('ped_weight_tolerance_pct', ['brand' => $id])` | Parámetros de la spec: primero los de la empresa, si no, el valor por defecto. |
 | `Events::emit('order.confirmed', 'sales_orders', $id, [...])` | Eventos entre módulos (nombres de la spec). |
+| `Listado::de($query, $request, buscar: [...], ordenar: [...])` | Listas paginadas con búsqueda (`?q=`, sin mayúsculas ni tildes), orden (`?sort=campo` o `-campo`, solo columnas permitidas) y páginas (`?page=`, `?per_page=` hasta 100). Es lo que espera `useListado` en la web. |
 | Bitácora | Automática: cada cambio queda en `audit.change_log` con el usuario. |
 | `DB::transaction(...)` | Todo cambio de varias tablas va en una transacción; el evento también. |
 
 **Quien pide no aprueba:** compara `$request->user()->id` con el solicitante antes de aprobar.
 
 **Fechas y montos:** zona `America/Lima`. Montos en `decimal` y calculados en la API, nunca en el navegador. IGV 18 % (los precios incluyen IGV).
+
+**Ejemplo completo:** PLT-03 Empresas y PLT-04 Locales (`app/Modulos/Plt/`, `routes/modulos/plt.php`, `tests/Feature/Modulos/PltTest.php`).
 
 ### Pruebas
 Una prueba por cada criterio `CA-…` de la spec, con los números del criterio, en `tests/Feature/Modulos/<Codigo>Test.php`. `Tests\TestCase` ya prepara la base con las dos empresas de demo y deshace cada prueba al terminar. Para entrar como un rol:
@@ -73,7 +76,7 @@ src/app/(sistema)/m/ped/ped-03/[id]/page.tsx     una pantalla con parámetro (de
 src/modulos/ped/                                 componentes y tipos propios del módulo
 ```
 - **Cada pantalla de la spec tiene su dirección,** con su código: `/m/ped/ped-02`. El menú (grupo → módulo → pantallas) ya apunta a todas. Mientras una pantalla no exista, esa dirección muestra su ficha (`m/[codigo]/[pantalla]`). Al crear `m/ped/ped-02/page.tsx`, la ruta fija tiene prioridad y la pantalla real reemplaza la ficha, sin tocar el menú.
-- **El orden y la visibilidad del menú salen del prototipo** (`src/lib/menu-prototipo.json`: `G.GROUPS` y `G.SCREEN_ONLY`; la regla está en `menuDe` de `src/lib/modulos.ts`). No los cambies a mano. El armazón no monta una pantalla que el rol no ve.
+- **El orden y la visibilidad del menú** están en `src/lib/menu.json` (los grupos en su orden y las pantallas restringidas por rol); la regla está en `menuDe` de `src/lib/modulos.ts`. No los cambies a mano. El armazón no monta una pantalla que el rol no ve.
 
 ### Lo que ya tienes
 ```tsx
@@ -89,6 +92,23 @@ export default function Pedidos() {
   // Un ApiError trae code (RN-PED-06, PERMISSION_DENIED…): muéstralo tal cual al usuario.
 }
 ```
+### Componentes compartidos
+Todas las pantallas usan los mismos, de `@/components/ui`. Se ven funcionando en **/componentes** (solo en desarrollo). No hagas tablas, ventanas ni botones propios: si falta algo, se agrega aquí para todos.
+
+| Componente | Para qué |
+|---|---|
+| `DataTable` + `useListado` | Lista con búsqueda, orden, páginas, carga, error y vacío. `useListado` habla con `Listado` de la API: `<DataTable {...lista.tabla} columns={columnas} />` |
+| `Field` + `Input`, `Select`, `Textarea`, `Checkbox`, `Switch` | Campos de formulario con etiqueta, ayuda y error. Los errores de la API por campo salen de `erroresDe(err)` |
+| `Modal` | Panel que entra por la derecha para crear o editar (`placement="center"` para un diálogo corto); se monta solo mientras está abierto |
+| `confirmAction` | Confirmar antes de una acción, con motivo opcional (`reason: { min: 10 }`) para las reglas que lo piden |
+| `toast` | Aviso flotante: `toast.ok("Guardado")`, `toast.error(mensajeDe(err))` |
+| `MapPicker` | Mapa (OpenStreetMap) para fijar una ubicación con un pin, con otros puntos de referencia. Sirve para locales, direcciones de clientes y reparto |
+| `MapView` | Mapa de solo lectura con varios pines etiquetados; un clic en un pin lo abre |
+| `Button`, `IconButton` | Botones (`primary`, `secondary`, `ghost`, `danger`), con `loading` |
+| `PageHeader`, `Tabs`, `Alert`, `Badge`, `StatusBadge`, `DetailList` | Inicio de la pantalla, pestañas, mensajes, etiquetas de estado y fichas de solo lectura |
+
+Para mostrar datos, `@/lib/formato`: `soles()`, `kg()`, `numero()`, `porcentaje()`, `fecha()` y `fechaHora()` (en hora de Lima). Ejemplo completo de pantallas: `m/plt/plt-03` (tarjetas) y `m/plt/plt-04` (tabla con filtros y formulario), con sus piezas en `src/modulos/plt/`.
+
 - **El armazón ya pone** la cabecera (título y migas del módulo), el menú y el control de acceso: si el rol no tiene el módulo o está apagado, tu pantalla no se monta. Empieza la pantalla con su contenido (`h2` para títulos de sección; el `h1` es de la cabecera).
 - **Colores:** solo las clases del tema (`bg-surface`, `text-muted`, `bg-primary`, `text-bad`, `bg-ok-soft`…), definidas en `src/app/globals.css`. Nunca colores fijos: el modo oscuro sale solo.
 - **Botones sin permiso:** ocúltalos o desactívalos con `puede` / `can`. La API igual los valida.

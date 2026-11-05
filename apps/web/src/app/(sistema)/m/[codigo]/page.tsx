@@ -18,7 +18,7 @@ export default function FichaModulo({ params }: PageProps<"/m/[codigo]">) {
   const { me } = useSesion();
   const modulo = moduloPorCodigo(codigo);
   const acceso = me.modules.find((m) => m.code === modulo?.code);
-  // Las pantallas que este rol ve en el menú del prototipo (G.screenVisible), en el orden de la spec.
+  // Las pantallas que este rol ve en el menú, en el orden de la spec.
   const visibles = modulo ? modulo.screens.filter((p) => pantallaVisible(modulo.code, p, me.roles)) : [];
 
   if (!modulo || !acceso) {

@@ -7,12 +7,13 @@ import { BookOpen, Cloud, Coins, Factory, Gauge, Home, Lock, Megaphone, ShieldCh
 import Header from "./Header";
 import Sidebar, { type MenuItem } from "./Sidebar";
 import ContextSelectors from "./ContextSelectors";
+import { UiHost } from "@/components/ui";
 import { api } from "@/lib/api";
 import { clearToken } from "@/lib/auth";
 import { MODULOS, menuDe, rutaPantalla } from "@/lib/modulos";
 import { useEstadoSesion } from "@/lib/sesion";
 
-// Ícono de cada grupo del menú (G.GROUPS del prototipo; los nombres deben coincidir).
+// Ícono de cada grupo del menú (los nombres deben coincidir con los de lib/menu.json).
 const GROUP_ICONS = {
   Inicio: Home,
   Plataforma: ShieldCheck,
@@ -31,6 +32,8 @@ const CUENTA = [
   { href: "/perfil", label: "Mi perfil" },
   { href: "/notificaciones", label: "Notificaciones" },
 ];
+// Páginas fuera del menú y del buscador, solo para el título de la cabecera.
+const OTRAS = [...CUENTA, { href: "/componentes", label: "Componentes" }];
 
 // Barra desplegada o en modo íconos: se recuerda en el navegador.
 const SIDEBAR_KEY = "aycha-sidebar-abierta";
@@ -80,7 +83,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
     }
   }
 
-  // Menú del prototipo (G.GROUPS, en su orden): solo los módulos que el rol ve; los apagados, con candado.
+  // Menú en el orden de sus grupos: solo los módulos que el rol ve; los apagados, con candado.
   const items = useMemo<MenuItem[]>(() => {
     if (!sesion) return [];
     const modulos = menuDe(sesion.me.modules, sesion.me.roles).flatMap((g) => g.modulos.map((m) => ({
@@ -92,13 +95,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   const currentItem = items.find((it) => (it.href === "/" ? pathname === "/" : pathname === it.href || pathname.startsWith(`${it.href}/`)));
   const currentScreen = currentItem?.children?.find((p) => pathname === p.href || pathname.startsWith(`${p.href}/`));
-  const cuenta = CUENTA.find((c) => pathname.startsWith(c.href));
+  const cuenta = OTRAS.find((c) => pathname.startsWith(c.href));
   // Título: la pantalla (o el módulo, en su ficha); migas: grupo · módulo.
   const currentSection = currentScreen?.label ?? currentItem?.label ?? cuenta?.label ?? "Inicio";
   const crumbs = currentItem && currentItem.group !== "Inicio"
     // Si el módulo se llama igual que su grupo (Plataforma · Plataforma), va una sola vez.
     ? currentScreen && currentItem.label !== currentItem.group ? [currentItem.group, currentItem.label] : [currentItem.group]
-    : cuenta ? ["Cuenta"] : [];
+    : cuenta && CUENTA.includes(cuenta) ? ["Cuenta"] : [];
   const tenantName = sesion?.me.tenant.short;
 
   useEffect(() => {
@@ -170,6 +173,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           ) : children}
         </main>
       </div>
+      <UiHost />
     </div>
   );
 }

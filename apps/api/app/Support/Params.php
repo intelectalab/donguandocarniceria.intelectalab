@@ -5,7 +5,7 @@ namespace App\Support;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Parámetros de la spec (G.param del prototipo): primero el valor de la empresa (parameters, con RLS),
+ * Parámetros de la spec: primero el valor de la empresa (parameters, con RLS),
  * si no hay, el valor por defecto de parameter_definitions. Con marca o local, se busca primero ahí.
  *   Params::get('seg_max_failed_logins')
  *   Params::get('ped_weight_tolerance_pct', ['brand' => $brandId])

@@ -1,9 +1,8 @@
 import catalogo from "./modulos.json";
-import menuPrototipo from "./menu-prototipo.json";
+import menu from "./menu.json";
 
-// Catálogo de módulos y pantallas de la spec (generado desde aycha-proto: dist/spec.json y el prototipo)
-// y la estructura del menú del prototipo (G.GROUPS y G.SCREEN_ONLY de src/js/04-shell.js y 00-core.js).
-// El orden del menú y del inicio sale de aquí: no reordenar a mano.
+// Catálogo de módulos y pantallas (modulos.json) y estructura del menú (menu.json): grupos en su
+// orden y pantallas restringidas por rol. El orden del menú y del inicio sale de aquí: no reordenar a mano.
 export type Pantalla = { code: string; name: string; desc: string; roles: string[] | null };
 export type ModuloCatalogo = {
   code: string;
@@ -16,23 +15,26 @@ export type ModuloCatalogo = {
 
 export const MODULOS = catalogo as ModuloCatalogo[];
 
-/** Dirección de una pantalla: /m/ped/ped-02 (el código de la spec, como el prototipo). */
+/** Dirección de una pantalla: /m/ped/ped-02, con el código de la pantalla. */
 export const rutaPantalla = (modulo: string, pantalla: string) => `/m/${modulo.toLowerCase()}/${pantalla.toLowerCase()}`;
 export const moduloPorCodigo = (code: string) => MODULOS.find((m) => m.code === code.toUpperCase());
 
 /**
- * Grupos del menú, en el orden del prototipo, con sus módulos en orden. Las fases (F0 a F4) son
- * la planificación de la entrega, no algo del sistema: no se muestran.
+ * Grupos del menú en su orden, con sus módulos en orden. Las fases (F0 a F4) son la planificación
+ * de la entrega, no algo del sistema: no se muestran.
  */
-export const GRUPOS = menuPrototipo.groups as { name: string; mods: string[] }[];
+export const GRUPOS = menu.groups as { name: string; mods: string[] }[];
 
 /** Grupo del menú de un módulo. */
 export const grupoDe = (code: string) => GRUPOS.find((g) => g.mods.includes(code.toUpperCase()))?.name;
 
-/** Pantallas que ve cada rol en ciertos módulos (G.SCREEN_ONLY): el resto del módulo no le sale. */
-const SOLO = menuPrototipo.screenOnly as Record<string, Record<string, string[]>>;
+/** Pantallas que ve cada rol en ciertos módulos: el resto del módulo no le sale. */
+const SOLO = menu.screenOnly as Record<string, Record<string, string[]>>;
 
-/** G.screenVisible del prototipo, para una persona con uno o más roles. */
+/**
+ * Si una pantalla se le muestra a una persona con uno o más roles: respeta las pantallas restringidas
+ * por rol y las que la spec reserva a ciertos roles (gerencia y auditoría ven todas).
+ */
 export function pantallaVisible(modulo: string, p: Pantalla, roles: string[]) {
   return roles.some((rol) => {
     const solo = SOLO[rol]?.[modulo];
@@ -48,8 +50,8 @@ export type ModuloDelMenu = ModuloCatalogo & { enabled: boolean; actions: string
 export type GrupoDelMenu = { name: string; modulos: ModuloDelMenu[] };
 
 /**
- * Menú de la persona, como lo arma el prototipo: grupos de G.GROUPS en su orden; un módulo sale si
- * el rol lo puede ver (letra L o C) y tiene al menos una pantalla visible.
+ * Menú de la persona: los grupos en su orden; un módulo sale si el rol lo puede ver (letra L o C)
+ * y tiene al menos una pantalla visible.
  */
 export function menuDe(acceso: AccesoModulo[], roles: string[]): GrupoDelMenu[] {
   const porCodigo = new Map(acceso.map((a) => [a.code, a]));

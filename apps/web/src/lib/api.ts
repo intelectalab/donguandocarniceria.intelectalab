@@ -13,6 +13,21 @@ export class ApiError extends Error {
   }
 }
 
+/** Mensaje para mostrar al usuario: el de la API (con su código RN si lo trae) o uno genérico. */
+export function mensajeDe(err: unknown, porDefecto = "No se pudo completar la operación."): string {
+  if (err instanceof ApiError) return err.errors ? Object.values(err.errors)[0]?.[0] ?? err.message : err.message;
+  return err instanceof Error ? err.message : porDefecto;
+}
+
+/** Errores de validación (422) por campo, con el primer mensaje de cada uno: { ruc: "El RUC…" }. */
+export function erroresDe(err: unknown): Record<string, string> {
+  if (!(err instanceof ApiError) || !err.errors) return {};
+  return Object.fromEntries(Object.entries(err.errors).map(([campo, msgs]) => [campo, msgs[0]]));
+}
+
+/** Respuesta de una lista paginada (App\Support\Listado en la API). */
+export type Pagina<T> = { data: T[]; current_page: number; last_page: number; per_page: number; total: number };
+
 type Options = Omit<RequestInit, "body"> & { body?: unknown };
 
 /**

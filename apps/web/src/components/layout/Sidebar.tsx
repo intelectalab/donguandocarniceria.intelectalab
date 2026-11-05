@@ -17,7 +17,7 @@ export type MenuItem = {
   group: string;
   /** Módulo apagado para la empresa (RN-PLT-07): sale con candado y no navega. */
   locked?: boolean;
-  /** Pantallas del módulo que ve el rol (tercer nivel del menú, como el prototipo). */
+  /** Pantallas del módulo que ve el rol (tercer nivel del menú). */
   children?: { href: string; label: string; code: string }[];
 };
 

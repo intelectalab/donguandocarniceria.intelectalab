@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Tokens del prototipo (paleta de donguando.com): vino, granate profundo, dorado y crema.
+/* Tokens de color (paleta de donguando.com): vino, granate profundo, dorado y crema.
    Nunca colores fijos en los componentes: usar estas variables o las clases de Tailwind de abajo. */
 :root {
   --bg: #fbf8f0;
@@ -120,4 +120,11 @@ h1, h2, h3 {
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .theme-moon-icon { display: none; }
   :root:not([data-theme="light"]) .theme-sun-icon { display: block; }
+}
+
+/* Paneles y diálogos (components/ui/Modal). Sin animación si el sistema pide menos movimiento. */
+@keyframes ui-fade { from { opacity: 0; } }
+@keyframes ui-slide-in { from { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) {
+  [class*="animate-[ui-"] { animation: none !important; }
 }
