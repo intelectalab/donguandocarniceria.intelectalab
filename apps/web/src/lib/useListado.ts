@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { api, mensajeDe, type Pagina } from "./api";
 
 type Opciones = {
@@ -12,17 +12,41 @@ type Opciones = {
   filtros?: Record<string, string | number | boolean | null | undefined>;
 };
 
+// Filas por página que eligió la persona, por pantalla y lista, guardadas en este navegador.
+const CLAVE_TAMANO = "aycha.porPagina:";
+const sinSuscripcion = () => () => {};
+function leerTamano(clave: string): number | null {
+  try {
+    const n = Number(window.localStorage.getItem(CLAVE_TAMANO + clave));
+    return n >= 1 && n <= 100 ? n : null;
+  } catch {
+    return null; // navegación privada o almacenamiento bloqueado
+  }
+}
+function guardarTamano(clave: string, n: number) {
+  try {
+    window.localStorage.setItem(CLAVE_TAMANO + clave, String(n));
+  } catch {
+    // sin almacenamiento: vale solo mientras la pantalla esté abierta
+  }
+}
+
 /**
  * Lista paginada de la API (App\Support\Listado): búsqueda con espera de 300 ms, orden y páginas.
  * Devuelve `tabla`, lista para pasar a <DataTable {...lista.tabla} columns={...} />.
  *   const lista = useListado<Empresa>("/v1/plt/empresas", { orden: "legal_name" });
  *   lista.recargar()  // después de crear o editar
+ * Las filas por página que elige la persona se recuerdan en el navegador, por pantalla.
  */
 export function useListado<T>(ruta: string, { porPagina = 25, orden = "", filtros = {} }: Opciones = {}) {
   const [busqueda, setBusqueda] = useState("");
   const [q, setQ] = useState("");
   const [pagina, setPagina] = useState(1);
-  const [tamano, setTamano] = useState(porPagina);
+  // Lo guardado se lee después de montar (en el servidor no hay localStorage), sin desajustes al hidratar.
+  const claveTamano = typeof window === "undefined" ? "" : `${window.location.pathname}|${ruta}`;
+  const guardado = useSyncExternalStore(sinSuscripcion, () => leerTamano(claveTamano), () => null);
+  const [elegido, setElegido] = useState<number | null>(null);
+  const tamano = elegido ?? guardado ?? porPagina;
   const [sort, setSort] = useState(orden);
   const [version, setVersion] = useState(0);
   const [resultado, setResultado] = useState<{ clave: string; datos?: Pagina<T>; error?: string } | null>(null);
@@ -91,7 +115,8 @@ export function useListado<T>(ruta: string, { porPagina = 25, orden = "", filtro
         perPage: tamano,
         onPageChange: setPagina,
         onPerPageChange: (n: number) => {
-          setTamano(n);
+          setElegido(n);
+          guardarTamano(claveTamano, n);
           setPagina(1);
         },
       },

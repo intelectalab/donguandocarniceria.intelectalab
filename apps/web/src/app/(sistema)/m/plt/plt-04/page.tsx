@@ -25,7 +25,7 @@ export default function Locales() {
   const columnas: Column<Local>[] = [
     { key: "code", header: "Código", sortable: true, render: (l) => <span className="font-mono font-semibold">{l.code}</span> },
     {
-      key: "name", header: "Local", sortable: true, render: (l) => (
+      key: "name", header: "Local", sortable: true, cardTitle: true, render: (l) => (
         <div className="min-w-[180px]">
           <p className="font-medium">{l.short}</p>
           <p className="text-[12px] text-muted">{l.name}</p>
@@ -88,7 +88,7 @@ export default function Locales() {
 function FiltroSelect({ label, value, onChange, options }:
   { label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
   return (
-    <div className="w-[150px]">
+    <div className="w-full sm:w-[150px]">
       <Select aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} placeholder={`${label}: todos`} options={options}
         className="!min-h-9 h-9 py-1.5 text-[13px]" />
     </div>

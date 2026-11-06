@@ -45,7 +45,9 @@ Con un módulo apagado para la empresa, `modulo:` responde `RN-PLT-07`, aunque e
 | RLS + `TenantContext` | Cada consulta ya viene filtrada por empresa. **No filtres por `tenant_id` a mano** y nunca lo recibas del cliente. |
 | `Access::for($user)` | Marcas y locales del usuario (`brands`, `establishments`; vacío = todas). Filtra tus listas con ellos: la vendedora solo ve sus marcas. |
 | `Access::can($user, 'ped.discount.approve')` | Permiso especial dentro de una acción. |
-| `RuleError::fail('RN-PED-01', 'faltan: dirección con pin, franja.')` | Regla que bloquea. La API responde 422 con `code` = la regla, y el mensaje empieza con su código. |
+| `RuleError::fail('RN-PED-01', 'Faltan la dirección con pin y la franja.')` | Regla que bloquea. La API responde 422 con `{ message, code }`: el mensaje es para la persona (sin el código) y `code` es la regla. |
+| `Correlativo::emitir($serieId, fn ($serie, $numero) => ...)` | Número de un documento (boleta, guía, orden…). Se toma en la misma transacción que guarda el documento: si falla, el número no se consume. `Correlativo::numeroCompleto('B001', 694)` da `B001-00000694`. |
+| `Marcas::activa($brandId)` | Antes de crear un documento de una marca: falla si está inactiva o separada (RN-PLT-14). |
 | `Params::get('ped_weight_tolerance_pct', ['brand' => $id])` | Parámetros de la spec: primero los de la empresa, si no, el valor por defecto. |
 | `Events::emit('order.confirmed', 'sales_orders', $id, [...])` | Eventos entre módulos (nombres de la spec). |
 | `Listado::de($query, $request, buscar: [...], ordenar: [...])` | Listas paginadas con búsqueda (`?q=`, sin mayúsculas ni tildes), orden (`?sort=campo` o `-campo`, solo columnas permitidas) y páginas (`?page=`, `?per_page=` hasta 100). Es lo que espera `useListado` en la web. |
@@ -56,7 +58,7 @@ Con un módulo apagado para la empresa, `modulo:` responde `RN-PLT-07`, aunque e
 
 **Fechas y montos:** zona `America/Lima`. Montos en `decimal` y calculados en la API, nunca en el navegador. IGV 18 % (los precios incluyen IGV).
 
-**Ejemplo completo:** PLT-03 Empresas y PLT-04 Locales (`app/Modulos/Plt/`, `routes/modulos/plt.php`, `tests/Feature/Modulos/PltTest.php`).
+**Ejemplo completo:** PLT-03 Empresas, PLT-04 Locales, PLT-05 Marcas y PLT-08 Series (`app/Modulos/Plt/`, `routes/modulos/plt.php`, `tests/Feature/Modulos/`).
 
 ### Pruebas
 Una prueba por cada criterio `CA-…` de la spec, con los números del criterio, en `tests/Feature/Modulos/<Codigo>Test.php`. `Tests\TestCase` ya prepara la base con las dos empresas de demo y deshace cada prueba al terminar. Para entrar como un rol:
@@ -97,7 +99,7 @@ Todas las pantallas usan los mismos, de `@/components/ui`. Se ven funcionando en
 
 | Componente | Para qué |
 |---|---|
-| `DataTable` + `useListado` | Lista con búsqueda, orden, páginas, carga, error y vacío. `useListado` habla con `Listado` de la API: `<DataTable {...lista.tabla} columns={columnas} />` |
+| `DataTable` + `useListado` | Lista con búsqueda, orden, páginas, carga, error y vacío. `useListado` habla con `Listado` de la API: `<DataTable {...lista.tabla} columns={columnas} />`. En el celular cada fila es una tarjeta: la primera columna (o la que tenga `cardTitle`) es el título, `status` va arriba a la derecha y el resto como «dato: valor» (`hideInCard` quita una). Con `selection` se marcan varias filas y aparece una barra con sus acciones (activar, desactivar…), como en PLT-05 y PLT-08. |
 | `Field` + `Input`, `Select`, `Textarea`, `Checkbox`, `Switch` | Campos de formulario con etiqueta, ayuda y error. Los errores de la API por campo salen de `erroresDe(err)` |
 | `Modal` | Panel que entra por la derecha para crear o editar (`placement="center"` para un diálogo corto); se monta solo mientras está abierto |
 | `confirmAction` | Confirmar antes de una acción, con motivo opcional (`reason: { min: 10 }`) para las reglas que lo piden |

@@ -2,6 +2,8 @@
 
 use App\Modulos\Plt\Http\Controllers\EmpresaController;
 use App\Modulos\Plt\Http\Controllers\LocalController;
+use App\Modulos\Plt\Http\Controllers\MarcaController;
+use App\Modulos\Plt\Http\Controllers\SerieController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -17,6 +19,24 @@ Route::prefix('plt')->group(function () {
     Route::get('/locales', [LocalController::class, 'index'])->middleware('modulo:PLT');
     Route::post('/locales', [LocalController::class, 'store'])->middleware(['modulo:PLT,E', 'permiso:plt.establishment.manage']);
     Route::put('/locales/{id}', [LocalController::class, 'update'])->middleware(['modulo:PLT,E', 'permiso:plt.establishment.manage'])->whereUuid('id');
+
+    // PLT-05 Marcas
+    Route::get('/marcas', [MarcaController::class, 'index'])->middleware('modulo:PLT');
+    Route::get('/marcas/{id}', [MarcaController::class, 'show'])->middleware('modulo:PLT')->whereUuid('id');
+    Route::post('/marcas', [MarcaController::class, 'store'])->middleware(['modulo:PLT,C', 'permiso:plt.brand.manage']);
+    Route::put('/marcas/{id}', [MarcaController::class, 'update'])->middleware(['modulo:PLT,E', 'permiso:plt.brand.manage'])->whereUuid('id');
+    Route::put('/marcas/estado', [MarcaController::class, 'estado'])->middleware(['modulo:PLT,E', 'permiso:plt.brand.manage']);
+    Route::get('/marcas/{id}/logo', [MarcaController::class, 'logo'])->middleware('modulo:PLT')->whereUuid('id');
+    Route::post('/marcas/{id}/logo', [MarcaController::class, 'subirLogo'])->middleware(['modulo:PLT,E', 'permiso:plt.brand.manage', 'throttle:20,1'])->whereUuid('id');
+    Route::delete('/marcas/{id}/logo', [MarcaController::class, 'quitarLogo'])->middleware(['modulo:PLT,E', 'permiso:plt.brand.manage'])->whereUuid('id');
+
+    // PLT-08 Series (ADMINISTRACION también las maneja)
+    Route::get('/series', [SerieController::class, 'index'])->middleware('modulo:PLT');
+    Route::get('/series/resumen', [SerieController::class, 'resumen'])->middleware('modulo:PLT');
+    Route::get('/series/{id}', [SerieController::class, 'show'])->middleware('modulo:PLT')->whereUuid('id');
+    Route::post('/series', [SerieController::class, 'store'])->middleware(['modulo:PLT,E', 'permiso:plt.series.manage']);
+    Route::put('/series/estado', [SerieController::class, 'estadoVarias'])->middleware(['modulo:PLT,E', 'permiso:plt.series.manage']);
+    Route::put('/series/{id}/estado', [SerieController::class, 'estado'])->middleware(['modulo:PLT,E', 'permiso:plt.series.manage'])->whereUuid('id');
 
     // Distritos para los campos de ubigeo (catálogo global de MAE-08, solo lectura).
     Route::get('/ubigeo', function (Request $request) {

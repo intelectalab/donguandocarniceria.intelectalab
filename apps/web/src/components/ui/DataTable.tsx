@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Inbox, Search } from "lucide-react";
 import { Button } from "./Button";
 
@@ -14,9 +14,24 @@ export type Column<T> = {
   /** Campo de ?sort= cuando no coincide con key. */
   sortKey?: string;
   align?: "left" | "right" | "center";
-  /** Se oculta en celular (menos de 768 px). */
+  /** Se oculta en la tabla angosta (menos de 768 px); en las tarjetas del celular sí aparece. */
   hideOnMobile?: boolean;
+  /** No aparece en la tarjeta del celular (dato que ahí sobra). */
+  hideInCard?: boolean;
+  /** Título de la tarjeta del celular (por defecto, la primera columna). */
+  cardTitle?: boolean;
   className?: string;
+};
+
+/** Filas marcadas con casillas y la barra con lo que se hace con ellas (activar, desactivar…). */
+export type SelectionProps<T> = {
+  /** Claves (rowKey) de las filas marcadas; pueden ser de otras páginas. */
+  selected: string[];
+  onChange: (keys: string[]) => void;
+  /** Botones de la barra que aparece al marcar filas. */
+  actions: ReactNode;
+  /** Filas que no se pueden marcar (por ejemplo, una marca separada). */
+  canSelect?: (row: T) => boolean;
 };
 
 export type PaginationProps = {
@@ -48,6 +63,8 @@ type Props<T> = {
   pagination?: PaginationProps;
   /** Filtros y botones a la derecha de la búsqueda. */
   toolbar?: ReactNode;
+  /** Casillas para marcar varias filas y actuar sobre ellas. */
+  selection?: SelectionProps<T>;
 };
 
 const ALIGN = { left: "text-left", right: "text-right", center: "text-center" };
@@ -59,7 +76,7 @@ const ALIGN = { left: "text-left", right: "text-right", center: "text-center" };
  */
 export function DataTable<T>({
   columns, rows, rowKey = (r) => String((r as { id?: string }).id), loading, error, onRetry, empty = "No hay registros.",
-  onRowClick, search, sort, onSortChange, pagination, toolbar,
+  onRowClick, search, sort, onSortChange, pagination, toolbar, selection,
 }: Props<T>) {
   const campoOrden = sort?.replace(/^-/, "");
   const descendente = sort?.startsWith("-");
@@ -73,6 +90,34 @@ export function DataTable<T>({
 
   const sinDatos = !loading && !error && rows.length === 0;
   const primeraCarga = loading && rows.length === 0;
+  const celda = (col: Column<T>, row: T) => col.render ? col.render(row) : String((row as Record<string, unknown>)[col.key] ?? "—");
+  // En el celular cada fila es una tarjeta: la primera columna de título, el estado arriba a la derecha y el resto como «dato: valor».
+  const titulo = columns.find((c) => c.cardTitle) ?? columns[0];
+  const estado = columns.find((c) => c.key === "status" && c !== titulo);
+  const datosTarjeta = columns.filter((c) => c !== titulo && c !== estado && !c.hideInCard);
+  const ordenables = columns.filter((c) => c.sortable);
+
+  // Selección: la casilla del encabezado marca o desmarca las filas de esta página.
+  const marcadas = new Set(selection?.selected ?? []);
+  const marcables = selection ? rows.filter((r) => selection.canSelect?.(r) ?? true).map(rowKey) : [];
+  const enPagina = marcables.filter((k) => marcadas.has(k)).length;
+  const todas = marcables.length > 0 && enPagina === marcables.length;
+  function marcar(key: string, si: boolean) {
+    if (!selection) return;
+    selection.onChange(si ? [...marcadas, key] : selection.selected.filter((k) => k !== key));
+  }
+  function marcarPagina(si: boolean) {
+    if (!selection) return;
+    selection.onChange(si ? [...new Set([...selection.selected, ...marcables])] : selection.selected.filter((k) => !marcables.includes(k)));
+  }
+  const casilla = (row: T, extra = "") => {
+    const key = rowKey(row);
+    const puede = selection?.canSelect?.(row) ?? true;
+    return (
+      <Casilla checked={marcadas.has(key)} disabled={!puede} onChange={(si) => marcar(key, si)} className={extra}
+        label={puede ? "Marcar esta fila" : "Esta fila no se puede marcar"} />
+    );
+  };
 
   return (
     <div className="min-w-0 rounded-xl border border-line bg-surface shadow-card">
@@ -87,7 +132,34 @@ export function DataTable<T>({
                 className="h-9 w-full rounded-[9px] border border-line bg-bg pr-3 pl-9 text-[13.5px] text-ink outline-none focus:border-primary focus:shadow-[0_0_0_3px_var(--primary-soft)]" />
             </label>
           )}
-          {toolbar && <div className="ml-auto flex flex-wrap items-center gap-2">{toolbar}</div>}
+          {toolbar && <div className="grid w-full grid-cols-2 gap-2 sm:ml-auto sm:flex sm:w-auto sm:flex-wrap sm:items-center">{toolbar}</div>}
+          {onSortChange && ordenables.length > 0 && (
+            <label className="flex w-full items-center gap-2 text-[12.5px] text-muted sm:hidden">
+              Ordenar por
+              <select value={sort ?? ""} onChange={(e) => onSortChange(e.target.value)}
+                className="h-9 min-w-0 flex-1 rounded-[9px] border border-line bg-surface px-2 text-[13px] text-ink outline-none focus:border-primary">
+                <option value="">Orden inicial</option>
+                {ordenables.flatMap((c) => {
+                  const campo = c.sortKey ?? c.key;
+                  return [<option key={campo} value={campo}>{c.header} ↑</option>, <option key={`-${campo}`} value={`-${campo}`}>{c.header} ↓</option>];
+                })}
+              </select>
+            </label>
+          )}
+        </div>
+      )}
+
+      {selection && selection.selected.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-primary/25 bg-primary-soft px-3.5 py-2 text-[13px]">
+          <span className="grid h-6 min-w-6 place-items-center rounded-full bg-primary px-1.5 text-[12px] font-semibold text-primary-ink tabular-nums">
+            {selection.selected.length}
+          </span>
+          <span className="mr-auto font-medium text-ink">{selection.selected.length === 1 ? "fila marcada" : "filas marcadas"}</span>
+          <div className="flex flex-wrap items-center gap-2">{selection.actions}</div>
+          <button type="button" onClick={() => selection.onChange([])}
+            className="cursor-pointer px-1.5 text-[12.5px] font-medium text-muted underline-offset-2 hover:text-ink hover:underline">
+            Quitar selección
+          </button>
         </div>
       )}
 
@@ -96,11 +168,58 @@ export function DataTable<T>({
           <p className="max-w-[52ch] text-[13.5px] text-bad">{error}</p>
           {onRetry && <Button size="sm" onClick={onRetry}>Reintentar</Button>}
         </div>
-      ) : (
-        <div className="relative overflow-x-auto">
+      ) : (<>
+        {/* Celular: tarjetas */}
+        <div className={`sm:hidden ${loading && !primeraCarga ? "opacity-60 transition-opacity" : ""}`}>
+          {primeraCarga ? (
+            <div className="space-y-2.5 p-3">{[1, 2, 3].map((n) => <div key={n} className="h-24 animate-pulse rounded-xl bg-surface-2" />)}</div>
+          ) : rows.length > 0 && (<>
+            {selection && marcables.length > 0 && (
+              <label className="flex cursor-pointer items-center gap-2.5 px-4 pt-3 text-[13px] text-muted">
+                <Casilla checked={todas} indeterminate={enPagina > 0 && !todas} onChange={marcarPagina} label="Marcar todas las de esta página" />
+                Marcar todas las de esta página
+              </label>
+            )}
+            <ul className="space-y-2.5 p-3">
+              {rows.map((row) => (
+                <li key={rowKey(row)}>
+                  <div role={onRowClick ? "button" : undefined} tabIndex={onRowClick ? 0 : undefined}
+                    onClick={onRowClick ? () => onRowClick(row) : undefined}
+                    onKeyDown={onRowClick ? (e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onRowClick(row)) : undefined}
+                    className={`rounded-xl border px-3.5 py-3 ${marcadas.has(rowKey(row)) ? "border-primary/50 bg-primary-soft/60" : "border-line"} ${onRowClick ? "cursor-pointer outline-none active:bg-surface-2/60 focus-visible:border-primary focus-visible:bg-primary-soft" : ""}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      {selection && casilla(row, "mt-0.5")}
+                      <div className="min-w-0 flex-1 text-[14px] text-ink">{titulo && celda(titulo, row)}</div>
+                      {estado && <div className="shrink-0">{celda(estado, row)}</div>}
+                    </div>
+                    {datosTarjeta.length > 0 && (
+                      <dl className="mt-2.5 grid grid-cols-[minmax(0,38%)_minmax(0,1fr)] gap-x-3 gap-y-1.5 border-t border-line pt-2.5 text-[13px]">
+                        {datosTarjeta.map((col) => (
+                          <div key={col.key} className="contents">
+                            <dt className="pt-px text-[11.5px] tracking-wide text-muted uppercase">{col.header}</dt>
+                            <dd className="min-w-0 break-words text-ink">{celda(col, row)}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>)}
+        </div>
+
+        {/* Pantallas medianas y grandes: tabla */}
+        <div className="relative hidden overflow-x-auto sm:block">
           <table className="w-full border-collapse text-[13.5px]">
             <thead>
               <tr className="border-b border-line bg-surface-2/60">
+                {selection && (
+                  <th scope="col" className="w-10 py-2.5 pr-0 pl-3.5">
+                    <Casilla checked={todas} indeterminate={enPagina > 0 && !todas} disabled={!marcables.length} onChange={marcarPagina}
+                      label="Marcar todas las de esta página" />
+                  </th>
+                )}
                 {columns.map((col) => {
                   const campo = col.sortKey ?? col.key;
                   const activo = col.sortable && campoOrden === campo;
@@ -123,6 +242,7 @@ export function DataTable<T>({
               {primeraCarga ? (
                 [1, 2, 3, 4, 5].map((n) => (
                   <tr key={n} className="border-b border-line last:border-0">
+                    {selection && <td className="w-10 py-3 pr-0 pl-3.5" />}
                     {columns.map((col) => (
                       <td key={col.key} className={`px-3 py-3 ${col.hideOnMobile ? "hidden md:table-cell" : ""}`}>
                         <div className="h-3.5 animate-pulse rounded bg-surface-2" />
@@ -134,27 +254,40 @@ export function DataTable<T>({
                 <tr key={rowKey(row)} onClick={onRowClick ? () => onRowClick(row) : undefined}
                   onKeyDown={onRowClick ? (e) => (e.key === "Enter" || e.key === " ") && e.target === e.currentTarget && (e.preventDefault(), onRowClick(row)) : undefined}
                   tabIndex={onRowClick ? 0 : undefined}
-                  className={`border-b border-line last:border-0 ${onRowClick ? "cursor-pointer outline-none hover:bg-surface-2/60 focus-visible:bg-primary-soft" : ""}`}>
+                  className={`border-b border-line last:border-0 ${marcadas.has(rowKey(row)) ? "bg-primary-soft/60" : ""} ${onRowClick ? "cursor-pointer outline-none hover:bg-surface-2/60 focus-visible:bg-primary-soft" : ""}`}>
+                  {selection && <td className="w-10 py-2.5 pr-0 pl-3.5 align-middle">{casilla(row)}</td>}
                   {columns.map((col) => (
                     <td key={col.key} className={`px-3 py-2.5 align-middle text-ink ${ALIGN[col.align ?? "left"]} ${col.align === "right" ? "tabular-nums" : ""} ${col.hideOnMobile ? "hidden md:table-cell" : ""} ${col.className ?? ""}`}>
-                      {col.render ? col.render(row) : String((row as Record<string, unknown>)[col.key] ?? "—")}
+                      {celda(col, row)}
                     </td>
                   ))}
                 </tr>
               ))}
             </tbody>
           </table>
-          {sinDatos && (
-            <div className="flex flex-col items-center gap-2 px-4 py-10 text-center text-[13.5px] text-muted">
-              <Inbox size={26} aria-hidden="true" />
-              {typeof empty === "string" ? <p>{search?.value ? "Ninguno coincide con la búsqueda." : empty}</p> : empty}
-            </div>
-          )}
         </div>
-      )}
+        {sinDatos && (
+          <div className="flex flex-col items-center gap-2 px-4 py-10 text-center text-[13.5px] text-muted">
+            <Inbox size={26} aria-hidden="true" />
+            {typeof empty === "string" ? <p>{search?.value ? "Ninguno coincide con la búsqueda." : empty}</p> : empty}
+          </div>
+        )}
+      </>)}
 
       {pagination && !error && pagination.total > 0 && <Pagination {...pagination} />}
     </div>
+  );
+}
+
+/** Casilla para marcar una fila; el clic no abre la fila. */
+function Casilla({ checked, indeterminate, disabled, onChange, label, className = "" }:
+  { checked: boolean; indeterminate?: boolean; disabled?: boolean; onChange: (v: boolean) => void; label: string; className?: string }) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (ref.current) ref.current.indeterminate = Boolean(indeterminate); }, [indeterminate]);
+  return (
+    <input ref={ref} type="checkbox" checked={checked} disabled={disabled} aria-label={label} title={disabled ? label : undefined}
+      onChange={(e) => onChange(e.target.checked)} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}
+      className={`size-4 shrink-0 cursor-pointer accent-primary disabled:cursor-not-allowed disabled:opacity-40 ${className}`} />
   );
 }
 

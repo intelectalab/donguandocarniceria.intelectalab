@@ -1,4 +1,4 @@
-// Tipos y catálogos de PLT (Plataforma). Los valores salen de la API (EmpresaController, LocalController).
+// Tipos y catálogos de PLT (Plataforma). Los valores salen de la API (controladores de app/Modulos/Plt).
 
 export type Empresa = {
   id: string;
@@ -71,4 +71,88 @@ export function problemaRuc(ruc: string): string | null {
   if (d === 10) d = 0;
   if (d === 11) d = 1;
   return Number(ruc[10]) === d ? null : `El RUC no es válido: con esos primeros 10 dígitos debería terminar en ${d}.`;
+}
+
+export type Marca = {
+  id: string;
+  company_id: string;
+  company_name: string | null;
+  code: string;
+  name: string;
+  primary_color: string;
+  description: string | null;
+  website: string | null;
+  legal_footer: string | null;
+  print_legends: string | null;
+  print_show_logo: boolean | null;
+  whatsapp_display_name: string | null;
+  status: string;
+  sort_order: number;
+  series_count: number;
+  products_count: number;
+  orders_count: number;
+  documents_count: number;
+  /** Archivo del logo ({código}.png); la imagen sale de GET /marcas/{id}/logo. */
+  logo_url: string | null;
+  /** Nombre del tema propio (PLT-06); null si usa el de la empresa. */
+  theme_name: string | null;
+  /** Solo en el detalle (GET /marcas/{id}). */
+  series?: string[];
+};
+
+export type Serie = {
+  id: string;
+  company_id: string;
+  company_name: string | null;
+  establishment_id: string | null;
+  establishment_name: string | null;
+  brand_id: string | null;
+  brand_name: string | null;
+  doc_type: string;
+  series: string;
+  next_number: number;
+  is_electronic: boolean;
+  status: string;
+  applies_to: string | null;
+  note: string | null;
+  status_reason: string | null;
+  /** Solo en el detalle (GET /series/{id}). */
+  ultimos?: { id: string; full_number: string; customer_name: string | null; total: string; issue_date: string; status: string }[];
+};
+
+export const TIPOS_DOCUMENTO = [
+  { value: "INVOICE", label: "Factura" },
+  { value: "RECEIPT", label: "Boleta" },
+  { value: "CREDIT_NOTE", label: "Nota de crédito" },
+  { value: "DEBIT_NOTE", label: "Nota de débito" },
+  { value: "DISPATCH_GUIDE", label: "Guía de remisión" },
+  { value: "INTERNAL_NOTE", label: "Nota interna" },
+  { value: "PURCHASE_ORDER", label: "Orden de compra" },
+  { value: "PRODUCTION_ORDER", label: "Orden de producción" },
+  { value: "QUOTE", label: "Cotización" },
+  { value: "CONSIGNMENT_NOTE", label: "Nota de consignación" },
+  { value: "JOURNAL", label: "Asiento contable" },
+];
+
+/** Formato de serie que pide SUNAT a los comprobantes electrónicos (RN-PLT-04); los demás son internos. */
+export const FORMATO_SERIE: Record<string, { re: RegExp; ejemplo: string }> = {
+  INVOICE: { re: /^F[A-Z0-9]{3}$/, ejemplo: "F y 3 letras o números, por ejemplo F006" },
+  RECEIPT: { re: /^B[A-Z0-9]{3}$/, ejemplo: "B y 3 letras o números, por ejemplo B011" },
+  CREDIT_NOTE: { re: /^[FB]C[A-Z0-9]{2}$/, ejemplo: "FC o BC y 2 letras o números, por ejemplo FC01" },
+  DEBIT_NOTE: { re: /^[FB]D[A-Z0-9]{2}$/, ejemplo: "FD o BD y 2 letras o números, por ejemplo FD01" },
+  DISPATCH_GUIDE: { re: /^T[A-Z0-9]{3}$/, ejemplo: "T y 3 letras o números, por ejemplo T003" },
+};
+
+/** Último número de una serie (8 dígitos). */
+export const MAXIMO_SERIE = 99_999_999;
+
+/** Porcentaje del rango que ya usó la serie. */
+export const usoSerie = (siguiente: number) => ((siguiente - 1) / MAXIMO_SERIE) * 100;
+
+/** Aviso mientras se escribe la serie (la API valida igual). */
+export function problemaSerie(serie: string, tipo: string, electronica: boolean): string | null {
+  if (!serie) return null;
+  const f = FORMATO_SERIE[tipo];
+  if (electronica && f) return f.re.test(serie) ? null : `No tiene el formato que pide SUNAT: ${f.ejemplo}.`;
+  return /^[A-Z0-9]{2,4}$/.test(serie) ? null : "Una serie interna tiene de 2 a 4 letras o números.";
 }

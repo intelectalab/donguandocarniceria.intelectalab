@@ -38,16 +38,18 @@ type Options = Omit<RequestInit, "body"> & { body?: unknown };
  */
 export async function api<T = unknown>(path: string, { body, headers, ...init }: Options = {}): Promise<T> {
   const token = getToken();
+  // Un FormData (archivos) va tal cual: el navegador pone su Content-Type con el separador.
+  const archivo = body instanceof FormData;
   const res = await fetch(`/api${path}`, {
     ...init,
     headers: {
       Accept: "application/json",
       "X-Tenant-Host": window.location.host,
-      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+      ...(body !== undefined && !archivo ? { "Content-Type": "application/json" } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: archivo ? body : body !== undefined ? JSON.stringify(body) : undefined,
   });
 
   if (res.status === 204) return undefined as T;
@@ -64,4 +66,16 @@ export async function api<T = unknown>(path: string, { body, headers, ...init }:
     throw new ApiError(data.message ?? "No se pudo completar la operación.", res.status, data.code, data.errors);
   }
   return data as T;
+}
+
+/**
+ * Imagen protegida de la API (el logo de una marca…) como URL local para <img>. Devuelve null si no
+ * existe. Quien la usa la libera con URL.revokeObjectURL al dejar de mostrarla.
+ */
+export async function apiImagen(path: string): Promise<string | null> {
+  const token = getToken();
+  const res = await fetch(`/api${path}`, {
+    headers: { "X-Tenant-Host": window.location.host, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+  return res.ok ? URL.createObjectURL(await res.blob()) : null;
 }

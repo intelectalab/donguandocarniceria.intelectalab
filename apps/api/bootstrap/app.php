@@ -32,7 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(fn (Request $request) => $request->is('api/*') || $request->expectsJson());
 
-        // Una regla de negocio que bloquea: RuleError::fail('RN-PED-01', 'faltan datos: …').
+        // Una regla de negocio que bloquea: RuleError::fail('RN-PED-01', 'Faltan datos: …').
         $exceptions->render(fn (RuleError $e) => response()->json(['message' => $e->getMessage(), 'code' => $e->rule], 422));
 
         // Un id que no tiene forma de uuid no existe.
