@@ -46,4 +46,5 @@ PLT, SEG, MAE, INT y AUD son de cada empresa, pero algunas pantallas tocan datos
 - **Segundo factor** (SEG-02, SEG-03): pendiente por decisión del equipo; no se implementa por ahora.
 - **Cumplimiento de RN-PLT-01 y RN-PLT-02:** `FORCE ROW LEVEL SECURITY` (hoy solo `ENABLE`), FK compuestas `(tenant_id, x_id)`, función `plt_rls_gaps()` y que CI falle si devuelve filas.
 - ~~**Fecha límite de cierre guardada al cerrar**~~ (PLT-09). *Hecho el 07/11/2026 con PLT-10:* `accounting_periods.close_due_date` se llena al cerrar y los meses ya cerrados se completaron con el día vigente (5).
+- **Colores de la marca en todo el sistema** (PLT-01 y PLT-06). *Anotado el 07/11/2026.* PLT-06 ya guarda los colores de cada marca, pero la aplicación usa la paleta fija de `globals.css`. Hacer: al cambiar la marca en el selector de arriba, leer `Temas::vigente()` y poner sus colores en las variables CSS (`--primary`, `--accent`, `--bg`, `--surface`, `--ink`…), en claro y en oscuro.
 - **Bitácora de accesos** (`access_log`, AUD-03) y **despacho del outbox** de eventos (INT-06).

@@ -8,6 +8,7 @@ use App\Modulos\Plt\Http\Controllers\ModuloController;
 use App\Modulos\Plt\Http\Controllers\ParametroController;
 use App\Modulos\Plt\Http\Controllers\PeriodoController;
 use App\Modulos\Plt\Http\Controllers\SerieController;
+use App\Modulos\Plt\Http\Controllers\TemaController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -33,6 +34,11 @@ Route::prefix('plt')->group(function () {
     Route::get('/marcas/{id}/logo', [MarcaController::class, 'logo'])->middleware('modulo:PLT')->whereUuid('id');
     Route::post('/marcas/{id}/logo', [MarcaController::class, 'subirLogo'])->middleware(['modulo:PLT,E', 'permiso:plt.brand.manage', 'throttle:20,1'])->whereUuid('id');
     Route::delete('/marcas/{id}/logo', [MarcaController::class, 'quitarLogo'])->middleware(['modulo:PLT,E', 'permiso:plt.brand.manage'])->whereUuid('id');
+
+    // PLT-06 Colores por marca
+    Route::get('/temas', [TemaController::class, 'index'])->middleware('modulo:PLT');
+    Route::post('/temas', [TemaController::class, 'guardar'])->middleware(['modulo:PLT,E', 'permiso:plt.theme.manage']);
+    Route::post('/temas/quitar', [TemaController::class, 'quitar'])->middleware(['modulo:PLT,E', 'permiso:plt.theme.manage']);
 
     // PLT-07 Centros de costo
     Route::get('/centros-costo', [CentroCostoController::class, 'index'])->middleware('modulo:PLT');
