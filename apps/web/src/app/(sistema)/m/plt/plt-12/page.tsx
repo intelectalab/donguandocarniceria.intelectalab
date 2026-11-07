@@ -9,6 +9,7 @@ import { api, mensajeDe } from "@/lib/api";
 import { sinCodigos } from "@/modulos/plt/tipos";
 import { fechaHora, numero } from "@/lib/formato";
 import { useSesion } from "@/lib/sesion";
+import { usePorPagina } from "@/lib/useListado";
 
 type Modulo = {
   code: string; name: string; description: string; is_core: boolean; plataforma: boolean; enabled: boolean;
@@ -31,6 +32,9 @@ export default function Modulos() {
   const [version, setVersion] = useState(0);
   const [estado, setEstado] = useState("");
   const [busqueda, setBusqueda] = useState("");
+  // Páginas en el navegador: el catálogo es corto (40) y llega completo.
+  const [pagina, setPagina] = useState(1);
+  const [porPagina, setPorPagina] = usePorPagina("modulos", 50);
   const [viendo, setViendo] = useState<Modulo | null>(null);
   const [paso, setPaso] = useState<Paso | null>(null);
   const [ocupado, setOcupado] = useState("");
@@ -190,13 +194,17 @@ export default function Modulos() {
         </section>
       )}
 
-      <DataTable columns={columnas} rows={filas} rowKey={(m) => m.code} loading={!datos && !error} error={error || undefined} onRetry={recargar}
-        search={{ value: busqueda, onChange: setBusqueda, placeholder: "Buscar módulo…" }}
+      <DataTable columns={columnas} rows={filas.slice((pagina - 1) * porPagina, pagina * porPagina)} rowKey={(m) => m.code} loading={!datos && !error} error={error || undefined} onRetry={recargar}
+        search={{ value: busqueda, onChange: (v) => { setBusqueda(v); setPagina(1); }, placeholder: "Buscar módulo…" }}
+        pagination={{
+          page: pagina, lastPage: Math.max(1, Math.ceil(filas.length / porPagina)), total: filas.length, perPage: porPagina,
+          onPageChange: setPagina, onPerPageChange: (n) => { setPorPagina(n); setPagina(1); },
+        }}
         onRowClick={setViendo}
         empty="Ningún módulo coincide."
         toolbar={
           <div className="w-full sm:w-[160px]">
-            <Select aria-label="Estado" value={estado} onChange={(e) => setEstado(e.target.value)} placeholder="Estado: todos"
+            <Select aria-label="Estado" value={estado} onChange={(e) => { setEstado(e.target.value); setPagina(1); }} placeholder="Estado: todos"
               options={[{ value: "ON", label: "Encendidos" }, { value: "OFF", label: "Apagados" }]} className="!min-h-9 h-9 py-1.5 text-[13px]" />
           </div>
         } />

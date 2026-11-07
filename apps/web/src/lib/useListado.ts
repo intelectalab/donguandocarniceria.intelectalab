@@ -123,3 +123,15 @@ export function useListado<T>(ruta: string, { porPagina = 25, orden = "", filtro
     },
   };
 }
+
+/**
+ * Filas por página recordadas en el navegador, para una tabla que pagina en el navegador (sin
+ * useListado). Misma clave que usa useListado: por pantalla y lista.
+ *   const [porPagina, setPorPagina] = usePorPagina("modulos", 50);
+ */
+export function usePorPagina(lista: string, porDefecto: number): [number, (n: number) => void] {
+  const clave = typeof window === "undefined" ? "" : `${window.location.pathname}|${lista}`;
+  const guardado = useSyncExternalStore(sinSuscripcion, () => leerTamano(clave), () => null);
+  const [elegido, setElegido] = useState<number | null>(null);
+  return [elegido ?? guardado ?? porDefecto, (n) => { setElegido(n); guardarTamano(clave, n); }];
+}
