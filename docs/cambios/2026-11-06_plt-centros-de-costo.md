@@ -20,3 +20,6 @@
 
 ## Pruebas
 `tests/Feature/Modulos/PltCentrosCostoTest.php`: árbol con niveles y cifras, hijo que toma el área del padre, código único y con formato, límite de 4 niveles, ciclos, desactivar varios, centro inactivo sin gastos nuevos y permisos. 53 pruebas en total.
+
+## Desplegables con buscador
+`Select` (components/ui/Field.tsx) muestra un buscador cuando tiene más de 10 opciones: escribir filtra sin distinguir mayúsculas ni tildes, se elige con el ratón o con flechas y Enter, y Escape cierra solo la lista (no el formulario). La lista se dibuja sobre la página para que un formulario no la recorte, y se abre hacia arriba si abajo no hay espacio. Las pantallas no cambian: `onChange` recibe `e.target.value` igual que antes. `searchable` lo fuerza (`true`) o lo quita (`false`).

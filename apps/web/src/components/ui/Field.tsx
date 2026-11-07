@@ -1,7 +1,11 @@
 "use client";
 
-import { createContext, useContext, useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
-import { Check, ChevronDown } from "lucide-react";
+import {
+  createContext, useContext, useEffect, useId, useLayoutEffect, useRef, useState,
+  type ChangeEvent, type InputHTMLAttributes, type KeyboardEvent, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes,
+} from "react";
+import { createPortal } from "react-dom";
+import { Check, ChevronDown, Search } from "lucide-react";
 
 type Ctx = { id: string; invalid: boolean; describedBy?: string; required?: boolean };
 const FieldContext = createContext<Ctx | null>(null);
@@ -81,13 +85,28 @@ export function Textarea({ id, className = "", rows = 3, ...rest }: TextareaHTML
 
 type Opcion = { value: string; label: string; disabled?: boolean };
 
+/** Desde cuántas opciones el desplegable trae buscador. */
+const CON_BUSCADOR = 10;
+
+type SelectProps = SelectHTMLAttributes<HTMLSelectElement> & {
+  options?: Opcion[];
+  placeholder?: string;
+  /** Buscador dentro del desplegable. Por defecto, solo con más de 10 opciones. */
+  searchable?: boolean;
+};
+
 /**
  *   <Select value={tipo} onChange={(e) => setTipo(e.target.value)} placeholder="Elige un tipo"
  *     options={[{ value: "STORE", label: "Tienda" }, …]} />
+ * Con más de 10 opciones muestra un buscador (sin distinguir mayúsculas ni tildes). onChange se
+ * usa igual: e.target.value trae el valor elegido.
  */
-export function Select({ id, className = "", options, placeholder, children, ...rest }:
-  SelectHTMLAttributes<HTMLSelectElement> & { options?: Opcion[]; placeholder?: string }) {
+export function Select({ id, className = "", options, placeholder, children, searchable, ...rest }: SelectProps) {
   const { border, ...a11y } = useControl(id);
+  if (options && !children && (searchable ?? options.length > CON_BUSCADOR)) {
+    return <SelectConBuscador {...a11y} border={border} className={className} options={options} placeholder={placeholder}
+      value={String(rest.value ?? "")} disabled={rest.disabled} onChange={rest.onChange} ariaLabel={rest["aria-label"]} />;
+  }
   return (
     <div className="relative">
       <select {...a11y} {...rest} className={`${CONTROL} ${border} cursor-pointer appearance-none pr-9 ${className}`}>
@@ -97,6 +116,133 @@ export function Select({ id, className = "", options, placeholder, children, ...
       </select>
       <ChevronDown size={16} aria-hidden="true" className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-muted" />
     </div>
+  );
+}
+
+const sinTildes = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+/**
+ * Desplegable con buscador. La lista se dibuja en el body (para que un modal no la recorte) y se
+ * abre hacia arriba si abajo no hay espacio. Teclado: flechas, Enter, Escape; escribir abre y busca.
+ */
+function SelectConBuscador({ id, border, className, options, placeholder, value, disabled, onChange, ariaLabel, ...a11y }: {
+  id?: string; border: string; className: string; options: Opcion[]; placeholder?: string; value: string; disabled?: boolean;
+  onChange?: SelectHTMLAttributes<HTMLSelectElement>["onChange"]; ariaLabel?: string;
+  "aria-invalid"?: boolean; "aria-describedby"?: string; required?: boolean;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const [texto, setTexto] = useState("");
+  const [activo, setActivo] = useState(0);
+  const [pos, setPos] = useState<{ left: number; width: number; top?: number; bottom?: number; alto: number } | null>(null);
+  const boton = useRef<HTMLButtonElement>(null);
+  const lista = useRef<HTMLDivElement>(null);
+  const listaId = useId();
+
+  const todas: Opcion[] = placeholder !== undefined ? [{ value: "", label: placeholder }, ...options] : options;
+  const q = sinTildes(texto.trim());
+  const visibles = q ? todas.filter((o) => o.value !== "" && sinTildes(o.label).includes(q)) : todas;
+  const elegida = todas.find((o) => o.value === value);
+
+  function abrir(inicial = "") {
+    if (disabled) return;
+    setTexto(inicial);
+    const i = todas.findIndex((o) => o.value === value);
+    setActivo(inicial ? 0 : Math.max(i, 0));
+    setAbierto(true);
+  }
+  function cerrar(volverFoco = true) {
+    setAbierto(false);
+    if (volverFoco) boton.current?.focus();
+  }
+  function elegir(o: Opcion) {
+    if (o.disabled) return;
+    // Mismo uso que un <select>: onChange(e) con e.target.value.
+    onChange?.({ target: { value: o.value }, currentTarget: { value: o.value } } as unknown as ChangeEvent<HTMLSelectElement>);
+    cerrar();
+  }
+
+  // Ubicación de la lista junto al botón; se recalcula al hacer scroll o cambiar el tamaño.
+  useLayoutEffect(() => {
+    if (!abierto) return;
+    const ubicar = () => {
+      const r = boton.current?.getBoundingClientRect();
+      if (!r) return;
+      const abajo = window.innerHeight - r.bottom - 8;
+      const arriba = r.top - 8;
+      const haciaArriba = abajo < 260 && arriba > abajo;
+      const alto = Math.min(320, Math.max(haciaArriba ? arriba : abajo, 160));
+      const width = Math.max(r.width, 220);
+      const left = Math.min(r.left, window.innerWidth - width - 8);
+      setPos(haciaArriba ? { left, width, bottom: window.innerHeight - r.top + 4, alto } : { left, width, top: r.bottom + 4, alto });
+    };
+    ubicar();
+    window.addEventListener("resize", ubicar);
+    window.addEventListener("scroll", ubicar, true);
+    return () => { window.removeEventListener("resize", ubicar); window.removeEventListener("scroll", ubicar, true); };
+  }, [abierto]);
+
+  // Clic fuera del botón y de la lista: se cierra sin elegir.
+  useEffect(() => {
+    if (!abierto) return;
+    const fuera = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (!boton.current?.contains(t) && !lista.current?.contains(t)) cerrar(false);
+    };
+    document.addEventListener("mousedown", fuera);
+    return () => document.removeEventListener("mousedown", fuera);
+  }, [abierto]);
+
+  // La opción activa queda a la vista al moverse con las flechas.
+  useEffect(() => {
+    if (abierto) lista.current?.querySelector(`[data-i="${activo}"]`)?.scrollIntoView({ block: "nearest" });
+  }, [activo, abierto]);
+
+  function teclaBoton(e: KeyboardEvent<HTMLButtonElement>) {
+    if (["ArrowDown", "ArrowUp", "Enter", " "].includes(e.key)) { e.preventDefault(); abrir(); }
+    else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); abrir(e.key); }
+  }
+  function teclaBuscar(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "ArrowDown") { e.preventDefault(); setActivo((i) => Math.min(i + 1, visibles.length - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setActivo((i) => Math.max(i - 1, 0)); }
+    else if (e.key === "Enter") { e.preventDefault(); const o = visibles[activo]; if (o) elegir(o); }
+    else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cerrar(); } // no cierra el modal de afuera
+    else if (e.key === "Tab") cerrar(false);
+  }
+
+  return (
+    <>
+      <button ref={boton} id={id} type="button" disabled={disabled} onClick={() => (abierto ? cerrar() : abrir())} onKeyDown={teclaBoton}
+        role="combobox" aria-haspopup="listbox" aria-expanded={abierto} aria-controls={abierto ? listaId : undefined} aria-label={ariaLabel}
+        aria-invalid={a11y["aria-invalid"]} aria-describedby={a11y["aria-describedby"]} aria-required={a11y.required}
+        className={`${CONTROL} ${border} relative flex cursor-pointer items-center pr-9 text-left disabled:cursor-not-allowed ${className}`}>
+        <span className={`min-w-0 flex-1 truncate ${elegida && elegida.value !== "" ? "" : "text-muted"}`}>{elegida?.label ?? placeholder ?? "Elegir…"}</span>
+        <ChevronDown size={16} aria-hidden="true" className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-muted" />
+      </button>
+      {abierto && pos && createPortal(
+        <div ref={lista} style={{ left: pos.left, width: pos.width, top: pos.top, bottom: pos.bottom, maxHeight: pos.alto }}
+          className="fixed z-[350] flex flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-[0_20px_50px_rgba(40,8,18,0.28)]">
+          <div className="relative border-b border-line p-2">
+            <Search size={14} aria-hidden="true" className="pointer-events-none absolute top-1/2 left-4.5 -translate-y-1/2 text-muted" />
+            <input autoFocus value={texto} onChange={(e) => { setTexto(e.target.value); setActivo(0); }} onKeyDown={teclaBuscar}
+              type="search" aria-controls={listaId} aria-activedescendant={visibles[activo] ? `${listaId}-${activo}` : undefined}
+              aria-label="Buscar en la lista" placeholder="Buscar…"
+              className="h-8 w-full rounded-lg border border-line bg-bg pr-2 pl-8 text-[13px] text-ink outline-none focus:border-primary" />
+          </div>
+          <ul id={listaId} role="listbox" className="min-h-0 flex-1 overflow-y-auto py-1">
+            {visibles.length === 0 && <li className="px-3 py-2 text-[13px] text-muted">Ninguna coincide.</li>}
+            {visibles.map((o, i) => (
+              <li key={o.value || "_vacio"} id={`${listaId}-${i}`} data-i={i} role="option" aria-selected={o.value === value} aria-disabled={o.disabled || undefined}
+                onMouseDown={(e) => e.preventDefault()} onClick={() => elegir(o)} onMouseMove={() => setActivo(i)}
+                className={`flex cursor-pointer items-center gap-2 px-3 py-1.5 text-[13px] ${i === activo ? "bg-surface-2" : ""} ${o.disabled ? "cursor-not-allowed opacity-50" : ""} ${o.value === "" ? "text-muted" : "text-ink"}`}>
+                <span className="min-w-0 flex-1 truncate" title={o.label}>{o.label}</span>
+                {o.value === value && <Check size={14} aria-hidden="true" className="shrink-0 text-primary" />}
+              </li>
+            ))}
+          </ul>
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }
 
