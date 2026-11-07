@@ -1,5 +1,6 @@
 <?php
 
+use App\Modulos\Plt\Http\Controllers\BusquedaController;
 use App\Modulos\Plt\Http\Controllers\CentroCostoController;
 use App\Modulos\Plt\Http\Controllers\DominioController;
 use App\Modulos\Plt\Http\Controllers\EmpresaController;
@@ -15,6 +16,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('plt')->group(function () {
+    // PLT-02 Búsqueda global: la usa cualquiera con plt.search.use, aunque no vea el módulo PLT.
+    // Cada fuente revisa el módulo, el permiso y el alcance de quien busca.
+    Route::get('/buscar', BusquedaController::class)->middleware('throttle:60,1');
+
     // PLT-03 Empresas
     Route::get('/empresas', [EmpresaController::class, 'index'])->middleware('modulo:PLT');
     Route::get('/empresas/{id}', [EmpresaController::class, 'show'])->middleware('modulo:PLT')->whereUuid('id');

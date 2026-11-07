@@ -49,6 +49,7 @@ Con un módulo apagado para la empresa, `modulo:` responde `RN-PLT-07`, aunque e
 | `Correlativo::emitir($serieId, fn ($serie, $numero) => ...)` | Número de un documento (boleta, guía, orden…). Se toma en la misma transacción que guarda el documento: si falla, el número no se consume. `Correlativo::numeroCompleto('B001', 694)` da `B001-00000694`. |
 | `Marcas::activa($brandId)` | Antes de crear un documento de una marca: falla si está inactiva o separada (RN-PLT-14). |
 | `Params::get('clave', ['brand' => $id, 'site' => $id])` | Leer un parámetro: rige el de la marca, luego el del local, el de la empresa y el valor por defecto. Devuelve texto; conviértelo (`(int)`, `(float)`, `=== 'true'`). Se cambian en PLT-10 con `Parametros::cambiar()`. |
+| `Busqueda::publicar('CRM', 'conversation', $id, $titulo, ...)` | Para que algo de tu módulo salga en la búsqueda global (Ctrl K). `Busqueda::quitar()` al anularlo. La búsqueda respeta módulo, permiso y alcance. |
 | `CentrosCosto::activo($id)` | Antes de imputar un gasto o costo a un centro de costo: falla si está inactivo (RN-PLT-21). |
 | `Periodos::abierto($fecha, $companyId)` | Antes de registrar algo con fecha (venta, comprobante, recepción, gasto…), dentro de la misma transacción: falla si ese mes está cerrado para la empresa (RN-PLT-05). `Periodos::cerrado()` responde sí o no, para avisar en pantalla antes de guardar. |
 | `Params::get('ped_weight_tolerance_pct', ['brand' => $id])` | Parámetros de la spec: primero los de la empresa, si no, el valor por defecto. |
