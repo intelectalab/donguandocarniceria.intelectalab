@@ -1,4 +1,4 @@
-# 06/11/2026 · PLT: servicio de períodos
+# 06/11/2026 · PLT: servicio de períodos y PLT-09 Períodos
 
 Se adelanta lo que los demás módulos necesitan de PLT-09 Períodos, antes de su pantalla.
 
@@ -12,8 +12,13 @@ Se adelanta lo que los demás módulos necesitan de PLT-09 Períodos, antes de s
 ## Quiénes lo usan
 En el prototipo lo llaman al registrar: recepciones de almacén (ALM), comprobantes (FAC), caja (CAJ), compras (COM), consignación (CON), reparto (DEL), flota (FLO) y publicidad (ADS), entre otros.
 
-## Pendiente para la pantalla PLT-09
-Cerrar en orden (RN-PLT-17), reabrir con motivo sin meses posteriores cerrados (RN-PLT-18), historial de cierres y reaperturas (`accounting_period_events`) y los eventos `period.closed` y `period.reopened`.
+## PLT-09 Períodos
+- Cifras de cabecera: meses cerrados, cerrados a tiempo (KPI-PLT-01: hasta el día `plt_period_close_day` del mes siguiente), el siguiente mes pendiente de cierre con su meta y si Contabilidad (CNT) está encendida.
+- Calendario de meses de la empresa, desde el primero registrado hasta el mes en curso. Un mes sin registro sale abierto; al cerrarlo se crea.
+- Cerrar (`plt.period.close`: gerencia, administración, sistemas y contadora): solo meses terminados y en orden (RN-PLT-17), con nota opcional. Reabrir (`plt.period.reopen`: sin administración): con motivo y sin meses posteriores cerrados (RN-PLT-18).
+- Cada cierre y reapertura queda en `accounting_period_events` y emite `period.closed` o `period.reopened`. Historial por mes y de todos los meses, con filtro por acción.
+- API: `GET /v1/plt/periodos`, `GET /v1/plt/periodos/historial`, `POST /v1/plt/periodos/cerrar`, `POST /v1/plt/periodos/{id}/reabrir`. Las reglas están en `Periodos::cerrar()` y `Periodos::reabrir()`, para que CNT las reuse.
+- `Cifra` (cifras de cabecera) pasa a `components/ui`; `confirmAction` acepta un motivo opcional (`reason: { optional: true }`).
 
 ## Pruebas
-`tests/Feature/Modulos/PltPeriodosTest.php`: mes cerrado, mes abierto o sin registro, períodos por empresa y fecha con hora en hora de Lima.
+`tests/Feature/Modulos/PltPeriodosTest.php`: mes cerrado, mes abierto o sin registro, períodos por empresa, fecha con hora en hora de Lima, lista con sus cifras, cierre en orden y reapertura con motivo, y permisos de cierre y reapertura. 48 pruebas en total.

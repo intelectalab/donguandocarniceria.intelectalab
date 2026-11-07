@@ -3,6 +3,7 @@
 use App\Modulos\Plt\Http\Controllers\EmpresaController;
 use App\Modulos\Plt\Http\Controllers\LocalController;
 use App\Modulos\Plt\Http\Controllers\MarcaController;
+use App\Modulos\Plt\Http\Controllers\PeriodoController;
 use App\Modulos\Plt\Http\Controllers\SerieController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -37,6 +38,12 @@ Route::prefix('plt')->group(function () {
     Route::post('/series', [SerieController::class, 'store'])->middleware(['modulo:PLT,E', 'permiso:plt.series.manage']);
     Route::put('/series/estado', [SerieController::class, 'estadoVarias'])->middleware(['modulo:PLT,E', 'permiso:plt.series.manage']);
     Route::put('/series/{id}/estado', [SerieController::class, 'estado'])->middleware(['modulo:PLT,E', 'permiso:plt.series.manage'])->whereUuid('id');
+
+    // PLT-09 Períodos (cerrar: también ADMINISTRACION y CONTADORA; reabrir: sin ADMINISTRACION)
+    Route::get('/periodos', [PeriodoController::class, 'index'])->middleware('modulo:PLT');
+    Route::get('/periodos/historial', [PeriodoController::class, 'historial'])->middleware('modulo:PLT');
+    Route::post('/periodos/cerrar', [PeriodoController::class, 'cerrar'])->middleware(['modulo:PLT,E', 'permiso:plt.period.close']);
+    Route::post('/periodos/{id}/reabrir', [PeriodoController::class, 'reabrir'])->middleware(['modulo:PLT,E', 'permiso:plt.period.reopen'])->whereUuid('id');
 
     // Distritos para los campos de ubigeo (catálogo global de MAE-08, solo lectura).
     Route::get('/ubigeo', function (Request $request) {

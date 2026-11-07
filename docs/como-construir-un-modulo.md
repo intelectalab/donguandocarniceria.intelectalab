@@ -103,7 +103,8 @@ Todas las pantallas usan los mismos, de `@/components/ui`. Se ven funcionando en
 | `DataTable` + `useListado` | Lista con búsqueda, orden, páginas, carga, error y vacío. `useListado` habla con `Listado` de la API: `<DataTable {...lista.tabla} columns={columnas} />`. En el celular cada fila es una tarjeta: la primera columna (o la que tenga `cardTitle`) es el título, `status` va arriba a la derecha y el resto como «dato: valor» (`hideInCard` quita una). Con `selection` se marcan varias filas y aparece una barra con sus acciones (activar, desactivar…), como en PLT-05 y PLT-08. |
 | `Field` + `Input`, `Select`, `Textarea`, `Checkbox`, `Switch` | Campos de formulario con etiqueta, ayuda y error. Los errores de la API por campo salen de `erroresDe(err)` |
 | `Modal` | Panel que entra por la derecha para crear o editar (`placement="center"` para un diálogo corto); se monta solo mientras está abierto |
-| `confirmAction` | Confirmar antes de una acción, con motivo opcional (`reason: { min: 10 }`) para las reglas que lo piden |
+| `confirmAction` | Confirmar antes de una acción, con motivo (`reason: { min: 10 }`) para las reglas que lo piden, o una nota que se puede dejar vacía (`reason: { optional: true }`) |
+| `Cifra` | Cifra de cabecera de una pantalla (título, valor, detalle y tono `ok`, `warn` o `bad`), como en PLT-08 y PLT-09 |
 | `toast` | Aviso flotante: `toast.ok("Guardado")`, `toast.error(mensajeDe(err))` |
 | `MapPicker` | Mapa (OpenStreetMap) para fijar una ubicación con un pin, con otros puntos de referencia. Sirve para locales, direcciones de clientes y reparto |
 | `MapView` | Mapa de solo lectura con varios pines etiquetados; un clic en un pin lo abre |

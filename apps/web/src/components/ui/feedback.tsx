@@ -20,7 +20,7 @@ type Confirmacion = {
   confirmLabel?: string;
   danger?: boolean;
   /** Pide un motivo (muchas reglas RN lo exigen) con este mínimo de caracteres. */
-  reason?: { label?: string; min?: number };
+  reason?: { label?: string; min?: number; optional?: boolean };
 };
 type Pendiente = Confirmacion & { resolver: (r: { reason?: string } | null) => void };
 
@@ -113,7 +113,7 @@ export function UiHost() {
 
 function DialogoConfirmar({ title, message, confirmLabel = "Confirmar", danger, reason }: Pendiente) {
   const [motivo, setMotivo] = useState("");
-  const min = reason?.min ?? 10;
+  const min = reason?.optional ? 0 : reason?.min ?? 10;
   const falta = reason ? Math.max(0, min - motivo.trim().length) : 0;
 
   function enviar(e: FormEvent) {
@@ -136,7 +136,8 @@ function DialogoConfirmar({ title, message, confirmLabel = "Confirmar", danger, 
           </p>
         )}
         {reason && (
-          <Field label={reason.label ?? "Motivo"} required hint={falta ? `Faltan ${falta} caracteres (mínimo ${min}).` : "Queda registrado en la auditoría."}>
+          <Field label={reason.label ?? "Motivo"} required={!reason.optional}
+            hint={falta ? `Faltan ${falta} caracteres (mínimo ${min}).` : reason.optional ? "Opcional. Queda en el historial." : "Queda registrado en la auditoría."}>
             <Textarea value={motivo} onChange={(e) => setMotivo(e.target.value)} rows={3} />
           </Field>
         )}

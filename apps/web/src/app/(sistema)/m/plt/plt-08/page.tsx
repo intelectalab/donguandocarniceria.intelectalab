@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CircleCheck, CircleOff, Plus } from "lucide-react";
-import { Badge, Button, DataTable, PageHeader, Select, StatusBadge, confirmAction, toast, type Column, type Tone } from "@/components/ui";
+import { Badge, Button, Cifra, DataTable, PageHeader, Select, StatusBadge, confirmAction, toast, type Column, type Tone } from "@/components/ui";
 import { api, mensajeDe } from "@/lib/api";
 import { numero, porcentaje } from "@/lib/formato";
 import { useSesion } from "@/lib/sesion";
@@ -149,18 +149,6 @@ function Uso({ valor, aviso }: { valor: number; aviso: number }) {
       <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-2" aria-hidden="true">
         <div className={`h-full rounded-full ${alto ? "bg-warn" : "bg-primary"}`} style={{ width: `${Math.max(valor, 1.5)}%` }} />
       </div>
-    </div>
-  );
-}
-
-const TONO_CIFRA = { warn: "border-l-warn", bad: "border-l-bad" };
-
-function Cifra({ titulo, valor, detalle, tono }: { titulo: string; valor?: string; detalle: string; tono?: "warn" | "bad" }) {
-  return (
-    <div className={`min-w-0 rounded-xl border border-line bg-surface px-4 py-3 shadow-card ${tono ? `border-l-[3px] ${TONO_CIFRA[tono]}` : ""}`}>
-      <p className="text-[11.5px] font-semibold tracking-wide text-muted uppercase">{titulo}</p>
-      <p className="font-display text-[24px] leading-tight font-bold text-ink tabular-nums">{valor ?? "…"}</p>
-      <p className="truncate text-[12px] text-muted" title={detalle}>{detalle}</p>
     </div>
   );
 }
