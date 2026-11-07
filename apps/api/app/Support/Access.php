@@ -26,9 +26,14 @@ final class Access
         self::$cache = [];
     }
 
+    /** Un módulo apagado no concede sus permisos, ni al gerente (RN-PLT-07). */
     public static function can(User $user, string $permission): bool
     {
         $a = self::for($user);
+        $modulo = $a['permission_modules'][$permission] ?? null;
+        if ($modulo !== null && ! in_array($modulo, $a['enabled_modules'], true)) {
+            return false;
+        }
 
         return $a['all_permissions'] || in_array($permission, $a['permissions'], true);
     }
@@ -75,6 +80,7 @@ final class Access
             'permissions' => $permissions,
             'modules' => $modules,
             'enabled_modules' => DB::table('tenant_modules')->where('enabled', true)->pluck('module_code')->all(),
+            'permission_modules' => DB::table('permissions')->pluck('module_code', 'code')->all(),
             'brands' => $scopes->pluck('brand_id')->filter()->unique()->values()->all(),
             'establishments' => $scopes->pluck('establishment_id')->filter()->unique()->values()->all(),
         ];

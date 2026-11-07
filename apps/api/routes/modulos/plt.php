@@ -4,6 +4,7 @@ use App\Modulos\Plt\Http\Controllers\CentroCostoController;
 use App\Modulos\Plt\Http\Controllers\EmpresaController;
 use App\Modulos\Plt\Http\Controllers\LocalController;
 use App\Modulos\Plt\Http\Controllers\MarcaController;
+use App\Modulos\Plt\Http\Controllers\ModuloController;
 use App\Modulos\Plt\Http\Controllers\ParametroController;
 use App\Modulos\Plt\Http\Controllers\PeriodoController;
 use App\Modulos\Plt\Http\Controllers\SerieController;
@@ -61,6 +62,13 @@ Route::prefix('plt')->group(function () {
     Route::get('/parametros/{key}', [ParametroController::class, 'show'])->middleware('modulo:PLT')->where('key', '[a-z0-9_]+');
     Route::put('/parametros/{key}', [ParametroController::class, 'update'])->middleware('modulo:PLT,E')->where('key', '[a-z0-9_]+');
     Route::post('/parametros/{key}/quitar', [ParametroController::class, 'quitar'])->middleware('modulo:PLT,E')->where('key', '[a-z0-9_]+');
+
+    // PLT-12 Módulos (la lista de TEL también con tel.settings.manage: se revisa en el controlador)
+    Route::get('/modulos', [ModuloController::class, 'index'])->middleware('modulo:PLT');
+    Route::get('/modulos/{code}/eventos', [ModuloController::class, 'eventos'])->middleware('modulo:PLT')->where('code', '[A-Z0-9]{3}');
+    Route::put('/modulos/{code}', [ModuloController::class, 'cambiar'])->middleware(['modulo:PLT,E', 'permiso:plt.module.toggle'])->where('code', '[A-Z0-9]{3}');
+    Route::post('/modulos/tel/pasos/{paso}', [ModuloController::class, 'marcarPaso'])->middleware('modulo:PLT,E')->where('paso', '[A-Z_]+');
+    Route::delete('/modulos/tel/pasos/{paso}', [ModuloController::class, 'deshacerPaso'])->middleware('modulo:PLT,E')->where('paso', '[A-Z_]+');
 
     // Distritos para los campos de ubigeo (catálogo global de MAE-08, solo lectura).
     Route::get('/ubigeo', function (Request $request) {

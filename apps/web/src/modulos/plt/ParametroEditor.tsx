@@ -9,6 +9,7 @@ import { useListado } from "@/lib/useListado";
 import { AMBITOS_PARAMETRO, TIPOS_PARAMETRO, formatoParametro, sinCodigos, type CambioParametro, type Local, type Marca, type Parametro } from "./tipos";
 
 type Detalle = Parametro & {
+  module_name: string;
   ambitos: { scope: string; scope_id: string; value: string; reason: string; nombre: string | null }[];
   historial: CambioParametro[];
 };
@@ -53,9 +54,11 @@ export function ParametroEditor({ clave, onClose, onCambio }: { clave: string; o
     ? `${d.min_value ?? "—"} a ${d.max_value ?? "—"}${d.unit ? ` ${d.unit}` : ""}` : "—";
 
   return (
-    <Modal open onClose={onClose} size="lg" title={clave} description={sinCodigos(d?.description)} footer={<Button onClick={onClose}>Cerrar</Button>}>
+    <Modal open onClose={onClose} size="lg" title={clave} footer={<Button onClick={onClose}>Cerrar</Button>}>
       {error ? <p role="alert" className="text-[13.5px] text-bad">{error}</p> : !d ? <p className="text-[13px] text-muted">Cargando…</p> : (<>
         <DetailList items={[
+          { label: "Módulo", value: `${d.module_code} · ${d.module_name}` },
+          { label: "Descripción", value: sinCodigos(d.description) },
           { label: "Valor que rige", value: <b>{fmt(d.value)}</b> },
           { label: "Sale de", value: d.source === "TENANT" ? "El valor propio de la empresa" : "El valor por defecto" },
           { label: "Por defecto", value: fmt(d.default_value) },

@@ -7,7 +7,7 @@ import { Badge, Cifra, DataTable, PageHeader, Select, type Column } from "@/comp
 import { api, mensajeDe } from "@/lib/api";
 import { numero } from "@/lib/formato";
 import { ParametroEditor } from "@/modulos/plt/ParametroEditor";
-import { formatoParametro, sinCodigos, type Parametro } from "@/modulos/plt/tipos";
+import { TIPOS_PARAMETRO, formatoParametro, sinCodigos, type Parametro } from "@/modulos/plt/tipos";
 
 type Respuesta = {
   parametros: Parametro[];
@@ -47,16 +47,18 @@ export default function Parametros() {
     { key: "key", header: "Clave", render: (p) => <span className="font-mono text-[12.5px]">{p.key}</span> },
     { key: "description", header: "Para qué", cardTitle: true, render: (p) => <span className="block max-w-[420px]">{sinCodigos(p.description)}</span> },
     ...(q ? [{ key: "module_code", header: "Módulo", render: (p: Parametro) => <span className="font-mono">{p.module_code}</span> }] : []),
-    { key: "value", header: "Valor", render: (p) => <b className="whitespace-nowrap">{formatoParametro(p.value, p.value_type, p.unit, p.options)}</b> },
+    { key: "value", header: "Valor vigente", render: (p) => <b className="whitespace-nowrap">{formatoParametro(p.value, p.value_type, p.unit, p.options)}</b> },
     {
-      key: "source", header: "Sale de", render: (p) => (
+      key: "source", header: "Ámbito", render: (p) => (
         <span className="flex flex-wrap items-center gap-1.5">
           {p.source === "TENANT" ? <Badge tone="primary">Empresa</Badge> : <span className="text-muted">Por defecto</span>}
           {p.overrides ? <Badge tone="info">{p.overrides === 1 ? "1 local o marca" : `${p.overrides} locales o marcas`}</Badge> : null}
         </span>
       ),
     },
+    { key: "unit", header: "Unidad", hideOnMobile: true, render: (p) => p.unit ?? <span className="text-muted">—</span> },
     { key: "rango", header: "Rango", hideOnMobile: true, render: (p) => p.min_value !== null || p.max_value !== null ? `${p.min_value ?? "—"} a ${p.max_value ?? "—"}` : <span className="text-muted">—</span> },
+    { key: "value_type", header: "Tipo", hideOnMobile: true, render: (p) => <span className="whitespace-nowrap">{TIPOS_PARAMETRO[p.value_type]}</span> },
     { key: "default_value", header: "Por defecto", hideOnMobile: true, render: (p) => <span className="text-muted">{formatoParametro(p.default_value, p.value_type, p.unit, p.options)}</span> },
   ];
 

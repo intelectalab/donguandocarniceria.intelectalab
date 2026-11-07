@@ -80,6 +80,7 @@ class ParametroController extends Controller
 
         return response()->json([
             'key' => $d->key, 'module_code' => $d->module_code, 'value_type' => $d->value_type, 'description' => $d->description,
+            'module_name' => trim(explode(':', (string) DB::table('platform_modules')->where('code', $d->module_code)->value('name'))[0]),
             'unit' => $d->unit, 'min_value' => $d->min_value === null ? null : (float) $d->min_value, 'max_value' => $d->max_value === null ? null : (float) $d->max_value,
             'allowed_scopes' => $d->allowed_scopes, 'options' => $d->options, 'default_value' => $d->default_value,
             'value' => $empresa?->value ?? $d->default_value, 'source' => $empresa ? 'TENANT' : 'DEFAULT',

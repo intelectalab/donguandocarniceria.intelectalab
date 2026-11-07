@@ -51,12 +51,14 @@ class PlataformaTest extends TestCase
     {
         $token = $this->ingresar(self::DG, 'rquispe@donguando.pe');
 
-        $this->desde(self::DG, $token)->getJson('/api/v1/me')->assertOk()
+        $me = $this->desde(self::DG, $token)->getJson('/api/v1/me')->assertOk()
             ->assertJsonPath('roles', ['GERENTE'])
-            ->assertJsonPath('permissions', ['*'])
             ->assertJsonCount(40, 'modules')
             ->assertJsonCount(5, 'brands')
             ->assertJsonCount(2, 'establishments');
+        // Todos los permisos, menos los de los módulos apagados (TEL llega apagado, RN-PLT-07).
+        $this->assertContains('plt.period.reopen', $me->json('permissions'));
+        $this->assertNotContains('tel.call.make', $me->json('permissions'));
     }
 
     public function test_la_vendedora_solo_ve_sus_marcas_y_sus_modulos(): void
