@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { motion, type Variants } from "framer-motion";
 import { ClipboardCheck, Truck, Receipt } from "lucide-react";
 import { iniciales, legibleConBlanco, type Empresa } from "@/lib/empresa";
+import { Franja } from "@/components/ui/Franja";
 
 /** Estilos de formulario compartidos por las pantallas de ingreso (como erp-saas). */
 export const authLabel = "mb-1.5 block text-[12.5px] font-medium text-muted";
@@ -81,7 +82,7 @@ export default function AuthShell({ title, subtitle, children, footer, empresa, 
           ].join(", "),
         }}
       >
-        <span aria-hidden="true" className="franja absolute inset-x-0 top-0 h-2" />
+        <Franja className="absolute inset-x-0 top-0 h-2 w-full" />
         {pending ? <span className="h-5" /> : (
           <span className="text-[13px] font-semibold tracking-[.08em] text-white/80 uppercase">
             {empresa?.general === false ? "Acceso de la empresa" : "Plataforma Aycha · Intelectalab"}

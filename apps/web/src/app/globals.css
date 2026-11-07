@@ -122,12 +122,14 @@ h1, h2, h3 {
   :root:not([data-theme="light"]) .theme-sun-icon { display: block; }
 }
 
-/* Franja de la marca: triángulos en vino, dorado, rosa, ámbar y crema (los colores de donguando.com).
-   Va arriba del menú, de la cabecera y del panel de ingreso. Es decorativa: aria-hidden. */
-.franja {
-  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='8' viewBox='0 0 48 8'><rect width='48' height='8' fill='%236d102b'/><path d='M0 8 6 0 12 8Z' fill='%23ffc676'/><path d='M12 0 18 8 24 0Z' fill='%23e57f9b'/><path d='M24 8 30 0 36 8Z' fill='%23b9781a'/><path d='M36 0 42 8 48 0Z' fill='%23fff4e6'/><path d='M4.5 4h3M28.5 4h3' stroke='%236d102b' stroke-width='1.2'/><path d='M16.5 4h3M40.5 4h3' stroke='%23922242' stroke-width='1.2'/></svg>");
-  background-repeat: repeat-x;
-  background-size: auto 100%;
+/* Franja de la marca (components/ui/Franja): sus colores. Los de la marca elegida los pone
+   lib/temaMarca; estos son los de donguando.com, para cuando no hay tema. */
+:root {
+  --franja-base: #6d102b;
+  --franja-1: #ffc676;
+  --franja-2: #e57f9b;
+  --franja-3: #b9781a;
+  --franja-4: #fff4e6;
 }
 
 /* Fondo del encabezado de cada pantalla: rombos escalonados del color primario, muy tenues y

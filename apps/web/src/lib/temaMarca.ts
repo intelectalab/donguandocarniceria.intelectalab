@@ -35,6 +35,10 @@ function variables(t: Colores, oscuro: boolean): string {
       ? `linear-gradient(180deg, ${mezcla(t.primary_dark, 35, t.background)} 0%, ${mezcla(t.primary_dark, 15, t.background)} 100%)`
       : `linear-gradient(180deg, ${mezcla(t.primary, 60, t.primary_dark)} 0%, ${mezcla(t.primary_dark, 75, "#000000")} 100%)`,
     "--side-ring": oscuro ? mezcla(t.primary_dark, 35, t.background) : mezcla(t.primary, 60, t.primary_dark),
+    // Opción elegida del menú y textos secundarios del menú, del color de la marca.
+    "--side-active": oscuro ? mezcla(t.primary, 32, "transparent") : "rgb(255 255 255 / 0.16)",
+    "--side-group-active": oscuro ? mezcla(t.primary, 24, "transparent") : "rgb(255 255 255 / 0.2)",
+    "--side-muted": mezcla("#ffffff", oscuro ? 60 : 72, t.primary),
   };
   return Object.entries(v).map(([k, x]) => `${k}:${x}`).join(";");
 }
@@ -45,7 +49,9 @@ export function cssDeTema(tema: TemaMarca | null | undefined): string | null {
   const claro = variables(tema.light, false);
   const oscuro = variables(tema.dark, true);
   // Mismos selectores que globals.css: al ir después, ganan.
-  return `:root{${claro};--brand-gold:${tema.dark.accent}}`
+  // Franja: base oscura de la marca y triángulos dorado, primario claro, acento y crema.
+  const franja = `--franja-base:${tema.light.primary_dark};--franja-1:${tema.dark.accent};--franja-2:${tema.dark.primary};--franja-3:${tema.light.accent};--franja-4:${tema.dark.text}`;
+  return `:root{${claro};--brand-gold:${tema.dark.accent};${franja}}`
     + `@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){${oscuro}}}`
     + `:root[data-theme="dark"]{${oscuro}}`;
 }

@@ -8,5 +8,6 @@ export { MapPicker, type LatLng, type MapReference } from "./MapPicker";
 export { MapView, type MapPoint } from "./MapView";
 export { DataTable, Pagination, type Column, type SelectionProps } from "./DataTable";
 export { Cifra } from "./Cifra";
+export { Franja } from "./Franja";
 export { Badge, StatusBadge, Alert, PageHeader, Tabs, DetailList, type Tone } from "./display";
 export { toast, confirmAction, UiHost } from "./feedback";

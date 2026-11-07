@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import { Franja } from "./Franja";
 
 const TONO = {
   ok: { borde: "border-l-ok", icono: "bg-ok-soft text-ok" },
@@ -24,7 +25,7 @@ export function Cifra({ titulo, valor, detalle, tono, icono: Icono, destacada }:
       className={`relative min-w-0 overflow-hidden rounded-xl border px-4 py-3 shadow-card ${destacada
         ? "border-transparent text-white"
         : `border-line bg-surface ${t ? `border-l-[3px] ${t.borde}` : ""}`}`}>
-      {destacada && <span aria-hidden="true" className="franja absolute inset-x-0 bottom-0 h-1 opacity-90" />}
+      {destacada && <Franja className="absolute inset-x-0 bottom-0 h-1 w-full opacity-90" />}
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <p className={`text-[11.5px] font-semibold tracking-wide uppercase ${destacada ? "text-white/75" : "text-muted"}`}>{titulo}</p>

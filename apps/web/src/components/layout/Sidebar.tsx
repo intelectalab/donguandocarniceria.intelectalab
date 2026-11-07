@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentType, type ReactNode } from "react";
 import { Building2, ChevronRight, Layers, Lock, LogOut, UserRound, X } from "lucide-react";
 import { iniciales } from "@/lib/empresa";
+import { Franja } from "@/components/ui/Franja";
 
 type MenuIcon = ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
 
@@ -223,13 +224,13 @@ export default function Sidebar({
 
   return (
     <div className="relative flex h-full flex-col text-white" style={{ background: "var(--side-bg)" }}>
-      <span aria-hidden="true" className="franja h-2 w-full shrink-0" />
+      <Franja className="h-2 w-full shrink-0" />
       <div className={`flex h-14 shrink-0 items-center ${compact ? "justify-center px-2" : "gap-2.5 px-5"}`}>
         {tenantLogo ? (
           // eslint-disable-next-line @next/next/no-img-element -- logo subido por el cliente (URL local del navegador).
           <img src={tenantLogo} alt={tenantName ?? "Logo"} className="size-9 shrink-0 rounded-lg bg-white object-contain p-0.5" />
         ) : (
-          <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-gold font-display text-[13px] font-extrabold text-[#6d102b]">
+          <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-gold font-display text-[13px] font-extrabold" style={{ color: "var(--franja-base)" }}>
             {iniciales(tenantName ?? "Aycha")}
           </span>
         )}
