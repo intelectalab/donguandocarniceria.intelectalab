@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { CalendarDays, History, KeyRound, Users } from "lucide-react";
 import { Cifra, DataTable, PageHeader, Select, type Column } from "@/components/ui";
 import { api } from "@/lib/api";
 import { fecha, fechaHora, numero } from "@/lib/formato";
@@ -53,10 +54,10 @@ export default function HistorialParametros() {
       <PageHeader description="Cada cambio de un parámetro: quién lo hizo, cuándo, el valor anterior y el nuevo, y el motivo. No se edita ni se borra. Lo que ya se calculó con el valor anterior no se recalcula." />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Cifra titulo="Cambios" valor={r ? numero(r.cambios) : undefined} detalle="" />
-        <Cifra titulo="Parámetros distintos" valor={r ? numero(r.parametros) : undefined} detalle="" />
-        <Cifra titulo="Usuarios" valor={r ? numero(r.usuarios) : undefined} detalle="Que hicieron cambios" />
-        <Cifra titulo="Último cambio" valor={r ? (r.ultimo ? fecha(r.ultimo.changed_at) : "—") : undefined} detalle={r?.ultimo?.key ?? ""} />
+        <Cifra titulo="Cambios" icono={History} destacada valor={r ? numero(r.cambios) : undefined} detalle="" />
+        <Cifra titulo="Parámetros distintos" icono={KeyRound} valor={r ? numero(r.parametros) : undefined} detalle="" />
+        <Cifra titulo="Usuarios" icono={Users} valor={r ? numero(r.usuarios) : undefined} detalle="Que hicieron cambios" />
+        <Cifra titulo="Último cambio" icono={CalendarDays} valor={r ? (r.ultimo ? fecha(r.ultimo.changed_at) : "—") : undefined} detalle={r?.ultimo?.key ?? ""} />
       </div>
 
       <DataTable {...lista.tabla} columns={columnas}

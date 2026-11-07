@@ -80,6 +80,7 @@ export default function AuthShell({ title, subtitle, children, footer, empresa, 
           ].join(", "),
         }}
       >
+        <span aria-hidden="true" className="franja absolute inset-x-0 top-0 h-2" />
         {pending ? <span className="h-5" /> : (
           <span className="text-[13px] font-semibold tracking-[.08em] text-white/80 uppercase">
             {empresa?.general === false ? "Acceso de la empresa" : "Plataforma Aycha · Intelectalab"}

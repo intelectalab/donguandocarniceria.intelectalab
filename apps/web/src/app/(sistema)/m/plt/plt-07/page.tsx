@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CircleCheck, CircleOff, Plus } from "lucide-react";
+import { CircleCheck, CircleOff, Layers, ListTree, Network, Plus, Tags } from "lucide-react";
 import { Badge, Button, Cifra, DataTable, PageHeader, Select, StatusBadge, confirmAction, toast, type Column, type Tone } from "@/components/ui";
 import { api, mensajeDe } from "@/lib/api";
 import { numero } from "@/lib/formato";
@@ -84,10 +84,10 @@ export default function CentrosCosto() {
         actions={puedeEditar && <Button variant="primary" icon={Plus} onClick={() => abrir(null)} disabled={!empresas.length}>Nuevo centro de costo</Button>} />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Cifra titulo="Centros de costo" valor={r ? numero(r.total) : undefined} detalle={r ? `${r.activos} activos` : ""} />
-        <Cifra titulo="Áreas con centros" valor={r ? `${r.areas} de ${r.areas_total}` : undefined} detalle="" />
-        <Cifra titulo="Nivel máximo" valor={r ? numero(r.nivel_maximo) : undefined} detalle={r ? `Límite: ${r.limite} niveles` : ""} />
-        <Cifra titulo="Por marca" valor={r ? numero(r.por_marca) : undefined} detalle="Ventas y marketing de cada marca" />
+        <Cifra titulo="Centros de costo" icono={Network} destacada valor={r ? numero(r.total) : undefined} detalle={r ? `${r.activos} activos` : ""} />
+        <Cifra titulo="Áreas con centros" icono={Layers} valor={r ? `${r.areas} de ${r.areas_total}` : undefined} detalle="" />
+        <Cifra titulo="Nivel máximo" icono={ListTree} valor={r ? numero(r.nivel_maximo) : undefined} detalle={r ? `Límite: ${r.limite} niveles` : ""} />
+        <Cifra titulo="Por marca" icono={Tags} valor={r ? numero(r.por_marca) : undefined} detalle="Ventas y marketing de cada marca" />
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

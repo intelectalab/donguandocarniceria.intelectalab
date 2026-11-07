@@ -221,7 +221,8 @@ export default function Sidebar({
 
   return (
     <div className="relative flex h-full flex-col text-white" style={{ background: "var(--side-bg)" }}>
-      <div className={`flex h-16 shrink-0 items-center ${compact ? "justify-center px-2" : "gap-2.5 px-5"}`}>
+      <span aria-hidden="true" className="franja h-2 w-full shrink-0" />
+      <div className={`flex h-14 shrink-0 items-center ${compact ? "justify-center px-2" : "gap-2.5 px-5"}`}>
         <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-gold font-display text-[13px] font-extrabold text-[#6d102b]">
           {iniciales(tenantName ?? "Aycha")}
         </span>

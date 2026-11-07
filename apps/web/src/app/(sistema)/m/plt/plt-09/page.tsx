@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { History, Lock, LockOpen } from "lucide-react";
+import { BookOpen, CalendarCheck, CalendarClock, Clock, History, Lock, LockOpen } from "lucide-react";
 import { Badge, Button, Cifra, DataTable, DetailList, Modal, PageHeader, Select, StatusBadge, confirmAction, toast, type Column, type Tone } from "@/components/ui";
 import { api, mensajeDe } from "@/lib/api";
 import { fecha, fechaHora, numero, porcentaje } from "@/lib/formato";
@@ -119,14 +119,14 @@ export default function Periodos() {
         )} />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Cifra titulo="Cerrados" valor={resumen ? numero(resumen.cerrados) : undefined} detalle={resumen ? `de ${resumen.total} meses` : ""} />
-        <Cifra titulo="Cerrados a tiempo" valor={resumen ? (resumen.a_tiempo_pct === null ? "—" : porcentaje(resumen.a_tiempo_pct)) : undefined}
+        <Cifra titulo="Cerrados" icono={CalendarCheck} destacada valor={resumen ? numero(resumen.cerrados) : undefined} detalle={resumen ? `de ${resumen.total} meses` : ""} />
+        <Cifra titulo="Cerrados a tiempo" icono={Clock} valor={resumen ? (resumen.a_tiempo_pct === null ? "—" : porcentaje(resumen.a_tiempo_pct)) : undefined}
           detalle={resumen ? `${resumen.a_tiempo} de ${resumen.cerrados} hasta el día ${resumen.dia_cierre} del mes siguiente` : ""}
           tono={resumen && resumen.a_tiempo_pct !== null ? (resumen.a_tiempo_pct >= 100 ? "ok" : "warn") : undefined} />
-        <Cifra titulo="Pendiente de cierre" valor={resumen ? (resumen.pendiente ? mayuscula(resumen.pendiente.nombre) : "Ninguno") : undefined}
+        <Cifra titulo="Pendiente de cierre" icono={CalendarClock} valor={resumen ? (resumen.pendiente ? mayuscula(resumen.pendiente.nombre) : "Ninguno") : undefined}
           detalle={resumen?.pendiente ? (resumen.pendiente.vencido ? `Vencido: se debía cerrar hasta el ${fecha(resumen.pendiente.meta)}` : `Cerrar hasta el ${fecha(resumen.pendiente.meta)}`) : resumen ? "Todo al día" : ""}
           tono={resumen?.pendiente?.vencido ? "warn" : undefined} />
-        <Cifra titulo="Contabilidad" valor={resumen ? (resumen.cnt_encendido ? "Encendida" : "Apagada") : undefined}
+        <Cifra titulo="Contabilidad" icono={BookOpen} valor={resumen ? (resumen.cnt_encendido ? "Encendida" : "Apagada") : undefined}
           detalle={resumen ? (resumen.cnt_encendido ? "Su cierre contable usa estos mismos meses" : "Al encenderla, su cierre usa estos meses") : ""} />
       </div>
 

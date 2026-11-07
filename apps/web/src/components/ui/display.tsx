@@ -76,13 +76,18 @@ export function Alert({ tone = "info", title, children }: { tone?: keyof typeof 
  *   <PageHeader code="PLT-03" description="Razón social, RUC…" actions={<Button …>Nueva empresa</Button>} />
  */
 export function PageHeader({ code, description, actions }: { code?: string; description?: ReactNode; actions?: ReactNode }) {
+  // Banda con rombos tenues a la derecha y una línea de colores abajo (diseño de la marca).
   return (
-    <div className="flex flex-wrap items-end justify-between gap-3">
-      <div className="min-w-0 max-w-[70ch]">
-        {code && <p className="font-mono text-[11.5px] text-accent">{code}</p>}
-        {description && <p className="text-[13.5px] text-muted">{description}</p>}
+    <div className="relative overflow-hidden rounded-xl border border-line bg-surface shadow-card">
+      <span aria-hidden="true" className="rombos pointer-events-none absolute inset-y-0 right-0 w-[min(520px,70%)]" />
+      <div className="relative flex flex-wrap items-center justify-between gap-3 px-5 pt-4 pb-5">
+        <div className="min-w-0 max-w-[70ch]">
+          {code && <p className="font-mono text-[11.5px] text-accent">{code}</p>}
+          {description && <p className="text-[13.5px] text-muted">{description}</p>}
+        </div>
+        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      <span aria-hidden="true" className="linea-colores absolute inset-x-5 bottom-2 h-[3px] rounded-full" />
     </div>
   );
 }

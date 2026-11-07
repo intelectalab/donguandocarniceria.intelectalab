@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CircleCheck, CircleOff, Plus } from "lucide-react";
+import { CircleCheck, CircleOff, FileText, Gauge, Hash, Plus, TriangleAlert } from "lucide-react";
 import { Badge, Button, Cifra, DataTable, PageHeader, Select, StatusBadge, confirmAction, toast, type Column, type Tone } from "@/components/ui";
 import { api, mensajeDe } from "@/lib/api";
 import { numero, porcentaje } from "@/lib/formato";
@@ -94,15 +94,15 @@ export default function Series() {
         actions={puedeEditar && <Button variant="primary" icon={Plus} onClick={() => setNueva(true)} disabled={!empresas.length}>Nueva serie</Button>} />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Cifra titulo="Series" valor={resumen ? numero(resumen.total) : undefined}
+        <Cifra titulo="Series" icono={Hash} destacada valor={resumen ? numero(resumen.total) : undefined}
           detalle={resumen ? `${resumen.activas} activas · ${resumen.electronicas} electrónicas` : ""} />
-        <Cifra titulo="Serie más cargada" valor={resumen ? porcentaje(resumen.mas_cargada?.uso ?? 0, 2) : undefined}
+        <Cifra titulo="Serie más cargada" icono={Gauge} valor={resumen ? porcentaje(resumen.mas_cargada?.uso ?? 0, 2) : undefined}
           detalle={resumen?.mas_cargada?.series ?? ""}
           tono={resumen?.mas_cargada && resumen.mas_cargada.uso >= aviso ? "bad" : undefined} />
-        <Cifra titulo="Sobre el aviso" valor={resumen ? numero(resumen.sobre_aviso) : undefined}
+        <Cifra titulo="Sobre el aviso" icono={TriangleAlert} valor={resumen ? numero(resumen.sobre_aviso) : undefined}
           detalle={resumen ? (resumen.sobre_aviso ? `Pasan el ${numero(aviso)} % del rango: crea otra serie` : `Ninguna pasa el ${numero(aviso)} % del rango`) : ""}
           tono={resumen?.sobre_aviso ? "warn" : undefined} />
-        <Cifra titulo="Documentos numerados" valor={resumen ? numero(resumen.numerados) : undefined} detalle="Sin contar series migradas" />
+        <Cifra titulo="Documentos numerados" icono={FileText} valor={resumen ? numero(resumen.numerados) : undefined} detalle="Sin contar series migradas" />
       </div>
 
       <DataTable {...lista.tabla} columns={columnas}

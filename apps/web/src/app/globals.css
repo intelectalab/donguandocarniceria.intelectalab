@@ -122,6 +122,38 @@ h1, h2, h3 {
   :root:not([data-theme="light"]) .theme-sun-icon { display: block; }
 }
 
+/* Franja de la marca: triángulos en vino, dorado, rosa, ámbar y crema (los colores de donguando.com).
+   Va arriba del menú, de la cabecera y del panel de ingreso. Es decorativa: aria-hidden. */
+.franja {
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='8' viewBox='0 0 48 8'><rect width='48' height='8' fill='%236d102b'/><path d='M0 8 6 0 12 8Z' fill='%23ffc676'/><path d='M12 0 18 8 24 0Z' fill='%23e57f9b'/><path d='M24 8 30 0 36 8Z' fill='%23b9781a'/><path d='M36 0 42 8 48 0Z' fill='%23fff4e6'/><path d='M4.5 4h3M28.5 4h3' stroke='%236d102b' stroke-width='1.2'/><path d='M16.5 4h3M40.5 4h3' stroke='%23922242' stroke-width='1.2'/></svg>");
+  background-repeat: repeat-x;
+  background-size: auto 100%;
+}
+
+/* Fondo del encabezado de cada pantalla: rombos escalonados del color primario, muy tenues y
+   desvaneciéndose hacia la izquierda. El color sale de --primary (sirve en claro y en oscuro). */
+.rombos {
+  background-color: var(--primary);
+  -webkit-mask-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44' viewBox='0 0 44 44'><path d='M18 4h8v6h6v8h6v8h-6v8h-6v6h-8v-6h-6v-8H6v-8h6v-8h6z' fill='black'/><path d='M19 17h6v10h-6z' fill='white'/></svg>"), linear-gradient(to left, #000 0%, transparent 75%);
+  mask-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44' viewBox='0 0 44 44'><path d='M18 4h8v6h6v8h6v8h-6v8h-6v6h-8v-6h-6v-8H6v-8h6v-8h6z' fill='black'/><path d='M19 17h6v10h-6z' fill='white'/></svg>"), linear-gradient(to left, #000 0%, transparent 75%);
+  -webkit-mask-size: 44px 44px, 100% 100%;
+  mask-size: 44px 44px, 100% 100%;
+  -webkit-mask-repeat: repeat, no-repeat;
+  mask-repeat: repeat, no-repeat;
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+  opacity: 0.07;
+}
+
+/* Línea de segmentos de colores bajo el encabezado de cada pantalla. */
+.linea-colores {
+  background-image: repeating-linear-gradient(90deg,
+    var(--primary) 0 34px, transparent 34px 40px,
+    var(--brand-gold) 40px 58px, transparent 58px 64px,
+    var(--accent) 64px 92px, transparent 92px 98px,
+    var(--side) 98px 116px, transparent 116px 122px);
+}
+
 /* Paneles y diálogos (components/ui/Modal). Sin animación si el sistema pide menos movimiento. */
 @keyframes ui-fade { from { opacity: 0; } }
 @keyframes ui-slide-in { from { transform: translateX(100%); } }

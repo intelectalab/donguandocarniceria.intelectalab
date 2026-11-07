@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Search } from "lucide-react";
+import { Boxes, History, PencilLine, Search, SlidersHorizontal } from "lucide-react";
 import { Badge, Cifra, DataTable, PageHeader, Select, type Column } from "@/components/ui";
 import { api, mensajeDe } from "@/lib/api";
 import { numero } from "@/lib/formato";
@@ -65,10 +65,10 @@ export default function Parametros() {
       <PageHeader description="Los valores que ajustan cómo funciona cada módulo. Rige el más específico: el de una marca o un local, después el de la empresa y, si no hay, el valor por defecto. Cada cambio pide motivo y queda en el historial." />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Cifra titulo="Parámetros" valor={r ? numero(r.total) : undefined} detalle={r ? `${r.modulos} módulos` : ""} />
-        <Cifra titulo="Con valor propio" valor={r ? numero(r.con_valor_propio) : undefined} detalle="Distintos del valor por defecto" />
-        <Cifra titulo="Cambios registrados" valor={r ? numero(r.cambios) : undefined} detalle="En el historial de cambios" />
-        <Cifra titulo="Del módulo elegido" valor={mod ? numero(mod.total) : undefined} detalle={mod ? `${mod.code} · ${mod.name}` : ""} />
+        <Cifra titulo="Parámetros" icono={SlidersHorizontal} destacada valor={r ? numero(r.total) : undefined} detalle={r ? `${r.modulos} módulos` : ""} />
+        <Cifra titulo="Con valor propio" icono={PencilLine} valor={r ? numero(r.con_valor_propio) : undefined} detalle="Distintos del valor por defecto" />
+        <Cifra titulo="Cambios registrados" icono={History} valor={r ? numero(r.cambios) : undefined} detalle="En el historial de cambios" />
+        <Cifra titulo="Del módulo elegido" icono={Boxes} valor={mod ? numero(mod.total) : undefined} detalle={mod ? `${mod.code} · ${mod.name}` : ""} />
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">

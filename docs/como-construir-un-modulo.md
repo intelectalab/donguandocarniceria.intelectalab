@@ -106,7 +106,7 @@ Todas las pantallas usan los mismos, de `@/components/ui`. Se ven funcionando en
 | `Field` + `Input`, `Select`, `Textarea`, `Checkbox`, `Switch` | Campos de formulario con etiqueta, ayuda y error. Los errores de la API por campo salen de `erroresDe(err)`. Un `Select` con más de 10 opciones trae buscador (sin distinguir mayúsculas ni tildes) y se usa igual: `onChange={(e) => …e.target.value}`; `searchable` lo fuerza o lo quita |
 | `Modal` | Panel que entra por la derecha para crear o editar (`placement="center"` para un diálogo corto); se monta solo mientras está abierto |
 | `confirmAction` | Confirmar antes de una acción, con motivo (`reason: { min: 10 }`) para las reglas que lo piden, o una nota que se puede dejar vacía (`reason: { optional: true }`) |
-| `Cifra` | Cifra de cabecera de una pantalla (título, valor, detalle y tono `ok`, `warn` o `bad`), como en PLT-08 y PLT-09 |
+| `Cifra` | Cifra de cabecera de una pantalla: título, valor, detalle, tono (`ok`, `warn`, `bad`), `icono` (de lucide-react) y `destacada` para la principal (una por pantalla), como en PLT-07 a PLT-11 |
 | `toast` | Aviso flotante: `toast.ok("Guardado")`, `toast.error(mensajeDe(err))` |
 | `MapPicker` | Mapa (OpenStreetMap) para fijar una ubicación con un pin, con otros puntos de referencia. Sirve para locales, direcciones de clientes y reparto |
 | `MapView` | Mapa de solo lectura con varios pines etiquetados; un clic en un pin lo abre |
