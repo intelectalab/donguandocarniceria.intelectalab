@@ -1,5 +1,6 @@
 <?php
 
+use App\Modulos\Plt\Http\Controllers\CentroCostoController;
 use App\Modulos\Plt\Http\Controllers\EmpresaController;
 use App\Modulos\Plt\Http\Controllers\LocalController;
 use App\Modulos\Plt\Http\Controllers\MarcaController;
@@ -30,6 +31,14 @@ Route::prefix('plt')->group(function () {
     Route::get('/marcas/{id}/logo', [MarcaController::class, 'logo'])->middleware('modulo:PLT')->whereUuid('id');
     Route::post('/marcas/{id}/logo', [MarcaController::class, 'subirLogo'])->middleware(['modulo:PLT,E', 'permiso:plt.brand.manage', 'throttle:20,1'])->whereUuid('id');
     Route::delete('/marcas/{id}/logo', [MarcaController::class, 'quitarLogo'])->middleware(['modulo:PLT,E', 'permiso:plt.brand.manage'])->whereUuid('id');
+
+    // PLT-07 Centros de costo
+    Route::get('/centros-costo', [CentroCostoController::class, 'index'])->middleware('modulo:PLT');
+    Route::get('/centros-costo/arbol', [CentroCostoController::class, 'arbol'])->middleware('modulo:PLT');
+    Route::get('/centros-costo/{id}', [CentroCostoController::class, 'show'])->middleware('modulo:PLT')->whereUuid('id');
+    Route::post('/centros-costo', [CentroCostoController::class, 'store'])->middleware(['modulo:PLT,E', 'permiso:plt.cost_center.manage']);
+    Route::put('/centros-costo/estado', [CentroCostoController::class, 'estado'])->middleware(['modulo:PLT,E', 'permiso:plt.cost_center.manage']);
+    Route::put('/centros-costo/{id}', [CentroCostoController::class, 'update'])->middleware(['modulo:PLT,E', 'permiso:plt.cost_center.manage'])->whereUuid('id');
 
     // PLT-08 Series (ADMINISTRACION también las maneja)
     Route::get('/series', [SerieController::class, 'index'])->middleware('modulo:PLT');

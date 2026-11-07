@@ -156,3 +156,37 @@ export function problemaSerie(serie: string, tipo: string, electronica: boolean)
   if (electronica && f) return f.re.test(serie) ? null : `No tiene el formato que pide SUNAT: ${f.ejemplo}.`;
   return /^[A-Z0-9]{2,4}$/.test(serie) ? null : "Una serie interna tiene de 2 a 4 letras o números.";
 }
+
+/** Áreas de los centros de costo (PLT-07), en el orden del árbol. */
+export const AREAS_COSTO = [
+  { value: "PRODUCTION", label: "Producción" },
+  { value: "QUALITY", label: "Calidad" },
+  { value: "WAREHOUSE", label: "Almacén" },
+  { value: "DELIVERY", label: "Delivery" },
+  { value: "SALES", label: "Ventas" },
+  { value: "MARKETING", label: "Marketing" },
+  { value: "ADMIN", label: "Administración" },
+  { value: "FINANCE", label: "Finanzas" },
+  { value: "HR", label: "RR. HH." },
+];
+
+export type CentroCosto = {
+  id: string;
+  company_id: string;
+  code: string;
+  name: string;
+  area: string;
+  parent_id: string | null;
+  parent_code: string | null;
+  establishment_id: string | null;
+  establishment_name: string | null;
+  brand_id: string | null;
+  brand_name: string | null;
+  status: string;
+  /** 1 = raíz. */
+  nivel: number;
+  hijos_count: number;
+  gastos_count: number;
+  /** Solo en el detalle (GET /centros-costo/{id}). */
+  hijos?: string[];
+};

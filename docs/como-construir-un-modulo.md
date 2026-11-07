@@ -48,6 +48,7 @@ Con un módulo apagado para la empresa, `modulo:` responde `RN-PLT-07`, aunque e
 | `RuleError::fail('RN-PED-01', 'Faltan la dirección con pin y la franja.')` | Regla que bloquea. La API responde 422 con `{ message, code }`: el mensaje es para la persona (sin el código) y `code` es la regla. |
 | `Correlativo::emitir($serieId, fn ($serie, $numero) => ...)` | Número de un documento (boleta, guía, orden…). Se toma en la misma transacción que guarda el documento: si falla, el número no se consume. `Correlativo::numeroCompleto('B001', 694)` da `B001-00000694`. |
 | `Marcas::activa($brandId)` | Antes de crear un documento de una marca: falla si está inactiva o separada (RN-PLT-14). |
+| `CentrosCosto::activo($id)` | Antes de imputar un gasto o costo a un centro de costo: falla si está inactivo (RN-PLT-21). |
 | `Periodos::abierto($fecha, $companyId)` | Antes de registrar algo con fecha (venta, comprobante, recepción, gasto…), dentro de la misma transacción: falla si ese mes está cerrado para la empresa (RN-PLT-05). `Periodos::cerrado()` responde sí o no, para avisar en pantalla antes de guardar. |
 | `Params::get('ped_weight_tolerance_pct', ['brand' => $id])` | Parámetros de la spec: primero los de la empresa, si no, el valor por defecto. |
 | `Events::emit('order.confirmed', 'sales_orders', $id, [...])` | Eventos entre módulos (nombres de la spec). |
