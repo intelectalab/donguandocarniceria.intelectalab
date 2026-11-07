@@ -6,6 +6,7 @@ import {
   Badge, Button, Cifra, DataTable, DetailList, Field, Modal, PageHeader, Select, Textarea, confirmAction, toast, type Column,
 } from "@/components/ui";
 import { api, mensajeDe } from "@/lib/api";
+import { sinCodigos } from "@/modulos/plt/tipos";
 import { fechaHora, numero } from "@/lib/formato";
 import { useSesion } from "@/lib/sesion";
 
@@ -169,9 +170,9 @@ export default function Modulos() {
                   <p className="text-[13.5px] font-semibold">{p.nombre}</p>
                   <p className="text-[12.5px] text-muted">{p.descripcion}</p>
                   {p.done && p.code !== "SWITCH_ON" && (
-                    <p className="mt-1 text-[12.5px]">Hecho el {fechaHora(p.done_at)}{p.done_by_name ? ` · ${p.done_by_name}` : ""}{p.notes ? ` · ${p.notes}` : ""}</p>
+                    <p className="mt-1 text-[12.5px]">Hecho el {fechaHora(p.done_at)}{p.done_by_name ? ` · ${p.done_by_name}` : ""}{p.notes ? ` · ${sinCodigos(p.notes)}` : ""}</p>
                   )}
-                  {!p.done && p.notes && <p className="mt-1 text-[12.5px] text-warn">{p.notes}</p>}
+                  {!p.done && p.notes && <p className="mt-1 text-[12.5px] text-warn">{sinCodigos(p.notes)}</p>}
                 </div>
                 <div className="col-start-2 sm:col-start-auto">
                   {p.code === "SWITCH_ON" ? (
