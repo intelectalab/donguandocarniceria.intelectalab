@@ -38,11 +38,11 @@ final class Dominios
             RuleError::fail('RN-PLT-19', 'Escribe un dominio válido, por ejemplo sistema.donguando.com.');
         }
         if (self::esDeLaPlataforma($hn)) {
-            RuleError::fail('RN-PLT-19', 'Los dominios de aycha.pe los asigna Intelectalab: aquí solo se agrega un dominio propio de la empresa.');
+            RuleError::fail('RN-PLT-19', 'Los dominios de aycha.pe los asigna Intelectalab: aquí solo se agrega un dominio propio.');
         }
         if (DB::table('tenant_hostnames')->where('hostname', $hn)->exists()) {
             // No se dice de quién es: solo que no está disponible.
-            RuleError::fail('RN-PLT-19', "{$hn} ya está registrado: cada dominio identifica a una sola empresa.");
+            RuleError::fail('RN-PLT-19', "{$hn} ya está registrado: cada dominio identifica a un solo cliente.");
         }
 
         $id = DB::table('tenant_hostnames')->insertGetId([
@@ -120,7 +120,7 @@ final class Dominios
 
     private static function empresa(): string
     {
-        return TenantContext::id() ?? RuleError::fail('RN-PLT-19', 'Sin empresa en la sesión.');
+        return TenantContext::id() ?? RuleError::fail('RN-PLT-19', 'Sin cliente en la sesión.');
     }
 
     /** Registros TXT del dominio (solo consulta DNS; no se conecta al dominio). */

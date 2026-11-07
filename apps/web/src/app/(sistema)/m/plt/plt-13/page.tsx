@@ -12,7 +12,7 @@ type Respuesta = { empresa: { name: string; short: string; plan: string; status:
 
 const ESTADO_EMPRESA: Record<string, string> = { ACTIVE: "Activa", TRIAL: "En prueba", PAST_DUE: "Pago vencido", READ_ONLY: "Solo lectura", SUSPENDED: "Suspendida", CANCELLED: "Cerrada" };
 
-/** PLT-13 Dominio de acceso: con qué dirección entran los usuarios de la empresa y su estado. */
+/** PLT-13 Dominio de acceso: con qué dirección entran los usuarios del cliente (el tenant, con todas sus empresas y marcas). */
 export default function DominioDeAcceso() {
   const { can } = useSesion();
   const [datos, setDatos] = useState<Respuesta | null>(null);
@@ -71,11 +71,11 @@ export default function DominioDeAcceso() {
 
   return (
     <div className="space-y-5">
-      <PageHeader description="La dirección con la que entran los usuarios de la empresa. Cada dominio es de una sola empresa. Un dominio propio se verifica con un registro TXT en su DNS; los de aycha.pe los asigna Intelectalab."
+      <PageHeader description={`La dirección web con la que entran los usuarios de ${datos?.empresa.short ?? "tu negocio"}, para todas sus empresas (RUC) y marcas. Cada dominio es de un solo cliente. Un dominio propio se verifica con un registro TXT en su DNS; los de aycha.pe los asigna Intelectalab.`}
         actions={puede && <Button variant="primary" icon={Plus} onClick={() => setAgregando(true)}>Agregar dominio propio</Button>} />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Cifra titulo="Empresa cliente" valor={datos?.empresa.short ?? undefined} detalle={datos ? `Plan ${datos.empresa.plan}` : ""} icono={Building2} destacada />
+        <Cifra titulo="Cliente" valor={datos?.empresa.short ?? undefined} detalle={datos ? `Plan ${datos.empresa.plan}` : ""} icono={Building2} destacada />
         <Cifra titulo="Estado" valor={datos ? ESTADO_EMPRESA[datos.empresa.status] ?? datos.empresa.status : undefined} icono={CheckCircle2}
           detalle={datos?.empresa.status === "ACTIVE" ? "Se muestra el inicio de sesión" : "No se muestra el inicio de sesión"}
           tono={datos && datos.empresa.status !== "ACTIVE" ? "bad" : "ok"} />
@@ -84,10 +84,10 @@ export default function DominioDeAcceso() {
       </div>
 
       {datos && !datos.por_dominio && (
-        <Alert tone="info">Por ahora se entra por el ingreso general (la empresa sale del usuario). Los dominios quedan listos para cuando se active el ingreso por dominio.</Alert>
+        <Alert tone="info">Por ahora se entra por el ingreso general (el cliente sale del correo del usuario). Los dominios quedan listos para cuando se active el ingreso por dominio.</Alert>
       )}
 
-      <DataTable columns={columnas} rows={visibles} rowKey={(d) => d.id} loading={!datos} empty="La empresa no tiene dominios." />
+      <DataTable columns={columnas} rows={visibles} rowKey={(d) => d.id} loading={!datos} empty="No hay dominios registrados." />
 
       {agregando && <AgregarDominio onClose={() => setAgregando(false)} onAgregado={(d) => { setAgregando(false); recargar(); setVerificando(d); }} />}
       {verificando && <VerificarDominio d={verificando} onClose={() => setVerificando(null)} onVerificado={() => { setVerificando(null); recargar(); }} />}
@@ -120,7 +120,7 @@ function AgregarDominio({ onClose, onAgregado }: { onClose: () => void; onAgrega
         <Button onClick={onClose} disabled={guardando}>Cancelar</Button>
         <Button variant="primary" loading={guardando} disabled={!host.trim()} onClick={guardar}>Agregar</Button>
       </>}>
-      <Field label="Dominio" required error={error || undefined} hint="Un dominio de la empresa, por ejemplo sistema.donguando.com. Después se verifica con un registro TXT.">
+      <Field label="Dominio" required error={error || undefined} hint="Un dominio propio de tu negocio, por ejemplo sistema.donguando.com. Después se verifica con un registro TXT.">
         <Input value={host} onChange={(e) => setHost(e.target.value.trim().toLowerCase())} maxLength={253} placeholder="sistema.donguando.com" className="font-mono" />
       </Field>
     </Modal>
@@ -154,7 +154,7 @@ function VerificarDominio({ d, onClose, onVerificado }: { d: Dominio; onClose: (
         <Button variant="primary" icon={ShieldCheck} loading={guardando} onClick={verificar}>Verificar ahora</Button>
       </>}>
       <div className="grid gap-4 text-[13.5px]">
-        <p>Para probar que el dominio es de la empresa, crea este registro en el DNS de <b>{d.hostname}</b> (en el panel de quien te vende el dominio):</p>
+        <p>Para probar que el dominio es tuyo, crea este registro en el DNS de <b>{d.hostname}</b> (en el panel de quien te vende el dominio):</p>
         <dl className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 rounded-[10px] border border-line bg-surface-2/60 p-3">
           <dt className="text-[12px] text-muted">Tipo</dt><dd className="font-mono">TXT</dd><span />
           <dt className="text-[12px] text-muted">Nombre</dt><dd className="break-all font-mono">{d.hostname}</dd>

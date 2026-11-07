@@ -49,7 +49,7 @@ class PltDominiosTest extends TestCase
         $agregar('192.168.0.10')->assertUnprocessable();
         // Ya registrado: no dice de qué empresa es.
         $agregar('sistema.donguando.com')->assertUnprocessable()
-            ->assertJsonPath('message', 'sistema.donguando.com ya está registrado: cada dominio identifica a una sola empresa.');
+            ->assertJsonPath('message', 'sistema.donguando.com ya está registrado: cada dominio identifica a un solo cliente.');
 
         $nuevo = $agregar('Pedidos.DonGuando.pe')->assertCreated();
         $this->assertSame('pedidos.donguando.pe', $nuevo->json('hostname'));
