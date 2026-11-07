@@ -1,6 +1,7 @@
 <?php
 
 use App\Modulos\Plt\Http\Controllers\BusquedaController;
+use App\Modulos\Plt\Services\Asistente;
 use App\Modulos\Plt\Http\Controllers\CentroCostoController;
 use App\Modulos\Plt\Http\Controllers\DominioController;
 use App\Modulos\Plt\Http\Controllers\EmpresaController;
@@ -90,6 +91,9 @@ Route::prefix('plt')->group(function () {
     Route::post('/dominios/{id}/verificar', [DominioController::class, 'verificar'])->middleware(['modulo:PLT,E', 'permiso:plt.hostname.manage', 'throttle:10,1'])->whereUuid('id');
     Route::post('/dominios/{id}/principal', [DominioController::class, 'principal'])->middleware(['modulo:PLT,E', 'permiso:plt.hostname.manage'])->whereUuid('id');
     Route::post('/dominios/{id}/desactivar', [DominioController::class, 'desactivar'])->middleware(['modulo:PLT,E', 'permiso:plt.hostname.manage'])->whereUuid('id');
+
+    // PLT-14 Asistente de configuración: solo lee y revisa los datos del cliente.
+    Route::get('/asistente', fn () => response()->json(Asistente::pasos()))->middleware('modulo:PLT');
 
     // Distritos para los campos de ubigeo (catálogo global de MAE-08, solo lectura).
     Route::get('/ubigeo', function (Request $request) {
