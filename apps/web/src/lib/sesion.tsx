@@ -3,6 +3,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api } from "./api";
 
+import type { TemaMarca } from "./temaMarca";
+
 export type Accion = "C" | "L" | "E" | "A";
 
 export type Me = {
@@ -13,6 +15,8 @@ export type Me = {
   modules: { code: string; name: string; phase: number; enabled: boolean; actions: string }[];
   brands: { id: string; code: string; name: string; primary_color: string; logo_url: string | null }[];
   establishments: { id: string; code: string; name: string; short: string; has_counter: boolean }[];
+  /** Colores (PLT-06): el de la empresa y el propio de cada marca. */
+  themes?: { empresa: TemaMarca | null; brands: Record<string, TemaMarca> | TemaMarca[] };
 };
 
 export type Sesion = {

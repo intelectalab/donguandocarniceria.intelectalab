@@ -12,6 +12,7 @@ import { api } from "@/lib/api";
 import { clearToken } from "@/lib/auth";
 import { MODULOS, menuDe, rutaPantalla } from "@/lib/modulos";
 import { useEstadoSesion } from "@/lib/sesion";
+import { aplicarTema, cssDeTema } from "@/lib/temaMarca";
 
 // Ícono de cada grupo del menú (los nombres deben coincidir con los de lib/menu.json).
 const GROUP_ICONS = {
@@ -82,6 +83,16 @@ export default function AppShell({ children }: { children: ReactNode }) {
       router.push("/login");
     }
   }
+
+  // Colores de la marca elegida arriba (o de la empresa) en todo el sistema (PLT-06).
+  const temas = sesion?.me.themes;
+  const marcaActual = sesion?.marca;
+  useEffect(() => {
+    if (!temas) return;
+    const propias = Array.isArray(temas.brands) ? {} : temas.brands;
+    const tema = (marcaActual && marcaActual !== "ALL" ? propias[marcaActual] : undefined) ?? temas.empresa;
+    aplicarTema(cssDeTema(tema));
+  }, [temas, marcaActual]);
 
   // Menú en el orden de sus grupos: solo los módulos que el rol ve; los apagados, con candado.
   const items = useMemo<MenuItem[]>(() => {

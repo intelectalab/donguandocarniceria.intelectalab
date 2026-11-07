@@ -42,7 +42,19 @@ class MeController extends Controller
             ->filter(fn ($m) => (bool) preg_match('/[LC]/', $m['actions']))
             ->values();
 
+        // Colores (PLT-06): el de la empresa y el propio de cada marca visible. La web pinta el sistema
+        // con el de la marca elegida arriba, o con el de la empresa (RN-PLT-23).
+        $temas = DB::table('ui_themes')->where('status', 'ACTIVE')
+            ->where(fn ($q) => $q->whereNull('brand_id')->orWhereIn('brand_id', $brands->pluck('id')))
+            ->orderBy('created_at')->get(['brand_id', 'light', 'dark']);
+        $tema = fn ($t) => ['light' => json_decode($t->light, true), 'dark' => json_decode($t->dark, true)];
+        $empresa = $temas->whereNull('brand_id')->last();
+
         return response()->json([
+            'themes' => [
+                'empresa' => $empresa ? $tema($empresa) : null,
+                'brands' => $temas->whereNotNull('brand_id')->keyBy('brand_id')->map($tema),
+            ],
             'user' => $user->only(['id', 'name', 'email', 'role', 'default_brand_id', 'ui_theme_mode', 'must_change_password']),
             'tenant' => TenantContext::tenant(),
             'roles' => $access['roles'],

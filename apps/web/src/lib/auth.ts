@@ -17,4 +17,9 @@ export function setToken(token: string, remember: boolean) {
 
 export function clearToken() {
   document.cookie = `${TOKEN_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax`;
+  // Sin sesión, sin los colores de la empresa anterior (lib/temaMarca).
+  document.getElementById("aycha-tema-marca")?.remove();
+  try {
+    localStorage.removeItem("aycha-tema-marca");
+  } catch {}
 }

@@ -31,7 +31,7 @@ function contraste(a: string, b: string): number {
 
 /** PLT-06 Colores por marca: modo claro y oscuro, vista previa y contraste de cada par de texto. */
 export default function ColoresPorMarca() {
-  const { can } = useSesion();
+  const { can, recargar: recargarSesion } = useSesion();
   const [marca, setMarca] = useState("");
   const [datos, setDatos] = useState<{ clave: string } & Respuesta | null>(null);
   const [version, setVersion] = useState(0);
@@ -79,6 +79,7 @@ export default function ColoresPorMarca() {
       toast.ok(`Colores guardados: son los que rigen para ${marcaElegida?.name ?? "la empresa"}`);
       setEdicion(null);
       setVersion((v) => v + 1);
+      void recargarSesion(); // el sistema toma los colores nuevos
     } catch (err) {
       toast.error(mensajeDe(err));
     } finally {
@@ -97,6 +98,7 @@ export default function ColoresPorMarca() {
       toast.ok("La marca usa los colores de la empresa");
       setEdicion(null);
       setVersion((v) => v + 1);
+      void recargarSesion();
     } catch (err) {
       toast.error(mensajeDe(err));
     }

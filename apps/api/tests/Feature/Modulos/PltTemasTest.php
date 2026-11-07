@@ -68,6 +68,17 @@ class PltTemasTest extends TestCase
         $this->gerente()->postJson('/api/v1/plt/temas/quitar', ['brand_id' => $m2])->assertUnprocessable();
     }
 
+    public function test_la_sesion_trae_los_colores_de_la_empresa_y_de_cada_marca(): void
+    {
+        $dg = $this->marca('DG');
+        $m2 = $this->marca('M2');
+        $me = $this->gerente()->getJson('/api/v1/me')->assertOk();
+
+        $this->assertSame('#6D102B', $me->json('themes.empresa.light.primary'));
+        $this->assertSame('#922242', $me->json("themes.brands.{$dg}.light.primary"));
+        $this->assertNull($me->json("themes.brands.{$m2}")); // usa la de la empresa
+    }
+
     public function test_sin_el_permiso_no_cambia_colores(): void
     {
         $admin = $this->desde(self::DG, $this->ingresar(self::DG, 'chuaman@donguando.pe'));
