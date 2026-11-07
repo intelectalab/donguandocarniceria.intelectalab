@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowRight, CheckCircle2, Circle, RefreshCw } from "lucide-react";
 import { Badge, Button, PageHeader, toast } from "@/components/ui";
 import { api, mensajeDe } from "@/lib/api";
@@ -30,6 +30,21 @@ export default function Asistente() {
 
   const siguiente = datos?.pasos.findIndex((p) => !p.ok) ?? -1;
 
+  // Al tocar un paso: se lleva la tarjeta a la vista y se resalta un momento para que se note.
+  const [resaltado, setResaltado] = useState("");
+  const temporizador = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(temporizador.current), []);
+  function irA(key: string) {
+    const tarjeta = document.getElementById(`paso-${key}`);
+    if (!tarjeta) return;
+    const suave = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    tarjeta.scrollIntoView({ behavior: suave ? "smooth" : "auto", block: "start" });
+    tarjeta.focus({ preventScroll: true }); // para teclado y lectores de pantalla
+    setResaltado(key);
+    clearTimeout(temporizador.current);
+    temporizador.current = setTimeout(() => setResaltado(""), 2000);
+  }
+
   return (
     <div className="space-y-5">
       <PageHeader description="Lista guiada para poner en marcha el sistema: empresa, marcas y colores, locales, centros de costo, series, usuarios, medios de pago y módulos. No se llena aquí: cada casilla se marca sola cuando el dato está en su pantalla y es válido."
@@ -49,7 +64,7 @@ export default function Asistente() {
           <ol className="mt-4 flex flex-wrap gap-2">
             {datos.pasos.map((p, i) => (
               <li key={p.key}>
-                <a href={`#paso-${p.key}`} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[12.5px] font-medium ${p.ok
+                <a href={`#paso-${p.key}`} onClick={(e) => { e.preventDefault(); irA(p.key); }} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[12.5px] font-medium ${p.ok
                   ? "border-ok/30 bg-ok-soft text-ok" : i === siguiente ? "border-primary bg-primary-soft text-primary" : "border-line text-muted"}`}>
                   {p.ok ? <CheckCircle2 size={14} aria-hidden="true" /> : <span className="tabular-nums">{i + 1}.</span>}
                   {p.titulo}
@@ -60,34 +75,52 @@ export default function Asistente() {
         )}
       </section>
 
+      {/* Dos columnas en el orden de los pasos (1-2, 3-4…). Las tarjetas quedan parejas porque cada
+          comprobación va en una línea y las áreas de centros de costo van en cuadrícula. */}
       <div className="grid gap-4 lg:grid-cols-2">
-        {!datos && [1, 2, 3, 4].map((n) => <div key={n} className="h-56 animate-pulse rounded-xl bg-surface-2" />)}
+        {!datos && [1, 2, 3, 4].map((n) => <div key={n} className="h-48 animate-pulse rounded-xl bg-surface-2" />)}
         {datos?.pasos.map((p, i) => (
-          <section key={p.key} id={`paso-${p.key}`} className={`min-w-0 scroll-mt-24 rounded-xl border bg-surface shadow-card ${i === siguiente ? "border-primary/50" : "border-line"}`}>
-            <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
-              <h2 className="text-[14px] font-semibold">{i + 1}. {p.titulo}</h2>
+          <section key={p.key} id={`paso-${p.key}`} tabIndex={-1} aria-label={`Paso ${i + 1}: ${p.titulo}`}
+            className={`@container flex min-w-0 scroll-mt-24 flex-col rounded-xl border bg-surface shadow-card outline-none transition-[box-shadow,border-color] duration-500 ${resaltado === p.key
+              ? "border-primary ring-4 ring-primary/25" : i === siguiente ? "border-primary/50" : "border-line"}`}>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line px-4 py-2.5">
+              <h2 className="mr-auto text-[14px] font-semibold">{i + 1}. {p.titulo}</h2>
               <Badge tone={p.ok ? "ok" : "warn"}>{p.listos} de {p.total}</Badge>
-            </div>
-            <ul className="grid gap-2.5 px-4 py-3">
-              {p.checks.map((c) => (
-                <li key={c.label} className="flex items-start gap-2.5 text-[13.5px]">
-                  {c.ok ? <CheckCircle2 size={17} className="mt-px shrink-0 text-ok" aria-label="Listo" />
-                    : <Circle size={17} className="mt-px shrink-0 text-warn" aria-label="Pendiente" />}
-                  <div className="min-w-0">
-                    <span className={c.ok ? "" : "font-medium"}>{c.label}</span>
-                    {c.detalle && <p className="text-[12px] break-words text-muted">{c.detalle}</p>}
-                  </div>
-                </li>
-              ))}
-            </ul>
-            <div className="border-t border-line px-4 py-2.5">
-              <Link href={p.url} className="inline-flex items-center gap-1.5 text-[13px] font-medium text-primary hover:underline">
-                {p.ok ? "Ver" : "Completar"} en su pantalla <ArrowRight size={14} aria-hidden="true" />
+              <Link href={p.url} className="inline-flex items-center gap-1 text-[12.5px] font-medium text-primary hover:underline">
+                {p.ok ? "Ver" : "Completar"} en su pantalla <ArrowRight size={13} aria-hidden="true" />
               </Link>
             </div>
+            {p.key === "centros" ? (
+              // Columnas según el ancho de la tarjeta: los nombres nunca se cortan.
+              <ul className="grid grid-cols-1 gap-x-4 gap-y-2 px-4 py-3 @xs:grid-cols-2 @xl:grid-cols-3">
+                {p.checks.map((c) => (
+                  <li key={c.label} className="flex min-w-0 items-start gap-2 text-[13px]">
+                    <Marca ok={c.ok} />
+                    <span className="min-w-0 flex-1 break-words">{c.label}</span>
+                    {c.detalle && <span className="shrink-0 text-[12px] text-muted">{c.detalle}</span>}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <ul className="grid gap-2 px-4 py-3">
+                {p.checks.map((c) => (
+                  // Tarjeta ancha: el detalle a la derecha. Angosta: debajo del texto.
+                  <li key={c.label} className="grid min-w-0 grid-cols-[16px_minmax(0,1fr)] items-start gap-x-2.5 text-[13.5px] @md:grid-cols-[16px_minmax(0,1fr)_auto]">
+                    <Marca ok={c.ok} />
+                    <span className={c.ok ? "" : "font-medium"}>{c.label}</span>
+                    {c.detalle && <span className={`col-start-2 text-[12px] break-words @md:col-start-3 @md:max-w-[16rem] @md:text-right ${c.ok ? "text-muted" : "text-warn"}`}>{c.detalle}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
         ))}
       </div>
     </div>
   );
+}
+
+function Marca({ ok }: { ok: boolean }) {
+  return ok ? <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-ok" aria-label="Listo" />
+    : <Circle size={16} className="mt-0.5 shrink-0 text-warn" aria-label="Pendiente" />;
 }

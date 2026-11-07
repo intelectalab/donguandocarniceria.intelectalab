@@ -79,8 +79,13 @@ final class Asistente
                 $c('Notas de crédito', $series->contains('doc_type', 'CREDIT_NOTE'), null),
                 $c('Guía de remisión en cada local con producción', $plantas->every(fn ($l) => $series->contains(fn ($s) => $s->doc_type === 'DISPATCH_GUIDE' && $s->establishment_id === $l->id)),
                     $plantas->pluck('code')->join(', ') ?: 'Sin locales de producción'),
-                $c("Ninguna serie sobre el {$aviso} % del rango", ! $series->contains(fn ($s) => Correlativo::uso((int) $s->next_number) >= $aviso),
-                    $series->filter(fn ($s) => Correlativo::uso((int) $s->next_number) >= $aviso)->pluck('series')->join(', ') ?: null),
+                // Una serie que pasa el aviso (95 %) está por quedarse sin números: hay que crear otra.
+                (function () use ($c, $series, $aviso) {
+                    $llenas = $series->filter(fn ($s) => Correlativo::uso((int) $s->next_number) >= $aviso)->pluck('series');
+
+                    return $c('Ninguna serie se está quedando sin números', $llenas->isEmpty(), $llenas->isEmpty() ? null
+                        : ($llenas->count() === 1 ? "A {$llenas->first()} le quedan pocos números: crea una serie nueva" : "A {$llenas->join(', ')} les quedan pocos números: crea series nuevas"));
+                })(),
             ]],
             ['key' => 'usuarios', 'titulo' => 'Usuarios iniciales', 'url' => '/m/seg/seg-08', 'checks' => [
                 $c('Administrador del sistema', $usuarios->contains('role', 'ADMIN_SISTEMA'), null),

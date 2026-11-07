@@ -31,10 +31,10 @@ class PltAsistenteTest extends TestCase
         $this->assertSame(array_sum(array_column($r['pasos'], 'total')), $r['total']);
         $this->assertTrue($this->check($r, 'empresa', 'Razón social y RUC válido en cada empresa')['ok']);
         $this->assertTrue($this->check($r, 'locales', 'Todos con su ubicación en el mapa')['ok']);
-        // NI09 está sobre el 95 %: la comprobación queda pendiente y dice cuál.
-        $series = $this->check($r, 'series', 'Ninguna serie sobre el 95 % del rango');
+        // NI09 está sobre el 95 %: la comprobación queda pendiente y dice cuál y qué hacer.
+        $series = $this->check($r, 'series', 'Ninguna serie se está quedando sin números');
         $this->assertFalse($series['ok']);
-        $this->assertSame('NI09', $series['detalle']);
+        $this->assertSame('A NI09 le quedan pocos números: crea una serie nueva', $series['detalle']);
         $this->assertFalse($this->check($r, 'marcas', 'Logo general del cliente')['ok']);
     }
 

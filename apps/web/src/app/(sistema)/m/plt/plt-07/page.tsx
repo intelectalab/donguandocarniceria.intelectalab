@@ -90,7 +90,7 @@ export default function CentrosCosto() {
         <Cifra titulo="Por marca" icono={Tags} valor={r ? numero(r.por_marca) : undefined} detalle="Ventas y marketing de cada marca" />
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {AREAS_COSTO.map((a) => (
           <Area key={a.value} titulo={a.label} centros={(arbol?.centros ?? []).filter((c) => c.area === a.value)} cargando={!arbol}
             limite={limite} onAbrir={puedeEditar ? (c) => abrir(c) : undefined} onHijo={puedeEditar ? (c) => abrir(null, c) : undefined} />
