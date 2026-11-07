@@ -46,7 +46,7 @@ export default function ColoresPorMarca() {
     return () => { vigente = false; };
   }, [marca, clave]);
 
-  // Lo que se edita parte del tema que rige; una marca sin tema propio parte del de la empresa con su color principal.
+  // Lo que se edita parte del tema que rige; una marca sin tema propio parte de los generales con su color principal.
   const actual = datos?.clave === clave ? datos : null;
   const base = (() => {
     if (!actual?.tema) return null;
@@ -76,7 +76,7 @@ export default function ColoresPorMarca() {
     setGuardando(true);
     try {
       await api("/v1/plt/temas", { method: "POST", body: { brand_id: marca || null, light: colores.light, dark: colores.dark } });
-      toast.ok(`Colores guardados: son los que rigen para ${marcaElegida?.name ?? "la empresa"}`);
+      toast.ok(`Colores guardados: son los que rigen para ${marcaElegida?.name ?? "todas las marcas sin colores propios"}`);
       setEdicion(null);
       setVersion((v) => v + 1);
       void recargarSesion(); // el sistema toma los colores nuevos
@@ -90,12 +90,12 @@ export default function ColoresPorMarca() {
   async function quitar() {
     const ok = await confirmAction({
       title: `Quitar los colores propios de ${marcaElegida?.name}`,
-      message: "La marca vuelve a usar los colores de la empresa. Las versiones anteriores se conservan.", confirmLabel: "Quitar",
+      message: "La marca vuelve a usar los colores generales. Las versiones anteriores se conservan.", confirmLabel: "Quitar",
     });
     if (!ok) return;
     try {
       await api("/v1/plt/temas/quitar", { method: "POST", body: { brand_id: marca } });
-      toast.ok("La marca usa los colores de la empresa");
+      toast.ok("La marca usa los colores generales");
       setEdicion(null);
       setVersion((v) => v + 1);
       void recargarSesion();
@@ -122,18 +122,18 @@ export default function ColoresPorMarca() {
 
   return (
     <div className="space-y-5">
-      <PageHeader description={`Los colores de la empresa y de cada marca, en modo claro y oscuro, con vista previa. Para que el texto se lea bien, cada par de texto y fondo necesita un contraste de al menos ${numero(min, 1)}:1. Una marca sin colores propios usa los de la empresa.`}
+      <PageHeader description={`Los colores generales y los de cada marca, en modo claro y oscuro, con vista previa. Para que el texto se lea bien, cada par de texto y fondo necesita un contraste de al menos ${numero(min, 1)}:1. Una marca sin colores propios usa los generales, que son los mismos para todas las empresas (RUC) del grupo.`}
         actions={puede && colores && <>
-          {marca && actual?.propio && <Button icon={RotateCcw} onClick={quitar} disabled={guardando}>Usar los de la empresa</Button>}
+          {marca && actual?.propio && <Button icon={RotateCcw} onClick={quitar} disabled={guardando}>Usar los generales</Button>}
           <Button variant="primary" icon={Save} loading={guardando} disabled={fallan > 0 || (!cambiado && Boolean(actual?.propio || !marca))}
             title={fallan ? "Hay pares que no se leen bien" : undefined} onClick={guardar}>Guardar colores</Button>
         </>} />
 
       <Tabs value={marca || "EMPRESA"} onChange={(k) => { setMarca(k === "EMPRESA" ? "" : k); setEdicion(null); }}
-        tabs={[{ key: "EMPRESA", label: "Empresa" }, ...(actual?.marcas ?? datos?.marcas ?? []).map((m) => ({ key: m.id, label: m.name.split(" · ")[0] }))]} />
+        tabs={[{ key: "EMPRESA", label: "General" }, ...(actual?.marcas ?? datos?.marcas ?? []).map((m) => ({ key: m.id, label: m.name.split(" · ")[0] }))]} />
 
       {marca && actual && !actual.propio && (
-        <Alert tone="info">{marcaElegida?.name} no tiene colores propios: hoy usa los de la empresa. Cambia los colores y guarda para darle los suyos.</Alert>
+        <Alert tone="info">{marcaElegida?.name} no tiene colores propios: hoy usa los generales. Cambia los colores y guarda para darle los suyos.</Alert>
       )}
 
       {!colores || !actual ? (
@@ -174,7 +174,7 @@ export default function ColoresPorMarca() {
         </section>
 
         <section className="space-y-2">
-          <h2 className="text-[14px] font-semibold">Versiones de {marcaElegida ? `${marcaElegida.name}` : "la empresa"}</h2>
+          <h2 className="text-[14px] font-semibold">Versiones de {marcaElegida ? `${marcaElegida.name}` : "los colores generales"}</h2>
           <DataTable columns={columnasVersiones} rows={actual.versiones} rowKey={(v) => v.id}
             empty={marca ? "Esta marca nunca tuvo colores propios." : "Sin versiones."} />
         </section>
@@ -188,7 +188,7 @@ function VistaPrevia({ t, marca }: { t: Colores; marca?: Marca }) {
   return (
     <div className="grid min-w-0 gap-2.5 rounded-[10px] border p-3" style={{ background: t.background, color: t.text, borderColor: `${t.primary_dark}55` }}>
       <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: t.primary, color: t.on_primary }}>
-        <b className="truncate text-[13.5px]">{marca?.name ?? "Empresa"}</b>
+        <b className="truncate text-[13.5px]">{marca?.name ?? "Tu negocio"}</b>
         <span className="ml-auto text-[12px] opacity-90">Barra superior</span>
       </div>
       <div className="flex flex-wrap items-center gap-2 text-[12.5px]">

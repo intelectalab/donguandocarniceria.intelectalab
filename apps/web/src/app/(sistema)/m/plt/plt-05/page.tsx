@@ -77,7 +77,7 @@ export default function Marcas() {
     { key: "documents_count", header: "Comprobantes", sortable: true, align: "right", hideOnMobile: true, render: (m) => numero(m.documents_count) },
     {
       key: "theme_name", header: "Colores", hideOnMobile: true,
-      render: (m) => m.theme_name ? <span title={m.theme_name}>Propios</span> : <span className="text-muted">De la empresa</span>,
+      render: (m) => m.theme_name ? <span title={m.theme_name}>Propios</span> : <span className="text-muted">Generales</span>,
     },
     { key: "status", header: "Estado", sortable: true, render: (m) => <StatusBadge status={m.status} labels={ESTADOS} /> },
   ];

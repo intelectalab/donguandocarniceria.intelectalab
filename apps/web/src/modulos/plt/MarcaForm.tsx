@@ -150,7 +150,7 @@ export function MarcaForm({ marca, empresas, siguienteOrden, onClose, onGuardada
             { label: "Comprobantes", value: numero(marca.documents_count) },
             { label: "Productos", value: numero(marca.products_count) },
             { label: "Series propias", value: series === null ? "…" : series.join(", ") || "Ninguna" },
-            { label: "Colores", value: marca.theme_name ? `Tema propio: ${marca.theme_name}` : "Usa los de la empresa" },
+            { label: "Colores", value: marca.theme_name ? `Tema propio: ${marca.theme_name}` : "Usa los generales" },
           ]} />
         </section>
       )}

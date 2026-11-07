@@ -101,7 +101,7 @@ final class Temas
                 ->where(fn ($q) => $brandId ? $q->where('brand_id', $brandId) : $q->whereNull('brand_id'))
                 ->update(['status' => 'INACTIVE', 'updated_at' => now()]);
             $id = DB::table('ui_themes')->insertGetId([
-                'brand_id' => $brandId, 'name' => mb_substr(trim((string) $nombre) ?: ($marca ? "Tema {$marca}" : 'Tema de la empresa'), 0, 80),
+                'brand_id' => $brandId, 'name' => mb_substr(trim((string) $nombre) ?: ($marca ? "Tema {$marca}" : 'Colores generales'), 0, 80),
                 'light' => json_encode($claro), 'dark' => json_encode($oscuro), 'font_family' => 'Source Sans 3', 'radius_px' => 8,
                 'status' => 'ACTIVE', 'changed_by' => mb_substr($quien->name, 0, 40),
             ], 'id');
@@ -116,7 +116,7 @@ final class Temas
     {
         $n = DB::table('ui_themes')->where('brand_id', $brandId)->where('status', 'ACTIVE')->update(['status' => 'INACTIVE', 'updated_at' => now()]);
         if (! $n) {
-            RuleError::fail('RN-PLT-23', 'Esta marca no tiene colores propios: ya usa los de la empresa.');
+            RuleError::fail('RN-PLT-23', 'Esta marca no tiene colores propios: ya usa los generales.');
         }
         Events::emit('theme.changed', 'ui_themes', null, ['brand_id' => $brandId, 'removed' => true]);
     }
