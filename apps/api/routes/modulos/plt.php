@@ -1,6 +1,7 @@
 <?php
 
 use App\Modulos\Plt\Http\Controllers\CentroCostoController;
+use App\Modulos\Plt\Http\Controllers\DominioController;
 use App\Modulos\Plt\Http\Controllers\EmpresaController;
 use App\Modulos\Plt\Http\Controllers\LocalController;
 use App\Modulos\Plt\Http\Controllers\MarcaController;
@@ -75,6 +76,13 @@ Route::prefix('plt')->group(function () {
     Route::put('/modulos/{code}', [ModuloController::class, 'cambiar'])->middleware(['modulo:PLT,E', 'permiso:plt.module.toggle'])->where('code', '[A-Z0-9]{3}');
     Route::post('/modulos/tel/pasos/{paso}', [ModuloController::class, 'marcarPaso'])->middleware('modulo:PLT,E')->where('paso', '[A-Z_]+');
     Route::delete('/modulos/tel/pasos/{paso}', [ModuloController::class, 'deshacerPaso'])->middleware('modulo:PLT,E')->where('paso', '[A-Z_]+');
+
+    // PLT-13 Dominio de acceso (tenant_hostnames es global: el servicio filtra por la empresa de la sesión)
+    Route::get('/dominios', [DominioController::class, 'index'])->middleware('modulo:PLT');
+    Route::post('/dominios', [DominioController::class, 'store'])->middleware(['modulo:PLT,E', 'permiso:plt.hostname.manage', 'throttle:10,1']);
+    Route::post('/dominios/{id}/verificar', [DominioController::class, 'verificar'])->middleware(['modulo:PLT,E', 'permiso:plt.hostname.manage', 'throttle:10,1'])->whereUuid('id');
+    Route::post('/dominios/{id}/principal', [DominioController::class, 'principal'])->middleware(['modulo:PLT,E', 'permiso:plt.hostname.manage'])->whereUuid('id');
+    Route::post('/dominios/{id}/desactivar', [DominioController::class, 'desactivar'])->middleware(['modulo:PLT,E', 'permiso:plt.hostname.manage'])->whereUuid('id');
 
     // Distritos para los campos de ubigeo (catálogo global de MAE-08, solo lectura).
     Route::get('/ubigeo', function (Request $request) {
