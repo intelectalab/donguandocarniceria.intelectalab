@@ -32,6 +32,8 @@ type SidebarProps = {
   groupIcons: Record<string, MenuIcon>;
   user?: { name: string; role?: string } | null;
   tenantName?: string;
+  /** Imagen del logo del cliente (URL local); sin ella, sus iniciales. */
+  tenantLogo?: string | null;
   /** Selectores de marca y local, bajo la empresa (solo con la barra desplegada). */
   context?: ReactNode;
   /** Abre Plataforma → Módulos desde el aviso de módulo apagado (solo si el rol puede encenderlo). */
@@ -107,7 +109,7 @@ function Tooltip({ top, left, children }: { top: number; left: number; children:
 }
 
 export default function Sidebar({
-  items, compact = false, loading, onNavigate, onLogout, loggingOut, groupIcons, user, tenantName, context, modulesHref,
+  items, compact = false, loading, onNavigate, onLogout, loggingOut, groupIcons, user, tenantName, tenantLogo, context, modulesHref,
 }: SidebarProps) {
   const pathname = usePathname();
   const [tooltip, setTooltip] = useState<{ label: string; top: number; left: number } | null>(null);
@@ -223,9 +225,14 @@ export default function Sidebar({
     <div className="relative flex h-full flex-col text-white" style={{ background: "var(--side-bg)" }}>
       <span aria-hidden="true" className="franja h-2 w-full shrink-0" />
       <div className={`flex h-14 shrink-0 items-center ${compact ? "justify-center px-2" : "gap-2.5 px-5"}`}>
-        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-gold font-display text-[13px] font-extrabold text-[#6d102b]">
-          {iniciales(tenantName ?? "Aycha")}
-        </span>
+        {tenantLogo ? (
+          // eslint-disable-next-line @next/next/no-img-element -- logo subido por el cliente (URL local del navegador).
+          <img src={tenantLogo} alt={tenantName ?? "Logo"} className="size-9 shrink-0 rounded-lg bg-white object-contain p-0.5" />
+        ) : (
+          <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-gold font-display text-[13px] font-extrabold text-[#6d102b]">
+            {iniciales(tenantName ?? "Aycha")}
+          </span>
+        )}
         {!compact && (
           <span className="min-w-0">
             <strong className="block truncate font-display text-[15px] leading-tight">{tenantName ?? "Aycha"}</strong>

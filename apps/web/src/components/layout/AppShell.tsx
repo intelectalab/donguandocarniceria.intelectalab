@@ -8,7 +8,7 @@ import Header from "./Header";
 import Sidebar, { type MenuItem } from "./Sidebar";
 import ContextSelectors from "./ContextSelectors";
 import { UiHost } from "@/components/ui";
-import { api } from "@/lib/api";
+import { api, apiImagen } from "@/lib/api";
 import { clearToken } from "@/lib/auth";
 import { MODULOS, menuDe, rutaPantalla } from "@/lib/modulos";
 import { useEstadoSesion } from "@/lib/sesion";
@@ -114,6 +114,17 @@ export default function AppShell({ children }: { children: ReactNode }) {
     ? currentScreen && currentItem.label !== currentItem.group ? [currentItem.group, currentItem.label] : [currentItem.group]
     : cuenta && CUENTA.includes(cuenta) ? ["Cuenta"] : [];
   const tenantName = sesion?.me.tenant.short;
+  // Logo del cliente: la imagen pide sesión, así que se trae con el token y se muestra como URL local.
+  const urlLogo = sesion?.me.tenant.logo_url;
+  const [logo, setLogo] = useState<{ url: string; src: string } | null>(null);
+  useEffect(() => {
+    if (!urlLogo) return;
+    let vigente = true;
+    let src: string | null = null;
+    apiImagen(urlLogo.replace(/^\/api/, "")).then((s) => { src = s; if (vigente && s) setLogo({ url: urlLogo, src: s }); });
+    return () => { vigente = false; if (src) URL.revokeObjectURL(src); };
+  }, [urlLogo]);
+  const tenantLogo = urlLogo && logo?.url === urlLogo ? logo.src : null;
 
   useEffect(() => {
     document.title = `${currentSection} · ${tenantName ?? "Aycha"}`;
@@ -145,7 +156,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   // espacio al título y a las migas).
   const sidebar = (compact: boolean) => (
     <Sidebar items={items} compact={compact} loading={cargando} onNavigate={() => setMobileOpen(false)} onLogout={handleLogout}
-      loggingOut={loggingOut} groupIcons={GROUP_ICONS} user={user} tenantName={tenantName} modulesHref={modulesHref}
+      loggingOut={loggingOut} groupIcons={GROUP_ICONS} user={user} tenantName={tenantName} tenantLogo={tenantLogo} modulesHref={modulesHref}
       context={sesion ? <ContextSelectors variant="sidebar" /> : undefined} />
   );
 

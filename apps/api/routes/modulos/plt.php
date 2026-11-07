@@ -45,6 +45,8 @@ Route::prefix('plt')->group(function () {
     Route::get('/temas', [TemaController::class, 'index'])->middleware('modulo:PLT');
     Route::post('/temas', [TemaController::class, 'guardar'])->middleware(['modulo:PLT,E', 'permiso:plt.theme.manage']);
     Route::post('/temas/quitar', [TemaController::class, 'quitar'])->middleware(['modulo:PLT,E', 'permiso:plt.theme.manage']);
+    Route::post('/temas/logo', [TemaController::class, 'subirLogo'])->middleware(['modulo:PLT,E', 'permiso:plt.theme.manage', 'throttle:20,1']);
+    Route::delete('/temas/logo', [TemaController::class, 'quitarLogo'])->middleware(['modulo:PLT,E', 'permiso:plt.theme.manage']);
 
     // PLT-07 Centros de costo
     Route::get('/centros-costo', [CentroCostoController::class, 'index'])->middleware('modulo:PLT');

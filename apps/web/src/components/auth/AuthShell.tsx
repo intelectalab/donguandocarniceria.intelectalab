@@ -37,7 +37,8 @@ const css = (rgb: number[]) => `rgb(${rgb.map(Math.round).join(" ")})`;
 /** Logo de la empresa o, sin logo, sus iniciales y su nombre. */
 function LogoEmpresa({ empresa }: { empresa: Empresa }) {
   const nombre = empresa.trade_name ?? empresa.short;
-  if (empresa.logo_url?.startsWith("data:") || empresa.logo_url?.startsWith("http")) {
+  // Solo imágenes de la propia API (o data:/https), nunca otra dirección.
+  if (empresa.logo_url?.startsWith("/api/v1/tenant/logo") || empresa.logo_url?.startsWith("data:image/") || empresa.logo_url?.startsWith("https://")) {
     // eslint-disable-next-line @next/next/no-img-element -- logo subido por la empresa.
     return <img src={empresa.logo_url} alt={nombre} className="max-h-14 max-w-[220px] object-contain object-left" />;
   }

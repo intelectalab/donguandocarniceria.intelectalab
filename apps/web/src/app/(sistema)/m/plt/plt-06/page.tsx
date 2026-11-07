@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Moon, RotateCcw, Save, Sun } from "lucide-react";
+import { ImagePlus, Moon, RotateCcw, Save, Sun, Trash2 } from "lucide-react";
 import { Alert, Badge, Button, DataTable, PageHeader, StatusBadge, Tabs, confirmAction, toast, type Column, type Tone } from "@/components/ui";
-import { api, mensajeDe } from "@/lib/api";
+import { api, apiImagen, mensajeDe } from "@/lib/api";
 import { fechaHora, numero } from "@/lib/formato";
 import { useSesion } from "@/lib/sesion";
 
@@ -12,6 +12,7 @@ type Tema = { id: string; brand_id: string | null; name: string; light: Colores;
 type Marca = { id: string; code: string; name: string; primary_color: string; status: string; legal_footer: string | null; propio: boolean };
 type Version = { id: string; name: string; primary: string | null; status: string; changed_by: string; created_at: string };
 type Respuesta = {
+  logo: { logo_url: string | null; changed_by: string | null; updated_at: string | null } | null;
   tema: Tema | null; propio: boolean; marcas: Marca[]; versiones: Version[];
   colores: Record<string, string>; pares: { texto: string; fondo: string; nombre: string }[]; minimo: number;
 };
@@ -136,6 +137,8 @@ export default function ColoresPorMarca() {
         <Alert tone="info">{marcaElegida?.name} no tiene colores propios: hoy usa los generales. Cambia los colores y guarda para darle los suyos.</Alert>
       )}
 
+      {!marca && actual && <LogoCliente logo={actual.logo} puede={puede} onCambio={() => { setVersion((v) => v + 1); void recargarSesion(); }} />}
+
       {!colores || !actual ? (
         <div className="grid gap-4 lg:grid-cols-2">{[1, 2].map((n) => <div key={n} className="h-[480px] animate-pulse rounded-xl bg-surface-2" />)}</div>
       ) : (<>
@@ -212,5 +215,83 @@ function VistaPrevia({ t, marca }: { t: Colores; marca?: Marca }) {
         <span className="opacity-75">{marca?.legal_footer ?? "Representación impresa del comprobante electrónico"}</span>
       </div>
     </div>
+  );
+}
+
+const TIPOS_LOGO = ["image/png", "image/jpeg", "image/webp"];
+
+/** Logo del cliente: sale en el ingreso y en el menú. Solo PNG, JPG o WEBP de hasta 1 MB. */
+function LogoCliente({ logo, puede, onCambio }: { logo: Respuesta["logo"]; puede: boolean; onCambio: () => void }) {
+  const clave = logo?.logo_url ? `${logo.logo_url}-${logo.updated_at}` : "";
+  const [vista, setVista] = useState<{ clave: string; src: string } | null>(null);
+  const [ocupado, setOcupado] = useState(false);
+  const [aviso, setAviso] = useState("");
+
+  useEffect(() => {
+    if (!clave) return;
+    let vigente = true;
+    let src: string | null = null;
+    apiImagen("/v1/tenant/logo").then((s) => { src = s; if (vigente && s) setVista({ clave, src: s }); });
+    return () => { vigente = false; if (src) URL.revokeObjectURL(src); };
+  }, [clave]);
+
+  async function subir(archivo: File | undefined) {
+    if (!archivo) return;
+    if (!TIPOS_LOGO.includes(archivo.type)) return setAviso("El logo debe ser una imagen PNG, JPG o WEBP.");
+    if (archivo.size > 1024 * 1024) return setAviso("El logo no puede pesar más de 1 MB.");
+    setAviso("");
+    setOcupado(true);
+    try {
+      const datos = new FormData();
+      datos.append("logo", archivo);
+      await api("/v1/plt/temas/logo", { method: "POST", body: datos });
+      toast.ok("Logo guardado");
+      onCambio();
+    } catch (err) {
+      setAviso(mensajeDe(err));
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  async function quitar() {
+    const ok = await confirmAction({ title: "Quitar el logo", message: "En el ingreso y en el menú volverán a salir las iniciales.", confirmLabel: "Quitar", danger: true });
+    if (!ok) return;
+    setOcupado(true);
+    try {
+      await api("/v1/plt/temas/logo", { method: "DELETE" });
+      toast.ok("Logo quitado");
+      onCambio();
+    } catch (err) {
+      toast.error(mensajeDe(err));
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  const src = clave && vista?.clave === clave ? vista.src : null;
+  return (
+    <section className="flex flex-wrap items-center gap-4 rounded-xl border border-line bg-surface p-4 shadow-card">
+      <div className="grid h-20 w-40 shrink-0 place-items-center overflow-hidden rounded-[10px] border border-line bg-surface-2/60">
+        {src ? (
+          // eslint-disable-next-line @next/next/no-img-element -- logo subido por el cliente (URL local del navegador).
+          <img src={src} alt="Logo del cliente" className="max-h-16 max-w-36 object-contain" />
+        ) : <span className="text-[12.5px] text-muted">{clave ? "…" : "Sin logo"}</span>}
+      </div>
+      <div className="min-w-0 flex-1">
+        <h2 className="text-[14px] font-semibold">Logo general</h2>
+        <p className="text-[12.5px] text-muted">Sale en la pantalla de ingreso y en el menú, para todas las empresas y marcas. Cada marca tiene además su propio logo en Marcas. PNG, JPG o WEBP de hasta 1 MB, mejor con fondo transparente.</p>
+        {aviso && <p role="alert" className="mt-1 text-[12.5px] text-bad">{aviso}</p>}
+      </div>
+      {puede && (
+        <div className="flex flex-wrap gap-2">
+          <label className={`inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-line bg-surface px-3 text-[12.5px] font-semibold text-ink hover:bg-surface-2 ${ocupado ? "pointer-events-none opacity-60" : ""}`}>
+            <ImagePlus size={15} aria-hidden="true" />{clave ? "Cambiar" : "Subir logo"}
+            <input type="file" accept={TIPOS_LOGO.join(",")} className="sr-only" disabled={ocupado} onChange={(e) => { subir(e.target.files?.[0]); e.target.value = ""; }} />
+          </label>
+          {clave && <Button size="sm" variant="ghost" icon={Trash2} disabled={ocupado} onClick={quitar}>Quitar</Button>}
+        </div>
+      )}
+    </section>
   );
 }

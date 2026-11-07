@@ -5,10 +5,9 @@ namespace App\Modulos\Plt\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modulos\Plt\Models\Brand;
 use App\Support\Listado;
-use App\Support\TenantContext;
+use App\Support\Logos;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -77,33 +76,14 @@ class MarcaController extends Controller
     /** El logo de la marca (PNG, JPG o WEBP), tal como se subió. */
     public function logo(string $id)
     {
-        $marca = Brand::findOrFail($id);
-        $ruta = $marca->logo_url ? $this->rutaLogo($marca->logo_url) : null;
-        abort_unless($ruta && Storage::disk('local')->exists($ruta), 404, 'La marca no tiene logo.');
-
-        return Storage::disk('local')->response($ruta, null, ['Cache-Control' => 'private, no-cache']);
+        return Logos::servir('marcas', Brand::findOrFail($id)->logo_url);
     }
 
-    /** Sube o cambia el logo. Se guarda como {código}.{extensión} en la carpeta de la empresa. */
+    /** Sube o cambia el logo. Se guarda como {código}.{extensión} en la carpeta del cliente. */
     public function subirLogo(Request $request, string $id)
     {
         $marca = Brand::findOrFail($id);
-        $request->validate([
-            'logo' => ['required', 'file', 'max:1024', 'mimes:png,jpg,jpeg,webp'],
-        ], [
-            'logo.required' => 'Elige la imagen del logo.',
-            'logo.max' => 'El logo no puede pesar más de 1 MB.',
-            'logo.mimes' => 'El logo debe ser una imagen PNG, JPG o WEBP.',
-        ]);
-        $archivo = $request->file('logo');
-        $extension = $archivo->extension() === 'jpeg' ? 'jpg' : $archivo->extension();
-        $nombre = $marca->code.'.'.$extension;
-
-        if ($marca->logo_url && $marca->logo_url !== $nombre) {
-            Storage::disk('local')->delete($this->rutaLogo($marca->logo_url));
-        }
-        Storage::disk('local')->putFileAs(dirname($this->rutaLogo($nombre)), $archivo, $nombre);
-        $marca->update(['logo_url' => $nombre]);
+        $marca->update(['logo_url' => Logos::guardar($request, 'marcas', $marca->code, $marca->logo_url)]);
 
         return response()->json($this->conUso(Brand::query())->findOrFail($id));
     }
@@ -111,17 +91,10 @@ class MarcaController extends Controller
     public function quitarLogo(string $id)
     {
         $marca = Brand::findOrFail($id);
-        if ($marca->logo_url) {
-            Storage::disk('local')->delete($this->rutaLogo($marca->logo_url));
-            $marca->update(['logo_url' => null]);
-        }
+        Logos::borrar('marcas', $marca->logo_url);
+        $marca->update(['logo_url' => null]);
 
         return response()->json($this->conUso(Brand::query())->findOrFail($id));
-    }
-
-    private function rutaLogo(string $nombre): string
-    {
-        return 'empresas/'.TenantContext::id().'/marcas/'.basename($nombre);
     }
 
     /** Empresa que factura y cuánto se usa la marca en los demás módulos. */

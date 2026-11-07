@@ -56,7 +56,7 @@ class MeController extends Controller
                 'brands' => $temas->whereNotNull('brand_id')->keyBy('brand_id')->map($tema),
             ],
             'user' => $user->only(['id', 'name', 'email', 'role', 'default_brand_id', 'ui_theme_mode', 'must_change_password']),
-            'tenant' => TenantContext::tenant(),
+            'tenant' => TenantContext::tenant() + ['logo_url' => TenantController::urlLogo()],
             'roles' => $access['roles'],
             // Sin los permisos de los módulos apagados (RN-PLT-07): la web los oculta igual que la API.
             'permissions' => collect($access['all_permissions'] ? array_keys($access['permission_modules']) : $access['permissions'])

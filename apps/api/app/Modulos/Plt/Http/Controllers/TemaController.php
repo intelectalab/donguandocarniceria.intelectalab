@@ -4,6 +4,7 @@ namespace App\Modulos\Plt\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modulos\Plt\Services\Temas;
+use App\Support\Logos;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -33,6 +34,7 @@ class TemaController extends Controller
                 'status' => $t->status, 'changed_by' => $t->changed_by, 'created_at' => $t->created_at]);
 
         return response()->json([
+            'logo' => DB::table('tenant_branding')->first(['logo_url', 'changed_by', 'updated_at']),
             'tema' => $vigente,
             'propio' => (bool) $propio,
             'marcas' => $marcas,
@@ -53,6 +55,27 @@ class TemaController extends Controller
         ]);
 
         return response()->json(Temas::guardar($datos['brand_id'] ?? null, $datos['light'], $datos['dark'], $request->user(), $datos['name'] ?? null), 201);
+    }
+
+    /** Logo del cliente (pestaña General): PNG, JPG o WEBP de hasta 1 MB. */
+    public function subirLogo(Request $request)
+    {
+        $actual = DB::table('tenant_branding')->value('logo_url');
+        $nombre = Logos::guardar($request, 'cliente', 'logo', $actual);
+        DB::table('tenant_branding')->upsert(
+            [['logo_url' => $nombre, 'changed_by' => mb_substr($request->user()->name, 0, 255), 'updated_at' => now()]],
+            ['tenant_id'], ['logo_url', 'changed_by', 'updated_at'],
+        );
+
+        return response()->json(['logo_url' => $nombre]);
+    }
+
+    public function quitarLogo(Request $request)
+    {
+        Logos::borrar('cliente', DB::table('tenant_branding')->value('logo_url'));
+        DB::table('tenant_branding')->update(['logo_url' => null, 'changed_by' => mb_substr($request->user()->name, 0, 255), 'updated_at' => now()]);
+
+        return response()->json(['logo_url' => null]);
     }
 
     public function quitar(Request $request)

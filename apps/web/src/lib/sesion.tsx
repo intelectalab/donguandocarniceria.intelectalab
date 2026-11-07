@@ -9,7 +9,7 @@ export type Accion = "C" | "L" | "E" | "A";
 
 export type Me = {
   user: { id: string; name: string; email: string; role: string; default_brand_id: string | null; must_change_password: boolean };
-  tenant: { id: string; name: string; short: string; plan: string };
+  tenant: { id: string; name: string; short: string; plan: string; logo_url?: string | null };
   roles: string[];
   permissions: string[];
   modules: { code: string; name: string; phase: number; enabled: boolean; actions: string }[];
