@@ -124,7 +124,7 @@ export default function Periodos() {
           detalle={resumen ? `${resumen.a_tiempo} de ${resumen.cerrados} hasta el día ${resumen.dia_cierre} del mes siguiente` : ""}
           tono={resumen && resumen.a_tiempo_pct !== null ? (resumen.a_tiempo_pct >= 100 ? "ok" : "warn") : undefined} />
         <Cifra titulo="Pendiente de cierre" valor={resumen ? (resumen.pendiente ? mayuscula(resumen.pendiente.nombre) : "Ninguno") : undefined}
-          detalle={resumen?.pendiente ? (resumen.pendiente.vencido ? `Vencido: la meta era el ${fecha(resumen.pendiente.meta)}` : `Meta: ${fecha(resumen.pendiente.meta)}`) : resumen ? "Todo al día" : ""}
+          detalle={resumen?.pendiente ? (resumen.pendiente.vencido ? `Vencido: se debía cerrar hasta el ${fecha(resumen.pendiente.meta)}` : `Cerrar hasta el ${fecha(resumen.pendiente.meta)}`) : resumen ? "Todo al día" : ""}
           tono={resumen?.pendiente?.vencido ? "warn" : undefined} />
         <Cifra titulo="Contabilidad" valor={resumen ? (resumen.cnt_encendido ? "Encendida" : "Apagada") : undefined}
           detalle={resumen ? (resumen.cnt_encendido ? "Su cierre contable usa estos mismos meses" : "Al encenderla, su cierre usa estos meses") : ""} />
@@ -149,7 +149,7 @@ export default function Periodos() {
                   </div>
                   <p className="text-[12.5px] text-muted">
                     {m.status === "CLOSED" ? `Cerrado el ${fecha(m.closed_at)}${m.closed_by ? ` · ${m.closed_by}` : ""}`
-                      : pendiente ? `${m.period === siguiente ? "Pendiente de cierre" : `Se cierra después de ${nombreMes(siguiente ?? m.period).split(" de ")[0]}`} · meta ${fecha(m.meta)}`
+                      : pendiente ? `${m.period === siguiente ? "Pendiente de cierre" : `Se cierra después de ${nombreMes(siguiente ?? m.period).split(" de ")[0]}`} · cerrar hasta el ${fecha(m.meta)}`
                       : "Mes en curso: se cierra desde el mes siguiente"}
                   </p>
                   {(m.a_tiempo !== null || m.reaperturas > 0) && (
@@ -211,7 +211,7 @@ function HistorialMes({ mes, empresa, onClose }: { mes: Mes; empresa: string; on
         { label: "Estado", value: <StatusBadge status={mes.status} labels={ESTADOS} /> },
         { label: "Cerrado", value: mes.closed_at ? `${fechaHora(mes.closed_at)}${mes.closed_by ? ` · ${mes.closed_by}` : ""}` : "—" },
         { label: "A tiempo", value: mes.a_tiempo === null ? "—" : mes.a_tiempo ? "Sí" : "No" },
-        { label: "Meta de cierre", value: fecha(mes.meta) },
+        { label: "Fecha límite de cierre", value: fecha(mes.meta) },
       ]} />
       <section className="mt-6 border-t border-line pt-4">
         <h3 className="mb-3 text-[14px] font-semibold">Movimientos</h3>
