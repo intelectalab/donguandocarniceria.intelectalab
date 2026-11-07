@@ -115,12 +115,14 @@ export default function Modulos() {
     { key: "depends_on", header: "Necesita", hideOnMobile: true, render: (m) => m.depends_on.length
       ? <span className="font-mono text-[12.5px]">{m.depends_on.map((c) => <span key={c} className={encendido(c) ? "" : "text-bad"}>{c} </span>)}</span>
       : <span className="text-muted">{m.is_core ? "—" : "Solo el núcleo"}</span> },
-    { key: "dependientes", header: "Lo necesitan", hideOnMobile: true, render: (m) => {
+    { key: "dependientes", header: "Dependen de él", hideOnMobile: true, render: (m) => {
       const on = m.dependientes.filter(encendido);
       return on.length ? <span className="font-mono text-[12.5px]">{on.join(", ")}</span> : <span className="text-muted">—</span>;
     } },
     { key: "status", header: "Estado", render: (m) => m.is_core ? <Badge tone="info">Núcleo</Badge>
       : m.plataforma ? <Badge tone="neutral">Plataforma</Badge> : m.enabled ? <Badge tone="ok" dot>Encendido</Badge> : <Badge tone="warn" dot>Apagado</Badge> },
+    { key: "reason", header: "Motivo", hideOnMobile: true, render: (m) => m.reason
+      ? <span className="line-clamp-2 block max-w-[260px] text-[12.5px]" title={m.reason}>{m.reason}</span> : <span className="text-muted">—</span> },
     ...(puede ? [{ key: "accion", header: "", hideInCard: false, render: (m: Modulo) => {
       if (m.is_core || m.plataforma) return null;
       const motivo = bloqueo(m);
@@ -220,10 +222,12 @@ function FichaModulo({ m, encendido, onClose }: { m: Modulo; encendido: (c: stri
   return (
     <Modal open onClose={onClose} title={`${m.code} · ${m.name}`} description={m.description} footer={<Button onClick={onClose}>Cerrar</Button>}>
       <DetailList items={[
-        { label: "Estado", value: m.is_core ? "Núcleo: siempre encendido" : m.plataforma ? "Lo maneja Intelectalab" : m.enabled ? "Encendido" : "Apagado" },
-        { label: "Necesita", value: m.is_core ? "—" : lista(m.depends_on) || "Solo el núcleo" },
-        { label: "Aprovecha si están encendidos", value: lista(m.uses) },
-        { label: "Lo necesitan", value: lista(m.dependientes) },
+        { label: "Núcleo", value: m.is_core ? "Sí, siempre encendido" : "No" },
+        { label: "Estado", value: m.plataforma ? <Badge tone="neutral">Lo maneja Intelectalab</Badge>
+          : m.enabled ? <Badge tone="ok" dot>Encendido</Badge> : <Badge tone="warn" dot>Apagado</Badge> },
+        { label: "Necesita", value: m.is_core ? "—" : m.depends_on.length ? lista(m.depends_on) : "Solo el núcleo" },
+        { label: "Usa si están encendidos", value: lista(m.uses) },
+        { label: "Dependen de él", value: lista(m.dependientes) },
         { label: "Último cambio", value: m.changed_at ? `${fechaHora(m.changed_at)}${m.changed_by ? ` · ${m.changed_by}` : ""}` : "—" },
         { label: "Motivo", value: m.reason ?? "—" },
       ]} />
