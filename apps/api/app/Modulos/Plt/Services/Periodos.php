@@ -81,7 +81,8 @@ final class Periodos
             }
 
             $ahora = now();
-            $datos = ['status' => 'CLOSED', 'closed_at' => $ahora, 'closed_by' => mb_substr($quien->name, 0, 40), 'updated_at' => $ahora];
+            // La fecha límite vigente hoy queda guardada: si después cambia el día de cierre, este mes no se reevalúa.
+            $datos = ['status' => 'CLOSED', 'closed_at' => $ahora, 'closed_by' => mb_substr($quien->name, 0, 40), 'close_due_date' => self::meta($mes)->toDateString(), 'updated_at' => $ahora];
             if ($fila) {
                 DB::table('accounting_periods')->where('id', $fila->id)->update($datos);
                 $id = $fila->id;
@@ -122,7 +123,7 @@ final class Periodos
 
             $ahora = now();
             DB::table('accounting_periods')->where('id', $p->id)
-                ->update(['status' => 'OPEN', 'closed_at' => null, 'closed_by' => null, 'updated_at' => $ahora]);
+                ->update(['status' => 'OPEN', 'closed_at' => null, 'closed_by' => null, 'close_due_date' => null, 'updated_at' => $ahora]);
             self::evento($p->id, $mes, 'REOPEN', mb_substr($motivo, 0, 255), $quien, $ahora);
             Events::emit('period.reopened', 'accounting_periods', $p->id, ['company_id' => $p->company_id, 'period' => $mes->toDateString(), 'reason' => $motivo]);
 

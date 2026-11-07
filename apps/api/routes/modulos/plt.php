@@ -4,6 +4,7 @@ use App\Modulos\Plt\Http\Controllers\CentroCostoController;
 use App\Modulos\Plt\Http\Controllers\EmpresaController;
 use App\Modulos\Plt\Http\Controllers\LocalController;
 use App\Modulos\Plt\Http\Controllers\MarcaController;
+use App\Modulos\Plt\Http\Controllers\ParametroController;
 use App\Modulos\Plt\Http\Controllers\PeriodoController;
 use App\Modulos\Plt\Http\Controllers\SerieController;
 use Illuminate\Http\Request;
@@ -53,6 +54,13 @@ Route::prefix('plt')->group(function () {
     Route::get('/periodos/historial', [PeriodoController::class, 'historial'])->middleware('modulo:PLT');
     Route::post('/periodos/cerrar', [PeriodoController::class, 'cerrar'])->middleware(['modulo:PLT,E', 'permiso:plt.period.close']);
     Route::post('/periodos/{id}/reabrir', [PeriodoController::class, 'reabrir'])->middleware(['modulo:PLT,E', 'permiso:plt.period.reopen'])->whereUuid('id');
+
+    // PLT-10 Parámetros y PLT-11 Historial (el permiso se revisa en el controlador: seg_* también con seg.policy.edit)
+    Route::get('/parametros', [ParametroController::class, 'index'])->middleware('modulo:PLT');
+    Route::get('/parametros/historial', [ParametroController::class, 'historial'])->middleware('modulo:PLT');
+    Route::get('/parametros/{key}', [ParametroController::class, 'show'])->middleware('modulo:PLT')->where('key', '[a-z0-9_]+');
+    Route::put('/parametros/{key}', [ParametroController::class, 'update'])->middleware('modulo:PLT,E')->where('key', '[a-z0-9_]+');
+    Route::post('/parametros/{key}/quitar', [ParametroController::class, 'quitar'])->middleware('modulo:PLT,E')->where('key', '[a-z0-9_]+');
 
     // Distritos para los campos de ubigeo (catálogo global de MAE-08, solo lectura).
     Route::get('/ubigeo', function (Request $request) {

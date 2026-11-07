@@ -142,6 +142,13 @@ class PrototipoSeeder extends Seeder
             DB::statement("SET session_replication_role = 'origin'");
         }
         $this->accesoPorModulo();
+        // Meses ya cerrados en el prototipo: su fecha límite de cierre (la que guarda Periodos::cerrar()).
+        DB::statement(<<<'SQL'
+            UPDATE accounting_periods ap
+               SET close_due_date = (ap.period + interval '1 month')::date
+                   + (COALESCE((SELECT d.default_value::numeric::int FROM parameter_definitions d WHERE d.key = 'plt_period_close_day'), 5) - 1)
+             WHERE ap.status = 'CLOSED' AND ap.close_due_date IS NULL
+            SQL);
 
         if ($this->horasCorregidas) {
             $this->command?->warn("Fechas mal formadas en el prototipo (10:08:00:00, 09:110, NaN): {$this->horasCorregidas} normalizadas");

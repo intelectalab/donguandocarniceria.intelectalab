@@ -190,3 +190,66 @@ export type CentroCosto = {
   /** Solo en el detalle (GET /centros-costo/{id}). */
   hijos?: string[];
 };
+
+/** Parámetro de PLT-10: definición global con el valor que rige en la empresa. */
+export type Parametro = {
+  key: string;
+  module_code: string;
+  value_type: "INT" | "DECIMAL" | "BOOL" | "TEXT" | "TIME" | "LIST" | "JSON";
+  description: string;
+  unit: string | null;
+  min_value: number | null;
+  max_value: number | null;
+  allowed_scopes: string[];
+  options: [string, string][] | null;
+  default_value: string | null;
+  value: string | null;
+  /** TENANT: valor propio de la empresa; DEFAULT: rige el valor por defecto. */
+  source: "TENANT" | "DEFAULT";
+  overrides?: number;
+};
+
+export type CambioParametro = {
+  id: string; key: string; module_code: string | null; scope: string; scope_id: string | null; ambito_nombre: string | null;
+  old_value: string | null; new_value: string | null; reason: string; changed_by: string; changed_at: string;
+  value_type: Parametro["value_type"] | null; unit: string | null; options: string | null;
+};
+
+export const TIPOS_PARAMETRO: Record<Parametro["value_type"], string> = {
+  INT: "Número entero", DECIMAL: "Número", BOOL: "Sí o no", TEXT: "Texto", TIME: "Hora", LIST: "Una opción de la lista", JSON: "Lista de valores (JSON)",
+};
+
+export const AMBITOS_PARAMETRO: Record<string, string> = { TENANT: "Empresa", ESTABLISHMENT: "Local", BRAND: "Marca", DEFAULT: "Por defecto" };
+
+/** Valor de un parámetro para leerlo: «Sí», «30 min», «El del sistema», «1, 5, 15». */
+export function formatoParametro(valor: string | null | undefined, tipo: Parametro["value_type"] | null, unidad?: string | null,
+  opciones?: [string, string][] | string | null): string {
+  if (valor === null || valor === undefined || valor === "") return "—";
+  const ops = typeof opciones === "string" ? (JSON.parse(opciones) as [string, string][]) : opciones;
+  let texto = valor;
+  if (tipo === "BOOL") texto = valor === "true" ? "Sí" : "No";
+  else if (tipo === "LIST") texto = ops?.find((o) => o[0] === valor)?.[1] ?? valor;
+  else if (tipo === "JSON") {
+    try {
+      const v = JSON.parse(valor);
+      texto = Array.isArray(v) ? v.join(", ") : typeof v === "object" ? Object.entries(v).map(([k, x]) => `${k}: ${x}`).join(" · ") : String(v);
+    } catch { texto = valor; }
+  }
+  if (!unidad || tipo === "BOOL" || tipo === "LIST") return texto;
+  if (unidad === "S/") return `S/ ${texto}`;
+  if (unidad === "%" || unidad === ":1") return `${texto}${unidad === "%" ? " %" : ":1"}`;
+  return `${texto} ${unidad}`;
+}
+
+/**
+ * Descripción de un parámetro sin los códigos del prototipo («(RN-CAL-08)», «KPI-SEG-03»), que
+ * no se muestran en el sistema.
+ */
+export function sinCodigos(texto: string | null | undefined): string {
+  return (texto ?? "")
+    .replace(/\s*\((?:RN|KPI|CA|D)-[A-Z]{2,4}-\d+[^)]*\)/g, "")
+    .replace(/\bKPI-[A-Z]{2,4}-\d+\b/g, "el indicador")
+    .replace(/\bRN-[A-Z]{2,4}-\d+\b/g, "la regla")
+    .replace(/`([^`]+)`/g, "$1")
+    .trim();
+}

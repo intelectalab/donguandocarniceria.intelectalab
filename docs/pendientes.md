@@ -45,5 +45,5 @@ PLT, SEG, MAE, INT y AUD son de cada empresa, pero algunas pantallas tocan datos
 ## 3. Otros pendientes conocidos
 - **Segundo factor** (SEG-02, SEG-03): pendiente por decisión del equipo; no se implementa por ahora.
 - **Cumplimiento de RN-PLT-01 y RN-PLT-02:** `FORCE ROW LEVEL SECURITY` (hoy solo `ENABLE`), FK compuestas `(tenant_id, x_id)`, función `plt_rls_gaps()` y que CI falle si devuelve filas.
-- **Fecha límite de cierre guardada al cerrar** (PLT-09, KPI-PLT-01). *Anotado el 06/11/2026. Toca con PLT-10 Parámetros.* Hoy la fecha límite de cada mes (día `plt_period_close_day` del mes siguiente) se calcula al mostrar. Cuando PLT-10 permita cambiar ese día, los meses ya cerrados se volverían a evaluar con el valor nuevo y cambiaría su «A tiempo / Fuera de plazo». Hacer: columna nueva en `accounting_periods` con la fecha límite vigente al cerrar (migración que solo agrega), llenarla en `Periodos::cerrar()`, completar los meses ya cerrados con el valor actual y que `PeriodoController::index` use la guardada en los meses cerrados.
+- ~~**Fecha límite de cierre guardada al cerrar**~~ (PLT-09). *Hecho el 07/11/2026 con PLT-10:* `accounting_periods.close_due_date` se llena al cerrar y los meses ya cerrados se completaron con el día vigente (5).
 - **Bitácora de accesos** (`access_log`, AUD-03) y **despacho del outbox** de eventos (INT-06).

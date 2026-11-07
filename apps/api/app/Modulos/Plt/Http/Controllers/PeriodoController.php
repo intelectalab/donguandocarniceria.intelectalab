@@ -38,7 +38,8 @@ class PeriodoController extends Controller
             $ev = $fila ? ($eventos->get($fila->id) ?? collect()) : collect();
             $cierre = $ev->where('action', 'CLOSE')->last();
             $cerrado = $fila?->status === 'CLOSED';
-            $meta = Periodos::meta($m);
+            // Un mes cerrado usa la fecha límite guardada al cerrarlo; uno abierto, la de hoy.
+            $meta = $cerrado && $fila->close_due_date ? CarbonImmutable::parse($fila->close_due_date, 'America/Lima') : Periodos::meta($m);
             $meses[] = [
                 'id' => $fila?->id,
                 'period' => $m->toDateString(),
