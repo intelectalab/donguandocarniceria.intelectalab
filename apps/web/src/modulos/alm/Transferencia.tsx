@@ -1,21 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, PackageCheck, Plus, Send, Trash2, XCircle } from "lucide-react";
+import { Check, FileText, PackageCheck, Plus, Send, Trash2, XCircle } from "lucide-react";
 import { Alert, Button, DataTable, DetailList, Field, IconButton, Input, Modal, Select, StatusBadge, Textarea, toast } from "@/components/ui";
 import { api, erroresDe, mensajeDe } from "@/lib/api";
 import { fechaHora } from "@/lib/formato";
 import { useSesion } from "@/lib/sesion";
-import { BuscaVariante, Cant, accion, num, opcionesAlmacen, useDatos } from "./comunes";
+import { BuscaVariante, Cant, accion, num, opcionesAlmacen, useAlAbrir, useDatos, varianteDe } from "./comunes";
 import { TRANSFERENCIA, type Disponible, type Num, type Opciones, type Variante } from "./tipos";
 
 export type FilaTransferencia = {
   id: string; number: string; status: string; requires_guide: boolean; guide_number: string | null; requested_at: string; dispatched_at: string | null;
   received_at: string | null; notes: string | null; from_code: string; from_name: string; to_code: string; to_name: string; dispatched_by_name: string | null;
-  lines: number; total_qty: Num; hours_in_transit: Num; value: Num;
+  lines: number; total_qty: Num; hours_in_transit: Num; value: Num; requested_by_name: string | null; received_by_name: string | null;
+  between_sites: boolean; diff_qty: Num; content: string | null;
 };
 type LineaT = { id: string; variant_id: string; lot_id: string | null; qty: Num; weight_kg: Num; received_qty: Num; received_weight_kg: Num;
-  difference_reason: string | null; sku: string; variant_name: string; sale_mode: string; lot_code: string | null };
+  difference_reason: string | null; sku: string; variant_name: string; sale_mode: string; lot_code: string | null;
+  moved: { lot_id: string; lot_code: string | null; qty: number; weight_kg: number | null }[] };
 type Ficha = Omit<FilaTransferencia, "lines"> & { cancel_reason: string | null; lines: LineaT[] };
 
 /** Ficha de una transferencia con sus pasos: guía (si cambia de local), despacho, recepción o cancelación. */
@@ -41,28 +43,59 @@ export function TransferenciaFicha({ id, onClose, onCambio }: { id: string; onCl
       </>}>
       {error && <Alert tone="bad">{error}</Alert>}
       {t && <div className="space-y-4">
+        <Pasos t={t} />
         <DetailList items={[
           { label: "Estado", value: <StatusBadge status={t.status} labels={TRANSFERENCIA} /> },
           { label: "Guía de remisión", value: t.requires_guide ? (t.guide_number ?? "Falta registrarla") : "No aplica (mismo local)" },
           { label: "Origen", value: `${t.from_code} · ${t.from_name}` },
           { label: "Destino", value: `${t.to_code} · ${t.to_name}` },
-          { label: "Solicitada", value: fechaHora(t.requested_at) },
-          { label: "Despachada", value: t.dispatched_at ? fechaHora(t.dispatched_at) : "—" },
-          { label: "Recibida", value: t.received_at ? fechaHora(t.received_at) : "—" },
+          { label: "Solicitada", value: `${fechaHora(t.requested_at)} · ${t.requested_by_name ?? "—"}` },
+          { label: "Despachada", value: t.dispatched_at ? `${fechaHora(t.dispatched_at)} · ${t.dispatched_by_name ?? "—"}` : "—" },
+          { label: "Recibida", value: t.received_at ? `${fechaHora(t.received_at)} · ${t.received_by_name ?? "—"}` : "—" },
           ...(t.notes ? [{ label: "Notas", value: t.notes }] : []),
           ...(t.cancel_reason ? [{ label: "Motivo de cancelación", value: t.cancel_reason }] : []),
         ]} />
         {borrador && t.requires_guide && !t.guide_number && <Alert tone="info">Va a otro local: registra la guía de remisión (motivo 04) antes de despachar.</Alert>}
         <DataTable rows={t.lines} columns={[
-          { key: "sku", header: "Producto", cardTitle: true, render: (l) => <div className="min-w-[160px]"><p>{l.variant_name}</p><p className="font-mono text-[12px] text-muted">{l.sku}{l.lot_code ? ` · ${l.lot_code}` : ""}</p></div> },
+          { key: "sku", header: "Producto", cardTitle: true, render: (l) => <div className="min-w-[160px]"><p>{l.variant_name}</p><p className="font-mono text-[12px] text-muted">{l.sku}</p></div> },
+          { key: "lot_code", header: "Lotes", render: (l) => l.moved.length
+            ? <span className="font-mono text-[12px]">{l.moved.map((m) => `${m.lot_code ?? "?"} (${Number(m.qty)})`).join(", ")}</span>
+            : <span className="font-mono text-[12px]">{l.lot_code ?? <span className="text-muted">FEFO al despachar</span>}</span> },
           { key: "qty", header: "Enviado", align: "right", render: (l) => <Cant v={l.qty} modo={l.sale_mode} /> },
           { key: "received_qty", header: "Recibido", align: "right", render: (l) => l.received_qty !== null ? <Cant v={l.received_qty} modo={l.sale_mode} /> : "—" },
-          { key: "difference_reason", header: "Diferencia", render: (l) => l.difference_reason ?? "—" },
+          { key: "diff", header: "Diferencia", align: "right", render: (l) => {
+            if (l.received_qty === null) return "—";
+            const d = Number(l.received_qty) - Number(l.qty);
+            return Math.abs(d) < 0.0005 ? <span className="text-muted">0</span> : <div><span className="text-bad"><Cant v={d} modo={l.sale_mode} signo /></span>{l.difference_reason && <p className="text-[12px] text-muted">{l.difference_reason}</p>}</div>;
+          } },
         ]} />
       </div>}
       {guia && t && <GuiaForm id={t.id} onClose={() => setGuia(false)} onHecho={() => { setGuia(false); hecho(); }} />}
       {recibir && t && <RecibirForm t={t} onClose={() => setRecibir(false)} onHecho={() => { setRecibir(false); hecho(); }} />}
     </Modal>
+  );
+}
+
+/** Pasos de la transferencia: solicitada, guía (si va a otro local), despachada y recibida. */
+function Pasos({ t }: { t: Ficha }) {
+  if (t.status === "CANCELLED") return <Alert tone="bad">Transferencia cancelada.</Alert>;
+  const pasos = [
+    { label: "Solicitada", hecho: true },
+    ...(t.requires_guide ? [{ label: "Guía", hecho: Boolean(t.guide_number) }] : []),
+    { label: t.requires_guide ? "En tránsito" : "Despachada", hecho: Boolean(t.dispatched_at) },
+    { label: "Recibida", hecho: Boolean(t.received_at) },
+  ];
+  return (
+    <ol className="flex flex-wrap items-center gap-2 text-[12.5px]">
+      {pasos.map((p, i) => (
+        <li key={p.label} className="flex items-center gap-2">
+          <span className={`flex items-center gap-1 rounded-full px-2.5 py-1 font-semibold ${p.hecho ? "bg-ok-soft text-ok" : "bg-surface-2 text-muted"}`}>
+            {p.hecho && <Check size={13} aria-hidden="true" />}{p.label}
+          </span>
+          {i < pasos.length - 1 && <span className="text-muted" aria-hidden="true">→</span>}
+        </li>
+      ))}
+    </ol>
   );
 }
 
@@ -134,6 +167,11 @@ export function TransferenciaNueva({ op, onClose, onCreada }: { op: Opciones; on
   const [destino, setDestino] = useState("");
   const [notas, setNotas] = useState("");
   const [lineas, setLineas] = useState<LineaNueva[]>([{ key: ++llave, variante: null, lot_id: "", qty: "" }]);
+  useAlAbrir((p) => {
+    if (p.get("from")) setOrigen(p.get("from")!);
+    const v = p.get("variant");
+    if (v) varianteDe(v).then((x) => x && setLineas([{ key: ++llave, variante: x, lot_id: p.get("lot") ?? "", qty: "" }])).catch(() => undefined);
+  });
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [guardando, setGuardando] = useState(false);
@@ -168,7 +206,9 @@ export function TransferenciaNueva({ op, onClose, onCreada }: { op: Opciones; on
           <div key={l.key} className="grid gap-3 rounded-xl border border-line p-3 sm:grid-cols-[minmax(0,1fr)_180px_120px_auto] sm:items-end">
             <Field label="Producto" required error={errores[`lines.${i}.variant_id`]}><BuscaVariante value={l.variante} onChange={(v) => { setL(i, "variante", v); setL(i, "lot_id", ""); }} /></Field>
             <LoteSelect variante={l.variante} almacen={origen} value={l.lot_id} onChange={(v) => setL(i, "lot_id", v)} />
-            <Field label="Cantidad" required error={errores[`lines.${i}.qty`]}><Input inputMode="decimal" value={l.qty} onChange={(e) => setL(i, "qty", e.target.value)} /></Field>
+            <Field label="Cantidad" required error={errores[`lines.${i}.qty`]} hint={<DisponibleOrigen variante={l.variante} almacen={origen} lote={l.lot_id} />}>
+              <Input inputMode="decimal" value={l.qty} onChange={(e) => setL(i, "qty", e.target.value)} />
+            </Field>
             {lineas.length > 1 ? <IconButton icon={Trash2} label="Quitar línea" onClick={() => setLineas((ls) => ls.filter((_, j) => j !== i))} /> : <span />}
           </div>
         ))}
@@ -177,6 +217,15 @@ export function TransferenciaNueva({ op, onClose, onCreada }: { op: Opciones; on
       </div>
     </Modal>
   );
+}
+
+/** Disponible del producto (o del lote) en el almacén de origen. */
+function DisponibleOrigen({ variante, almacen, lote }: { variante: Variante | null; almacen: string; lote: string }) {
+  const url = variante && almacen ? `/v1/alm/disponibles?variant_id=${variante.id}&warehouse_id=${almacen}` : null;
+  const filas = useDatos<{ data: Disponible[] }>(url).datos?.data;
+  if (!filas || !variante) return undefined;
+  const total = filas.filter((x) => !lote || x.lot_id === lote).reduce((a, x) => a + Number(x.available_qty ?? x.qty ?? 0), 0);
+  return <span>Disponible: <Cant v={total} modo={variante.sale_mode} /></span>;
 }
 
 /** Lote de un producto en un almacén (sin elegir: FEFO). Con todos=true incluye los no liberados (mermas y conteos). */

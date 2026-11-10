@@ -17,13 +17,15 @@ class ReservaController extends Controller
     {
         $q = DB::table('stock_reservations as r')->join('product_variants as v', 'v.id', '=', 'r.variant_id')->join('warehouses as w', 'w.id', '=', 'r.warehouse_id')
             ->leftJoin('lots as l', 'l.id', '=', 'r.lot_id')->leftJoin('users as u', 'u.id', '=', 'r.released_by')
-            ->where('r.status', $r->query('status', 'ACTIVE'))->when($r->query('order_id'), fn ($x, $o) => $x->where('r.order_id', $o));
+            ->leftJoin('sales_orders as o', 'o.id', '=', 'r.order_id')->leftJoin('customers as c', 'c.id', '=', 'o.customer_id')
+            ->where('r.status', $r->query('status', 'ACTIVE'))->when($r->query('order_id'), fn ($x, $o) => $x->where('r.order_id', $o))
+            ->when($r->query('warehouse_id'), fn ($x, $w) => $x->where('r.warehouse_id', $w));
         $this->porLocal($q, $r, 'r.establishment_id');
         $this->porMarca($q, $r, 'r.brand_id');
         $q->selectRaw('r.id, r.order_id, r.order_number, r.order_line_id, r.status, r.qty, r.weight_kg, r.delivery_date, r.reserved_at, r.closed_at, r.released_reason,
-            u.name as released_by_name, v.sku, v.name as variant_name, v.sale_mode, w.code as warehouse_code, l.code as lot_code, l.expiry_date');
+            u.name as released_by_name, o.status as order_status, c.full_name as customer_name, r.warehouse_id, v.sku, v.name as variant_name, v.sale_mode, w.code as warehouse_code, l.code as lot_code, l.expiry_date');
 
-        return response()->json(Listado::de(DB::query()->fromSub($q, 's'), $r, buscar: ['order_number', 'sku', 'variant_name', 'lot_code'],
+        return response()->json(Listado::de(DB::query()->fromSub($q, 's'), $r, buscar: ['order_number', 'sku', 'variant_name', 'lot_code', 'customer_name'],
             ordenar: ['order_number', 'delivery_date', 'reserved_at', 'qty'], porDefecto: 'delivery_date'));
     }
 

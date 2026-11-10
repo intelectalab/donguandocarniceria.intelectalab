@@ -1,20 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Camera, CheckCircle2, Plus, XCircle } from "lucide-react";
+import { CalendarX, Camera, CheckCircle2, ClipboardCheck, Percent, Plus, Trash2, XCircle } from "lucide-react";
 import { Alert, Badge, Button, DataTable, DetailList, Field, Input, Modal, PageHeader, Select, StatusBadge, Textarea, toast, type Column } from "@/components/ui";
 import { api, apiImagen, erroresDe, mensajeDe } from "@/lib/api";
-import { fechaHora, kg, soles } from "@/lib/formato";
+import { fechaHora, kg, numero, soles } from "@/lib/formato";
 import { useSesion } from "@/lib/sesion";
 import { useListado } from "@/lib/useListado";
-import { BuscaVariante, Cant, FiltroSelect, accion, opcionesAlmacen, useDatos, useOpciones } from "@/modulos/alm/comunes";
+import { Barras, BuscaVariante, Cant, CifraLink, FiltroSelect, accion, num, opcionesAlmacen, qs, useAlAbrir, useDatos, useOpciones, varianteDe } from "@/modulos/alm/comunes";
 import { LoteSelect } from "@/modulos/alm/Transferencia";
-import { MERMA, type Num, type Opciones, type Variante } from "@/modulos/alm/tipos";
+import { MERMA, type Disponible, type Num, type Opciones, type Variante } from "@/modulos/alm/tipos";
 
 type Fila = { id: string; number: string; status: string; qty: Num; weight_kg: Num; estimated_cost: Num; actual_cost: Num; requested_at: string; requested_by: string;
   has_photo: boolean; reason_name: string; reason_code: string; approval_above_pen: Num; above_threshold: boolean; sku: string; variant_name: string; sale_mode: string;
   warehouse_code: string; lot_code: string | null; requested_by_name: string | null };
-type Merma = Fila & { notes: string | null; warehouse_name: string; approved_by_name: string | null; approved_at: string | null; rejected_reason?: string | null; requires_photo: boolean };
+type Merma = Fila & { notes: string | null; warehouse_name: string; approved_by_name: string | null; approved_at: string | null; reject_reason: string | null; requires_photo: boolean };
+type Cifras = { pending: number; pending_value: Num; month: number; month_value: Num; waste_pct: number; expired_value: Num; by_reason: { label: string; value: Num; n: number }[] };
+type Prellenado = { wh: string; variant: string; lot: string };
 
 /** ALM-09 Mermas: registro con motivo, cantidad, peso, foto y costo estimado; aprobación sobre el umbral. */
 export default function Mermas() {
@@ -25,15 +27,23 @@ export default function Mermas() {
   const lista = useListado<Fila>("/v1/alm/mermas", { orden: "-requested_at", filtros: { status: estado, reason_id: motivo, site: local, brand: marca } });
   const [abierta, setAbierta] = useState<string | null>(null);
   const [nueva, setNueva] = useState(false);
+  const [prellenado, setPrellenado] = useState<Prellenado | null>(null);
   const costos = useSesion().can("alm.stock.view_cost");
+  const c = useDatos<Cifras>(`/v1/alm/cifras/09${qs({ site: local, brand: marca })}`).datos;
+  useAlAbrir((p) => {
+    if (p.get("nuevo") && puede("ALM", "C")) { setPrellenado({ wh: p.get("wh") ?? "", variant: p.get("variant") ?? "", lot: p.get("lot") ?? "" }); setNueva(true); }
+    if (p.get("id")) setAbierta(p.get("id"));
+  });
 
   const columnas: Column<Fila>[] = [
     { key: "number", header: "Número", sortable: true, cardTitle: true, render: (m) => <span className="font-mono font-semibold">{m.number}</span> },
-    { key: "requested_at", header: "Fecha", sortable: true, render: (m) => <div><p>{fechaHora(m.requested_at)}</p><p className="text-[12px] text-muted">{m.requested_by_name}</p></div> },
+    { key: "requested_at", header: "Fecha", sortable: true, render: (m) => <span className="whitespace-nowrap">{fechaHora(m.requested_at)}</span> },
     { key: "sku", header: "Producto", render: (m) => <div className="min-w-[160px]"><p>{m.variant_name}</p><p className="font-mono text-[12px] text-muted">{m.sku}{m.lot_code ? ` · ${m.lot_code}` : ""} · {m.warehouse_code}</p></div> },
-    { key: "reason_name", header: "Motivo", render: (m) => <span className="flex flex-wrap items-center gap-1">{m.reason_name}{m.has_photo && <Camera size={13} className="text-muted" aria-label="Con foto" />}</span> },
+    { key: "reason_name", header: "Motivo", render: (m) => m.reason_name },
+    { key: "has_photo", header: "Foto", align: "center", hideOnMobile: true, render: (m) => m.has_photo ? <Camera size={15} className="inline text-muted" aria-label="Con foto" /> : <span className="text-muted">—</span> },
     { key: "qty", header: "Cantidad", align: "right", render: (m) => <Cant v={m.qty} modo={m.sale_mode} /> },
     ...(costos ? [{ key: "estimated_cost", header: "Costo", sortable: true, align: "right", render: (m: Fila) => <div><p>{soles(m.actual_cost ?? m.estimated_cost)}</p>{m.above_threshold && <Badge tone="warn">Sobre umbral</Badge>}</div> }] as Column<Fila>[] : []),
+    { key: "requested_by_name", header: "Registró", hideOnMobile: true, render: (m) => m.requested_by_name ?? "—" },
     { key: "status", header: "Estado", sortable: true, render: (m) => <StatusBadge status={m.status} labels={MERMA} /> },
   ];
 
@@ -41,6 +51,20 @@ export default function Mermas() {
     <div className="space-y-5">
       <PageHeader description="Producto que se pierde: vencido, malogrado, roto o por corte. Sale del stock cuando se aprueba; sobre el umbral del motivo la aprueba quien tiene el permiso, y nunca quien la pidió."
         actions={puede("ALM", "C") && <Button variant="primary" icon={Plus} disabled={!op} onClick={() => setNueva(true)}>Registrar merma</Button>} />
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <CifraLink titulo="Por aprobar" valor={c ? numero(c.pending) : undefined} detalle={c && costos ? soles(c.pending_value) : "Pendientes"} icono={ClipboardCheck}
+          tono={c?.pending ? "warn" : undefined} onClick={() => setEstado("PENDING")} />
+        <CifraLink titulo="Mermas del mes" valor={c ? (costos ? soles(c.month_value) : numero(c.month)) : undefined} detalle={c ? `${c.month} aprobadas` : undefined} icono={Trash2}
+          onClick={() => setEstado("APPROVED")} />
+        <CifraLink titulo="Mermas sobre costo de venta" valor={c ? `${numero(c.waste_pct, 2)} %` : undefined} detalle="KPI-ALM-02 del mes" icono={Percent} href="/m/alm/alm-11?tab=indicadores" />
+        <CifraLink titulo="Vencidos del mes" valor={c ? (costos ? soles(c.expired_value) : "—") : undefined} detalle="KPI-ALM-03" icono={CalendarX} tono={c && Number(c.expired_value) > 0 ? "bad" : undefined} />
+      </div>
+      {c && c.by_reason.length > 0 && (
+        <section className="rounded-xl border border-line bg-surface p-4 shadow-card">
+          <h2 className="mb-3 text-[14px] font-semibold">Mermas aprobadas del mes por motivo</h2>
+          <Barras filas={c.by_reason.map((x) => ({ label: `${x.label} (${x.n})`, value: costos ? x.value : x.n }))} formato={(v) => (costos ? soles(v) : numero(v))} />
+        </section>
+      )}
       <DataTable {...lista.tabla} columns={columnas} onRowClick={(m) => setAbierta(m.id)}
         search={{ ...lista.tabla.search, placeholder: "Buscar número, SKU, lote o motivo…" }} empty="No hay mermas con esos filtros."
         toolbar={<>
@@ -48,7 +72,7 @@ export default function Mermas() {
           <FiltroSelect label="Motivo" value={motivo} onChange={setMotivo} options={(op?.waste_reasons ?? []).map((r) => ({ value: r.id, label: r.name }))} ancho="sm:w-[200px]" />
         </>} />
       {abierta && <Ficha id={abierta} onClose={() => setAbierta(null)} onCambio={lista.recargar} />}
-      {nueva && op && <Nueva op={op} onClose={() => setNueva(false)} onCreada={(id) => { setNueva(false); lista.recargar(); setAbierta(id); }} />}
+      {nueva && op && <Nueva op={op} prellenado={prellenado} onClose={() => { setNueva(false); setPrellenado(null); }} onCreada={(id) => { setNueva(false); lista.recargar(); setAbierta(id); }} />}
     </div>
   );
 }
@@ -89,8 +113,9 @@ function Ficha({ id, onClose, onCambio }: { id: string; onClose: () => void; onC
           ...(m.estimated_cost !== null ? [{ label: "Costo estimado", value: soles(m.estimated_cost) }] : []),
           ...(m.actual_cost !== null ? [{ label: "Costo real", value: soles(m.actual_cost) }] : []),
           { label: "Registró", value: `${m.requested_by_name ?? "—"} · ${fechaHora(m.requested_at)}` },
-          { label: "Aprobó", value: m.approved_by_name ? `${m.approved_by_name} · ${fechaHora(m.approved_at)}` : "—" },
+          { label: m.status === "REJECTED" ? "Rechazó" : "Aprobó", value: m.approved_by_name ? `${m.approved_by_name} · ${fechaHora(m.approved_at)}` : "—" },
           ...(m.notes ? [{ label: "Notas", value: m.notes }] : []),
+          ...(m.reject_reason ? [{ label: "Motivo del rechazo", value: m.reject_reason }] : []),
         ]} />
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {foto && <img src={foto} alt={`Foto de la merma ${m.number}`} className="max-h-80 rounded-xl border border-line object-contain" />}
@@ -99,10 +124,18 @@ function Ficha({ id, onClose, onCambio }: { id: string; onClose: () => void; onC
   );
 }
 
-function Nueva({ op, onClose, onCreada }: { op: Opciones; onClose: () => void; onCreada: (id: string) => void }) {
-  const [almacen, setAlmacen] = useState("");
+function Nueva({ op, prellenado, onClose, onCreada }: { op: Opciones; prellenado: Prellenado | null; onClose: () => void; onCreada: (id: string) => void }) {
+  const { can } = useSesion();
+  const [almacen, setAlmacen] = useState(prellenado?.wh ?? "");
   const [variante, setVariante] = useState<Variante | null>(null);
-  const [lote, setLote] = useState("");
+  const [lote, setLote] = useState(prellenado?.lot ?? "");
+  useEffect(() => {
+    if (!prellenado?.variant) return;
+    let vigente = true;
+    varianteDe(prellenado.variant).then((v) => vigente && setVariante(v)).catch(() => undefined);
+    return () => { vigente = false; };
+  }, [prellenado?.variant]);
+  const saldos = useDatos<{ data: Disponible[] }>(variante && almacen ? `/v1/alm/disponibles?variant_id=${variante.id}&warehouse_id=${almacen}&todos=1` : null).datos?.data;
   const [motivo, setMotivo] = useState("");
   const [qty, setQty] = useState("");
   const [peso, setPeso] = useState("");
@@ -112,6 +145,10 @@ function Nueva({ op, onClose, onCreada }: { op: Opciones; onClose: () => void; o
   const [error, setError] = useState("");
   const [guardando, setGuardando] = useState(false);
   const elegido = op.waste_reasons.find((r) => r.id === motivo);
+  const saldo = saldos?.find((x) => (x.lot_id ?? "") === lote) ?? (lote ? undefined : saldos?.[0]);
+  const costoUnit = saldo?.avg_cost !== undefined && saldo?.avg_cost !== null ? Number(saldo.avg_cost) : variante?.std_cost !== null && variante?.std_cost !== undefined ? Number(variante.std_cost) : null;
+  const estimado = costoUnit !== null && num(qty) ? Math.round(costoUnit * (num(qty) ?? 0) * 100) / 100 : null;
+  const sobreUmbral = estimado !== null && elegido && elegido.approval_above_pen !== null && estimado > Number(elegido.approval_above_pen);
   async function enviar() {
     setGuardando(true); setError(""); setErrores({});
     const f = new FormData();
@@ -140,6 +177,14 @@ function Nueva({ op, onClose, onCreada }: { op: Opciones; onClose: () => void; o
         <Field label="Foto" required={elegido?.requires_photo} error={errores.photo} hint={(elegido?.requires_photo ? "Este motivo exige foto. " : "") + "PNG, JPG o WEBP de hasta 1 MB"}>
           <Input type="file" accept="image/png,image/jpeg,image/webp" capture="environment" onChange={(e) => setFoto(e.target.files?.[0] ?? null)} />
         </Field>
+        {saldo && <p className="text-[12.5px] text-muted sm:col-span-2">En el almacén: <Cant v={saldo.qty ?? 0} modo={variante?.sale_mode} />{saldo.lot_code ? ` del lote ${saldo.lot_code}` : ""}.</p>}
+        {can("alm.stock.view_cost") && estimado !== null && (
+          <div className="sm:col-span-2">
+            <Alert tone={sobreUmbral ? "warn" : "info"} title={`Costo estimado: ${soles(estimado)}`}>
+              {sobreUmbral ? `Supera el umbral del motivo (${soles(elegido!.approval_above_pen)}): la aprueba quien tiene el permiso de mermas.` : "Queda por aprobar; la aprueba otra persona, nunca quien la registra."}
+            </Alert>
+          </div>
+        )}
         <div className="sm:col-span-2"><Field label="Notas" error={errores.notes}><Textarea rows={2} value={notas} onChange={(e) => setNotas(e.target.value)} maxLength={500} /></Field></div>
       </div>
     </Modal>

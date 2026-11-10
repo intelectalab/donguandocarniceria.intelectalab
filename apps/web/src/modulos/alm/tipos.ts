@@ -71,7 +71,7 @@ export type Variante = {
 
 export type Almacen = Opciones["warehouses"][number] & {
   status: string; pick_priority: number | null; parent_id: string | null; vehicle_id: string | null; establishment_name: string | null;
-  establishment_short: string | null; vehicle_plate: string | null; balances: number; stock_value: Num;
+  establishment_short: string | null; vehicle_plate: string | null; balances: number; lots: number; stock_value: Num;
 };
 
 export type Saldo = {
@@ -84,16 +84,19 @@ export type Saldo = {
 export type Movimiento = {
   id: string; moved_at: string; movement_type: string; source_type: string | null; source_id: string | null; reason: string | null; user_name: string | null;
   qty: Num; weight_kg: Num; unit_cost: Num; total_cost: Num; bal_qty: Num; reversal_of: string | null; warehouse_code: string;
-  sku: string; variant_name: string; sale_mode: string; lot_code: string | null; reversed: boolean;
+  sku: string; variant_name: string; sale_mode: string; lot_code: string | null; reversed: boolean; document: string | null; brand_name: string | null;
 };
 
 export type Lote = {
   id: string; code: string; qc_status: string; origin: string | null; production_date: string | null; expiry_date: string | null; days_left: number | null;
   block_reason: string | null; released_at: string | null; released_by: string | null; variant_id: string; sku: string; variant_name: string;
   sale_mode: string; supplier_name: string | null; stock_qty: Num; reserved_qty: Num; stock_by_warehouse: string | null;
+  brand_name: string | null; line: string | null; value: Num;
 };
 
 export type FichaLote = Lote & {
+  unit_cost: Num; received_weight_kg: Num; storage: string | null; supplier_lot_code: string | null; farm_lot_code: string | null; notes: string | null;
+  movements: { id: string; moved_at: string; movement_type: string; reason: string | null; user_name: string | null; qty: Num; bal_qty: Num; warehouse_code: string }[];
   stock: { id: string; warehouse_id: string; warehouse_code: string; warehouse_name: string; wh_type: string; qty: Num; reserved_qty: Num; weight_kg: Num }[];
   history: { id: string; from_status: string | null; to_status: string; reason: string | null; changed_at: string; changed_by_name: string | null }[];
   orders: { order_id: string; order_number: string; status: string; qty: Num }[];
@@ -101,6 +104,13 @@ export type FichaLote = Lote & {
 };
 
 export type Disponible = { balance_id: string; lot_id: string | null; lot_code: string | null; expiry_date: string | null; qc_status?: string | null;
-  qty?: Num; available_qty?: Num; reserved_qty?: Num; weight_kg?: Num; warehouse_id?: string; warehouse_code?: string };
+  qty?: Num; available_qty?: Num; reserved_qty?: Num; weight_kg?: Num; warehouse_id?: string; warehouse_code?: string; avg_cost?: Num };
 
 export type Pagina<T> = { data: T[] };
+
+/** Estados del pedido de venta (PED), solo para mostrarlos en ALM. */
+export const PEDIDO: Etiquetas = {
+  DRAFT: ["Borrador", "neutral"], CONFIRMED: ["Confirmado", "info"], IN_PREPARATION: ["En preparación", "info"], WEIGHED: ["Pesado", "info"],
+  READY: ["Listo", "ok"], IN_ROUTE: ["En ruta", "info"], DELIVERED: ["Entregado", "ok"], NOT_DELIVERED: ["No entregado", "bad"],
+  CLOSED: ["Cerrado", "neutral"], CANCELLED: ["Anulado", "bad"],
+};
