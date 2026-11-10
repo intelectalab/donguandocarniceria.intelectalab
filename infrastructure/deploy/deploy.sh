@@ -125,8 +125,15 @@ if grep -q "Pending" <<<"$pendientes"; then
   echo "$pendientes"
   if confirmar "¿Correr estas migraciones?"; then
     artisan migrate --database=pgsql_owner --force
-    gaps="$(cd "$API" && sudo -u www-data "$PHP_BIN" artisan tinker --execute="echo count(DB::connection('pgsql_owner')->select('SELECT * FROM rls_gaps'));" | tr -d '[:space:]')"
-    if [ "${gaps:-0}" != "0" ]; then
+    # Tablas sin RLS después de migrar. Tinker (psysh) guarda su configuración en el HOME del usuario, y el de
+    # www-data (/var/www) no es escribible: se le da una carpeta temporal propia. Si la comprobación falla, solo
+    # avisa: las migraciones ya quedaron hechas y el despliegue sigue.
+    PSYSH_HOME="$(mktemp -d)"; chown www-data: "$PSYSH_HOME"
+    gaps="$(cd "$API" && sudo -u www-data env HOME="$PSYSH_HOME" XDG_CONFIG_HOME="$PSYSH_HOME" "$PHP_BIN" artisan tinker --execute="echo count(DB::connection('pgsql_owner')->select('SELECT * FROM rls_gaps'));" | tr -d '[:space:]')" || gaps="?"
+    rm -rf "$PSYSH_HOME"
+    if [ "$gaps" = "?" ] || ! [[ "$gaps" =~ ^[0-9]+$ ]]; then
+      echo "⚠ No se pudo comprobar rls_gaps. Revísalo a mano: sudo -u postgres psql -d aycha -c 'SELECT * FROM rls_gaps'"
+    elif [ "$gaps" != "0" ]; then
       echo "⚠ Atención: rls_gaps devolvió $gaps tabla(s) sin RLS."
     fi
   else
