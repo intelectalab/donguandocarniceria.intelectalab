@@ -13,9 +13,15 @@ Convenciones para todos los contratos:
 
 ## ALM · Almacenes, lotes, FEFO y movimientos de inventario
 
-Dueño: ALM. Estado: **firma publicada (Fase 1)**, implementación en la Fase 2.
+Dueño: ALM. Estado: **implementado** (servicios, API `/api/v1/alm` y pantallas ALM-01 a ALM-13, 10/11/2026).
 
 **RN-ALM-01: toda escritura de `stock_balances` y `stock_movements` pasa por `InventarioService`.** Ningún otro módulo (ni otro servicio de ALM) escribe esas tablas. El kardex es de solo inserción: a `aycha_app` se le quitó `UPDATE`, `DELETE` y `TRUNCATE` sobre `stock_movements`, y se corrige con un reverso.
+
+**RN-ALM-01 en la base (CA-ALM-08).** `aycha_app` ya no puede escribir `stock_balances` ni insertar en `stock_movements`: un `INSERT` o `UPDATE` directo falla con «permission denied» (SQLSTATE 42501). Solo se escriben con dos funciones `SECURITY DEFINER` que llama ALM:
+- `alm_inventory_move(p_type, p_warehouse, p_variant, p_lot, p_qty, p_weight, p_unit_cost, p_reserved_delta, p_source_type, p_source_id, p_moved_at, p_reason, p_user_id, p_user_name, p_reversal_of, p_check_available DEFAULT false) → uuid`: crea o bloquea el saldo, valida RN-ALM-03 (y RN-ALM-09 con `p_check_available`), calcula el costo promedio, actualiza el saldo e inserta el kardex. `p_qty` va con signo. Las demás reglas (FEFO, lote liberado, período) las valida `InventarioService` antes de llamarla.
+- `alm_reserve_adjust(p_balance, p_delta) → numeric`: sube o baja el reservado del saldo; al subir, nunca más que el saldo (RN-ALM-03).
+
+Las funciones son del rol `aycha_alm_inventario` (sin login, sin `BYPASSRLS`, no es dueño de las tablas), así que RLS sigue filtrando por empresa dentro de ellas. Otro módulo **no** las llama: usa `InventarioService` o `ReservasService`.
 
 Clases (`App\Modulos\Alm\Services`):
 
@@ -51,7 +57,7 @@ Clases (`App\Modulos\Alm\Services`):
 
 ### `InventarioService::mover(array $m, User $quien): array`
 
-La acción única de inventario (en la spec, `InventoryService::move` / `alm_inventory_move`). Escribe el kardex y actualiza el saldo en la misma transacción, con la fila del saldo bloqueada (`SELECT … FOR UPDATE`).
+La acción única de inventario (en la spec, `InventoryService::move` / `alm_inventory_move`). Escribe el kardex y actualiza el saldo en la misma transacción, con la fila del saldo bloqueada dentro de `alm_inventory_move` (`SELECT … FOR UPDATE`).
 
 Parámetros (`$m`):
 
