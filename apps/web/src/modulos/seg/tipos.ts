@@ -1,3 +1,4 @@
+import { GRUPOS, MODULOS } from "@/lib/modulos";
 import type { Tone } from "@/components/ui";
 
 /** Fila de la lista y ficha de SEG-08 / SEG-09 (GET /v1/seg/usuarios). */
@@ -92,3 +93,43 @@ export function tonoEvento(a: Pick<Acceso, "event" | "result">): Tone {
   if (/OK|APPROVED|UNLOCKED|REACTIVATED/.test(a.event)) return "ok";
   return "neutral";
 }
+
+/* ------------------------------------------------------------ roles (SEG-10, 11, 12) */
+
+export type RolFila = {
+  id: string; code: string; name: string; description: string | null; is_system: boolean; requires_mfa: boolean;
+  scope_mode: "ALL" | "ASSIGNED" | "BRAND"; status: string; users: number; perms: number; modules: number; editable: boolean;
+};
+
+export type RolesResumen = { sistema: number; propios: number; exigen_2fa: number; asignado: number };
+
+export type PermisoDelRol = { code: string; module_code: string; description: string; everyone: boolean; granted: boolean };
+
+export type RolFicha = Omit<RolFila, "perms" | "modules"> & {
+  modules: { code: string; name: string; enabled: boolean; actions: string }[];
+  permissions: PermisoDelRol[];
+};
+
+export type Matriz = {
+  roles: { id: string; code: string; name: string }[];
+  modules: { code: string; name: string; enabled: boolean; access: Record<string, string> }[];
+  permissions: { code: string; module_code: string; description: string; everyone: boolean; enabled: boolean; roles: string[] }[];
+};
+
+/** Letras de acceso por módulo, en el orden de la base. */
+export const LETRAS = [
+  { letra: "C", nombre: "Crear" }, { letra: "L", nombre: "Leer" }, { letra: "E", nombre: "Editar" }, { letra: "A", nombre: "Aprobar o anular" },
+] as const;
+
+/** Abreviatura de un rol para las columnas de la matriz: «SUP·VEN». */
+export const abreviar = (code: string) => code.split("_").map((x) => x.slice(0, 3)).join("·");
+
+/** Módulos en el orden del menú (grupos y módulos en su orden); los que no están en el menú, al final. */
+export function enOrdenDelMenu<T extends { code: string }>(lista: T[]): T[] {
+  const orden = GRUPOS.flatMap((g) => g.mods);
+  const pos = (c: string) => { const i = orden.indexOf(c); return i < 0 ? orden.length : i; };
+  return [...lista].sort((a, b) => pos(a.code) - pos(b.code) || a.code.localeCompare(b.code));
+}
+
+/** Nombre corto del módulo («Seguridad»), del catálogo de la web. */
+export const nombreModulo = (code: string, porDefecto = code) => MODULOS.find((m) => m.code === code)?.name ?? porDefecto;

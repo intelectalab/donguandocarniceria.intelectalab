@@ -1,6 +1,7 @@
 <?php
 
 use App\Modulos\Seg\Http\Controllers\DispositivoController;
+use App\Modulos\Seg\Http\Controllers\RolController;
 use App\Modulos\Seg\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
@@ -22,6 +23,17 @@ Route::prefix('seg')->group(function () {
     Route::post('/usuarios/{id}/reiniciar-2fa', [UsuarioController::class, 'reiniciarSegundoFactor'])->middleware(['modulo:SEG,E', 'permiso:seg.user.reset_mfa'])->whereUuid('id');
     Route::delete('/usuarios/{id}/sesiones', [UsuarioController::class, 'cerrarSesiones'])->middleware(['modulo:SEG,E', 'permiso:seg.session.revoke'])->whereUuid('id');
     Route::delete('/usuarios/{id}/sesiones/{tokenId}', [UsuarioController::class, 'cerrarSesiones'])->middleware(['modulo:SEG,E', 'permiso:seg.session.revoke'])->whereUuid(['id', 'tokenId']);
+
+    // SEG-10 Roles, SEG-11 Permisos del rol y SEG-12 Matriz
+    Route::get('/roles', [RolController::class, 'index'])->middleware('modulo:SEG');
+    Route::get('/roles/{id}', [RolController::class, 'show'])->middleware('modulo:SEG')->whereUuid('id');
+    Route::get('/matriz', [RolController::class, 'matriz'])->middleware('modulo:SEG');
+    Route::get('/matriz/exportar', [RolController::class, 'exportar'])->middleware(['modulo:SEG', 'throttle:10,1']);
+    Route::post('/roles', [RolController::class, 'store'])->middleware(['modulo:SEG,C', 'permiso:seg.role.manage']);
+    Route::put('/roles/{id}', [RolController::class, 'update'])->middleware(['modulo:SEG,E', 'permiso:seg.role.manage'])->whereUuid('id');
+    Route::delete('/roles/{id}', [RolController::class, 'destroy'])->middleware(['modulo:SEG,E', 'permiso:seg.role.manage'])->whereUuid('id');
+    Route::put('/roles/{id}/acceso', [RolController::class, 'acceso'])->middleware(['modulo:SEG,E', 'permiso:seg.role.manage'])->whereUuid('id');
+    Route::put('/roles/{id}/permisos', [RolController::class, 'permiso'])->middleware(['modulo:SEG,E', 'permiso:seg.role.manage'])->whereUuid('id');
 
     // Dispositivos (SEG-09; SEG-13 los reutiliza). El permiso basta: el coordinador de delivery los aprueba sin gestionar SEG.
     Route::post('/dispositivos/{id}/aprobar', [DispositivoController::class, 'aprobar'])->middleware('permiso:seg.device.approve')->whereUuid('id');

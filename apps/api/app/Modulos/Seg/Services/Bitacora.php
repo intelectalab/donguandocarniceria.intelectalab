@@ -25,7 +25,7 @@ final class Bitacora
         'MFA_OK' => 'Segundo factor correcto', 'MFA_FAILED' => 'Segundo factor fallido', 'PASSWORD_RESET' => 'Contraseña restablecida',
         'PASSWORD_RESET_REQUESTED' => 'Pidió restablecer contraseña', 'PASSWORD_CHANGED' => 'Contraseña cambiada',
         'PERMISSION_DENIED' => 'Permiso denegado', 'MODULE_DISABLED' => 'Módulo apagado', 'DEVICE_PENDING' => 'Celular por aprobar',
-        'DEVICE_APPROVED' => 'Celular aprobado', 'DEVICE_REVOKED' => 'Celular revocado', 'LOGIN_DENIED_DEVICE' => 'Celular no aprobado',
+        'ROLE_CHANGED' => 'Rol o permisos cambiados', 'EXPORT_DOWNLOADED' => 'Exportó un reporte', 'DEVICE_APPROVED' => 'Dispositivo aprobado', 'DEVICE_REVOKED' => 'Dispositivo revocado', 'LOGIN_DENIED_DEVICE' => 'Celular no aprobado',
     ];
 
     /**
