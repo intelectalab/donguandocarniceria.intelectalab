@@ -29,6 +29,22 @@ trait Alcance
             ->when($elegida && $elegida !== 'ALL', fn ($x) => $x->where($columna, $elegida));
     }
 
+    /**
+     * Ficha abierta por id: responde 404 si es de un local o una marca fuera del alcance del usuario,
+     * igual que las listas (sin alcance = todo; sin local, como el tránsito, lo ve cualquiera).
+     * Con 404 no se revela que el registro existe.
+     */
+    protected function dentroDelAlcance(Request $r, ?string $establishmentId, ?string $brandId = null): void
+    {
+        $a = Access::for($r->user());
+        if ($establishmentId && $a['establishments'] && ! in_array($establishmentId, $a['establishments'], true)) {
+            abort(404);
+        }
+        if ($brandId && $a['brands'] && ! in_array($brandId, $a['brands'], true)) {
+            abort(404);
+        }
+    }
+
     protected function verCostos(Request $r): bool
     {
         return Access::can($r->user(), 'alm.stock.view_cost');
