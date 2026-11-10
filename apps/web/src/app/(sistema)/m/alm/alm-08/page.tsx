@@ -1,29 +1,37 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Lock, Plus, ScanLine, XCircle } from "lucide-react";
+import { ClipboardList, CheckCircle2, Lock, Plus, ScanLine, SlidersHorizontal, Target, XCircle } from "lucide-react";
 import { Alert, Badge, Button, Checkbox, DataTable, DetailList, Field, Input, Modal, PageHeader, Select, StatusBadge, Textarea, toast, type Column } from "@/components/ui";
 import { api, mensajeDe } from "@/lib/api";
-import { fecha, fechaHora } from "@/lib/formato";
+import { fecha, fechaHora, numero, soles } from "@/lib/formato";
 import { useSesion } from "@/lib/sesion";
 import { useListado } from "@/lib/useListado";
-import { Cant, FiltroSelect, accion, num, opcionesAlmacen, useDatos, useOpciones } from "@/modulos/alm/comunes";
+import { Cant, CifraLink, FiltroSelect, accion, num, opcionesAlmacen, qs, useAlAbrir, useDatos, useOpciones } from "@/modulos/alm/comunes";
 import { CONTEO, TIPO_CONTEO, etiqueta, type Num, type Opciones } from "@/modulos/alm/tipos";
 
 type Fila = { id: string; number: string; status: string; count_type: string; blind: boolean; counted_at: string | null; approved_at: string | null; created_at: string;
   warehouse_code: string; warehouse_name: string; counted_by_name: string | null; approved_by_name: string | null; lines: number; counted_lines: number; diff_lines: number };
 type LineaC = { id: string; variant_id: string; sku: string; variant_name: string; sale_mode: string; barcode: string | null; lot_code: string | null; expiry_date: string | null;
   system_qty: Num; counted_qty: Num; diff_qty: Num; system_weight_kg: Num; counted_weight_kg: Num };
+type Cifras = { open: number; to_approve: number; approved_month: number; accuracy: number; exact_lines: number; counted_lines: number; adjust_count: number; adjust_value: Num };
 type Conteo = Omit<Fila, "lines"> & { counted_by: string | null; notes: string | null; hidden_system: boolean; lines: LineaC[] };
 
 /** ALM-08 Conteos: conteo ciego desde el celular, comparación con el sistema y aprobación con ajuste (otra persona aprueba). */
 export default function Conteos() {
-  const { local, puede } = useSesion();
+  const { local, puede, can } = useSesion();
   const op = useOpciones();
   const [estado, setEstado] = useState("");
   const lista = useListado<Fila>("/v1/alm/conteos", { orden: "-created_at", filtros: { status: estado, site: local } });
   const [abierto, setAbierto] = useState<string | null>(null);
   const [nuevo, setNuevo] = useState(false);
+  const [almacenInicial, setAlmacenInicial] = useState("");
+  useAlAbrir((p) => {
+    if (p.get("wh")) setAlmacenInicial(p.get("wh")!);
+    if (p.get("nuevo") && puede("ALM", "C")) setNuevo(true);
+    if (p.get("id")) setAbierto(p.get("id"));
+  });
+  const k = useDatos<Cifras>(`/v1/alm/cifras/08${qs({ site: local })}`).datos;
 
   const columnas: Column<Fila>[] = [
     { key: "number", header: "Número", sortable: true, cardTitle: true, render: (c) => <span className="font-mono font-semibold">{c.number}</span> },
@@ -32,6 +40,8 @@ export default function Conteos() {
     { key: "count_type", header: "Tipo", hideOnMobile: true, render: (c) => <span>{etiqueta(TIPO_CONTEO, c.count_type)}{c.blind && <Badge tone="info">Ciego</Badge>}</span> },
     { key: "counted_lines", header: "Avance", align: "right", render: (c) => `${c.counted_lines} / ${c.lines}` },
     { key: "diff_lines", header: "Con diferencia", align: "right", hideOnMobile: true, render: (c) => c.diff_lines ? <span className="text-warn">{c.diff_lines}</span> : "—" },
+    { key: "counted_by_name", header: "Contó", hideOnMobile: true, render: (c) => c.counted_by_name ? <div><p>{c.counted_by_name}</p>{c.counted_at && <p className="text-[12px] text-muted">{fechaHora(c.counted_at)}</p>}</div> : "—" },
+    { key: "approved_by_name", header: "Aprobó", hideOnMobile: true, render: (c) => c.approved_by_name ?? "—" },
     { key: "status", header: "Estado", sortable: true, render: (c) => <StatusBadge status={c.status} labels={CONTEO} /> },
   ];
 
@@ -39,17 +49,25 @@ export default function Conteos() {
     <div className="space-y-5">
       <PageHeader description="Quien cuenta no ve lo que dice el sistema (conteo ciego). Al cerrar se compara, y una persona distinta aprueba el ajuste."
         actions={puede("ALM", "C") && <Button variant="primary" icon={Plus} disabled={!op} onClick={() => setNuevo(true)}>Nuevo conteo</Button>} />
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <CifraLink titulo="Abiertos" valor={k ? numero(k.open) : undefined} detalle="Contándose" icono={ClipboardList} onClick={() => setEstado("OPEN")} />
+        <CifraLink titulo="Por aprobar" valor={k ? numero(k.to_approve) : undefined} detalle="Lo aprueba otra persona" icono={CheckCircle2} tono={k?.to_approve ? "warn" : undefined} onClick={() => setEstado("COUNTED")} />
+        <CifraLink titulo="Exactitud del conteo" valor={k ? `${numero(k.accuracy, 1)} %` : undefined} detalle={k ? `${k.exact_lines} de ${k.counted_lines} líneas · KPI-ALM-05` : undefined}
+          icono={Target} tono={k && k.counted_lines ? (k.accuracy >= 95 ? "ok" : "warn") : undefined} />
+        <CifraLink titulo="Ajustes del mes" valor={k ? (can("alm.stock.view_cost") ? soles(k.adjust_value) : numero(k.adjust_count)) : undefined}
+          detalle={k ? `${k.adjust_count} movimientos · ${k.approved_month} conteos aprobados` : undefined} icono={SlidersHorizontal} href="/m/alm/alm-03" />
+      </div>
       <DataTable {...lista.tabla} columns={columnas} onRowClick={(c) => setAbierto(c.id)}
         search={{ ...lista.tabla.search, placeholder: "Buscar número o almacén…" }} empty="No hay conteos."
         toolbar={<FiltroSelect label="Estado" value={estado} onChange={setEstado} options={Object.entries(CONTEO).map(([value, [label]]) => ({ value, label }))} />} />
       {abierto && <Ficha id={abierto} onClose={() => setAbierto(null)} onCambio={lista.recargar} />}
-      {nuevo && op && <Nuevo op={op} onClose={() => setNuevo(false)} onCreado={(id) => { setNuevo(false); lista.recargar(); setAbierto(id); }} />}
+      {nuevo && op && <Nuevo op={op} almacenInicial={almacenInicial} onClose={() => setNuevo(false)} onCreado={(id) => { setNuevo(false); lista.recargar(); setAbierto(id); }} />}
     </div>
   );
 }
 
-function Nuevo({ op, onClose, onCreado }: { op: Opciones; onClose: () => void; onCreado: (id: string) => void }) {
-  const [almacen, setAlmacen] = useState("");
+function Nuevo({ op, almacenInicial, onClose, onCreado }: { op: Opciones; almacenInicial: string; onClose: () => void; onCreado: (id: string) => void }) {
+  const [almacen, setAlmacen] = useState(almacenInicial);
   const [tipo, setTipo] = useState("CYCLE");
   const [ciego, setCiego] = useState(true);
   const [notas, setNotas] = useState("");
@@ -95,7 +113,9 @@ function Ficha({ id, onClose, onCambio }: { id: string; onClose: () => void; onC
     } catch (e) { toast.error(mensajeDe(e)); }
   }
   function escanear() {
-    const l = c?.lines.find((x) => x.barcode && x.barcode === codigo.trim()) ?? c?.lines.find((x) => x.sku.toLowerCase() === codigo.trim().toLowerCase());
+    const t = codigo.trim().toLowerCase();
+    const l = c?.lines.find((x) => x.barcode && x.barcode.toLowerCase() === t) ?? c?.lines.find((x) => x.lot_code?.toLowerCase() === t)
+      ?? c?.lines.find((x) => x.sku.toLowerCase() === t);
     if (!l) { toast.error("Ese código no está en este conteo."); return; }
     setFoco(l.id); setCodigo("");
     const el = document.querySelector<HTMLInputElement>(`input[data-linea="${l.id}"]`);
@@ -139,7 +159,7 @@ function Ficha({ id, onClose, onCambio }: { id: string; onClose: () => void; onC
         {c.status === "COUNTED" && yoConte && can("alm.count.approve") && <Alert tone="info">Tú contaste este conteo: lo aprueba otra persona.</Alert>}
         {abierto && (
           <form onSubmit={(e) => { e.preventDefault(); escanear(); }} className="flex gap-2">
-            <Input value={codigo} onChange={(e) => setCodigo(e.target.value)} placeholder="Escanea o escribe el código de barras o SKU" aria-label="Código" className="flex-1" />
+            <Input value={codigo} onChange={(e) => setCodigo(e.target.value)} placeholder="Código de barras, lote o SKU" aria-label="Código" className="flex-1" />
             <Button type="submit" icon={ScanLine}>Buscar</Button>
           </form>
         )}

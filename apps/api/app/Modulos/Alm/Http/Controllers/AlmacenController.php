@@ -24,10 +24,11 @@ class AlmacenController extends Controller
         $filas = $q->orderByRaw('e.name nulls first')->orderBy('w.pick_priority')->orderBy('w.code')
             ->get(['w.*', 'e.name as establishment_name', 'e.short as establishment_short', 've.plate as vehicle_plate']);
         $stock = DB::table('stock_balances')->where('qty', '>', 0)->groupBy('warehouse_id')
-            ->selectRaw('warehouse_id, count(*) saldos, sum(qty * avg_cost) valor')->get()->keyBy('warehouse_id');
+            ->selectRaw('warehouse_id, count(*) saldos, count(distinct lot_id) lotes, sum(qty * avg_cost) valor')->get()->keyBy('warehouse_id');
         $ver = $this->verCostos($r);
         $filas->each(function ($w) use ($stock, $ver) {
             $w->balances = (int) ($stock[$w->id]->saldos ?? 0);
+            $w->lots = (int) ($stock[$w->id]->lotes ?? 0);
             $w->stock_value = $ver ? round((float) ($stock[$w->id]->valor ?? 0), 2) : null;
         });
 
@@ -72,6 +73,7 @@ class AlmacenController extends Controller
     {
         $t = '%'.mb_strtolower(trim((string) $r->query('q', ''))).'%';
         $q = DB::table('product_variants as v')->join('products as p', 'p.id', '=', 'v.product_id')->where('v.status', 'ACTIVE')
+            ->when($r->query('id'), fn ($x, $id) => $x->where('v.id', $id))
             ->where(fn ($x) => $x->whereRaw('lower(v.sku) like ?', [$t])->orWhereRaw('lower(v.name) like ?', [$t])->orWhereRaw('lower(coalesce(v.barcode, \'\')) like ?', [$t]));
         $this->porMarca($q, $r, 'v.brand_id');
 
@@ -86,10 +88,13 @@ class AlmacenController extends Controller
         $donde = array_filter(['warehouse_id' => $r->query('warehouse_id'), 'establishment_id' => $r->query('establishment_id'), 'delivery_date' => $r->query('delivery_date')]);
         if ($r->boolean('todos') && $r->query('warehouse_id')) {
             // Para mermas y conteos: todos los saldos del almacén, sin importar el estado del lote.
-            return response()->json(['data' => DB::table('stock_balances as b')->leftJoin('lots as l', 'l.id', '=', 'b.lot_id')
+            $filas = DB::table('stock_balances as b')->leftJoin('lots as l', 'l.id', '=', 'b.lot_id')
                 ->where('b.variant_id', $r->query('variant_id'))->where('b.warehouse_id', $r->query('warehouse_id'))->where('b.qty', '>', 0)
                 ->orderByRaw("coalesce(l.expiry_date, '9999-12-31')")
-                ->get(['b.id as balance_id', 'b.lot_id', 'l.code as lot_code', 'l.expiry_date', 'l.qc_status', 'b.qty', 'b.reserved_qty', 'b.weight_kg'])]);
+                ->get(['b.id as balance_id', 'b.lot_id', 'l.code as lot_code', 'l.expiry_date', 'l.qc_status', 'b.qty', 'b.reserved_qty', 'b.weight_kg', 'b.avg_cost']);
+            $this->sinCostos($r, $filas, ['avg_cost']);
+
+            return response()->json(['data' => $filas]);
         }
 
         return response()->json(['data' => InventarioService::lotesDisponibles($r->query('variant_id'), $donde)]);

@@ -10,6 +10,9 @@ final class AlmacenesService
 {
     public const TIPOS = ['MAIN', 'COLD_ROOM', 'FREEZER', 'STORE', 'PRODUCTION', 'QUARANTINE', 'TRANSIT', 'VEHICLE', 'RETURNS', 'CONSIGNMENT'];
 
+    /** Tipos que nunca venden (RN-ALM-02). */
+    public const NO_VENDEN = ['QUARANTINE', 'TRANSIT', 'VEHICLE', 'RETURNS', 'PRODUCTION'];
+
     public static function guardar(array $d, ?string $id): object
     {
         $codigo = strtoupper(trim((string) ($d['code'] ?? '')));
@@ -21,6 +24,9 @@ final class AlmacenesService
         }
         if (($d['wh_type'] ?? '') !== 'TRANSIT' && empty($d['establishment_id'])) {
             RuleError::fail('RN-ALM-01', 'Elige el local del almacén (solo el de tránsito va sin local).');
+        }
+        if (! empty($d['allows_sale']) && in_array($d['wh_type'], self::NO_VENDEN, true)) {
+            RuleError::fail('RN-ALM-02', 'Un almacén de cuarentena, tránsito, vehículo, devoluciones o producción no vende.');
         }
         if (isset($d['min_temp_c'], $d['max_temp_c']) && $d['min_temp_c'] !== '' && $d['max_temp_c'] !== '' && (float) $d['min_temp_c'] > (float) $d['max_temp_c']) {
             RuleError::fail('RN-ALM-01', 'La temperatura mínima no puede ser mayor que la máxima.');

@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Camera, CircleDollarSign, ListChecks, Plus } from "lucide-react";
 import { Badge, Button, Checkbox, DataTable, Field, Input, PageHeader, Select, StatusBadge, toast, type Column } from "@/components/ui";
 import { api } from "@/lib/api";
 import { numero, soles } from "@/lib/formato";
 import { useSesion } from "@/lib/sesion";
 import { Dialogo } from "@/modulos/cat/Dialogo";
-import { num, olvidarOpciones, useDatos } from "@/modulos/alm/comunes";
+import { CifraLink, num, olvidarOpciones, useDatos } from "@/modulos/alm/comunes";
 import type { Num } from "@/modulos/alm/tipos";
 
 type Motivo = { id: string; code: string; name: string; requires_photo: boolean; approval_above_pen: Num; counts_as_expired: boolean; status: string; uses: number; approved_cost: Num };
@@ -19,6 +19,7 @@ export default function Motivos() {
   const [editando, setEditando] = useState<Motivo | null | undefined>(undefined);
   const edita = can("alm.waste.approve") && puede("ALM", "E");
   const costos = can("alm.stock.view_cost");
+  const c = useDatos<{ active: number; photo: number; expired: number; default_threshold: number }>("/v1/alm/cifras/13").datos;
 
   const columnas: Column<Motivo>[] = [
     { key: "code", header: "Código", render: (m) => <span className="font-mono font-semibold">{m.code}</span> },
@@ -35,6 +36,11 @@ export default function Motivos() {
     <div className="space-y-5">
       <PageHeader description="Los motivos con que se registra una merma. Sobre el umbral, la merma la aprueba quien tiene el permiso; los que cuentan como vencido van al indicador de vencidos."
         actions={edita && puede("ALM", "C") && <Button variant="primary" icon={Plus} onClick={() => setEditando(null)}>Nuevo motivo</Button>} />
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <CifraLink titulo="Motivos activos" valor={c ? numero(c.active) : undefined} detalle={c ? `${c.expired} cuentan como vencido` : undefined} icono={ListChecks} />
+        <CifraLink titulo="Con foto obligatoria" valor={c ? numero(c.photo) : undefined} detalle="RN-ALM-14" icono={Camera} />
+        <CifraLink titulo="Umbral por defecto" valor={c ? soles(c.default_threshold) : undefined} detalle="Sobre este monto aprueba quien tiene el permiso" icono={CircleDollarSign} />
+      </div>
       <DataTable columns={columnas} rows={datos?.data ?? []} loading={cargando} error={error} onRetry={recargar}
         onRowClick={edita ? setEditando : undefined} empty="No hay motivos." />
       {editando !== undefined && <MotivoForm motivo={editando} onClose={() => setEditando(undefined)} onGuardado={() => { setEditando(undefined); olvidarOpciones(); recargar(); }} />}
@@ -44,7 +50,7 @@ export default function Motivos() {
 
 function MotivoForm({ motivo, onClose, onGuardado }: { motivo: Motivo | null; onClose: () => void; onGuardado: () => void }) {
   const [f, setF] = useState({ code: motivo?.code ?? "", name: motivo?.name ?? "", requires_photo: motivo?.requires_photo ?? false,
-    approval_above_pen: motivo?.approval_above_pen?.toString() ?? "0", counts_as_expired: motivo?.counts_as_expired ?? false, status: motivo?.status ?? "ACTIVE" });
+    approval_above_pen: motivo?.approval_above_pen?.toString() ?? "100", counts_as_expired: motivo?.counts_as_expired ?? false, status: motivo?.status ?? "ACTIVE" });
   return (
     <Dialogo titulo={motivo ? `Editar ${motivo.name}` : "Nuevo motivo"} boton="Guardar" onClose={onClose}
       enviar={async () => {

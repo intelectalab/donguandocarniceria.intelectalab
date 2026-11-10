@@ -92,6 +92,9 @@ final class InventarioService
     }
 
     /** Corrige un movimiento con su contrario (REVERSAL). Un movimiento ya reversado no se reversa otra vez. */
+    /** Movimientos que se pueden reversar desde el kardex (ALM-03). */
+    public const REVERSIBLES = ['RECEIPT', 'ADJUSTMENT', 'WASTE'];
+
     public static function reversar(string $movementId, string $motivo, User $quien): array
     {
         return DB::transaction(function () use ($movementId, $motivo, $quien) {
@@ -101,6 +104,10 @@ final class InventarioService
             }
             if ($o->movement_type === 'REVERSAL') {
                 RuleError::fail('RN-ALM-01', 'Un reverso no se reversa: registra un movimiento nuevo.');
+            }
+            // Ventas, traslados y producción se corrigen desde su propio documento (anular, recibir, devolver).
+            if (! in_array($o->movement_type, self::REVERSIBLES, true)) {
+                RuleError::fail('RN-ALM-01', 'Solo se reversan ingresos, ajustes y mermas. Este movimiento se corrige desde su documento.');
             }
             DB::select('SELECT pg_advisory_xact_lock(hashtext(?))', ['alm:rev:'.$o->id]);
             if (DB::table('stock_movements')->where('reversal_of', $o->id)->exists()) {
