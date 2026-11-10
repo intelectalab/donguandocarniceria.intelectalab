@@ -119,3 +119,19 @@ El sprint 1 ya se entregó: **PLT** (14, A) y **CAT** (12, B). **ALM** era del s
 - **DEL en S07 con 22 pantallas** es el sprint más pesado: DEL necesita GAS y GAS necesita CAJ. No se adelanta sin cortar un enlace real.
 - **C se queda sin módulos libres en varios sprints:** todo lo de producción (PRO, DES, COM, ETQ, GRJ) espera a CAL, que espera a FAC. Es el costo de no dejar campos colgados; esos sprints C puede apoyar a B, que es quien más carga lleva.
 - **Los sprints finales son de una sola persona** (PRS depende de casi todo). Es normal: los últimos módulos son los que consolidan al resto.
+
+## 7. Pantallas agregadas por la versión 2.4 del prototipo
+
+Seis pantallas nuevas que no están en la spec ni en las cuentas de arriba. Cada una entra en el sprint de su módulo y la hace su dueño. Detalle en [revision-prototipo-2-4.md](revision-prototipo-2-4.md).
+
+| Pantalla | Dueño | Sprint | Tablas |
+|---|---|---|---|
+| CAT-13 Categorías | B | S03, antes que el catálogo del pedido (PED se agrupa por categoría) | Existe `product_categories`: revisar columnas |
+| WEB-09 Conexión con las tiendas | B | S06, con WEB | Existe `web_stores`: faltan claves cifradas y webhook |
+| CRM-19 Formularios y popups de la web | B | S07, con CRM | Nuevas |
+| DEL-23 Pagos por validar | C | S07, con DEL | Nuevas |
+| DEL-24 Devoluciones del reparto | C | S07, con DEL (usa `InventarioService::devolver` de ALM) | Nuevas |
+| TAB-11 Análisis de ventas | B | S09, con TAB | No necesita |
+
+- Con DEL-23 y DEL-24, DEL sube a 24 pantallas y S07 sigue siendo el sprint más pesado de C.
+- B suma cinco pantallas; si no alcanza, CAT-13 puede pasar a C en S03, que comparte sprint con REC y EQU.
