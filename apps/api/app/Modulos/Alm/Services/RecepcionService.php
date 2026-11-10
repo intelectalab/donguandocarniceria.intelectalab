@@ -180,7 +180,9 @@ final class RecepcionService
     public static function ver(string $id): object
     {
         $rc = DB::table('stock_receipts as r')->leftJoin('suppliers as s', 's.id', '=', 'r.supplier_id')->join('warehouses as w', 'w.id', '=', 'r.warehouse_id')
-            ->where('r.id', $id)->first(['r.*', 's.trade_name as supplier_name', 'w.code as warehouse_code', 'w.name as warehouse_name']);
+            ->leftJoin('users as ur', 'ur.id', '=', 'r.received_by')->leftJoin('users as uc', 'uc.id', '=', 'r.confirmed_by')
+            ->where('r.id', $id)->first(['r.*', 's.trade_name as supplier_name', 'w.code as warehouse_code', 'w.name as warehouse_name',
+                'ur.name as received_by_name', 'uc.name as confirmed_by_name']);
         $rc->lines = DB::table('stock_receipt_lines as l')->join('product_variants as v', 'v.id', '=', 'l.variant_id')->join('products as p', 'p.id', '=', 'v.product_id')
             ->leftJoin('lots as lo', 'lo.id', '=', 'l.lot_id')->where('l.receipt_id', $id)->orderBy('l.created_at')->orderBy('l.id')
             ->get(['l.*', 'v.sku', 'v.name as variant_name', 'v.sale_mode', 'p.storage', 'p.requires_lot', 'lo.code as lot_code'])

@@ -16,10 +16,11 @@ class RecepcionController extends Controller
     public function index(Request $r)
     {
         $q = DB::table('stock_receipts as r')->join('warehouses as w', 'w.id', '=', 'r.warehouse_id')->leftJoin('suppliers as s', 's.id', '=', 'r.supplier_id')
-            ->when($r->query('status'), fn ($x, $s) => $x->where('r.status', $s));
+            ->leftJoin('users as u', 'u.id', '=', 'r.received_by')
+            ->when($r->query('status'), fn ($x, $s) => $x->where('r.status', $s))->when($r->query('source_type'), fn ($x, $s) => $x->where('r.source_type', $s));
         $this->porLocal($q, $r, 'r.establishment_id');
         $q->selectRaw('r.id, r.number, r.status, r.source_type, r.received_at, r.supplier_doc, r.vehicle_temp_c, w.code as warehouse_code, w.name as warehouse_name,
-            s.trade_name as supplier_name, (select count(*) from stock_receipt_lines l where l.receipt_id = r.id) as lines,
+            s.trade_name as supplier_name, u.name as received_by_name, (select count(*) from stock_receipt_lines l where l.receipt_id = r.id) as lines,
             (select count(*) from stock_receipt_lines l where l.receipt_id = r.id and l.qc_result = \'FAIL\') as rejected_lines, r.created_at');
 
         return response()->json(Listado::de(DB::query()->fromSub($q, 's'), $r, buscar: ['number', 'supplier_name', 'supplier_doc'],

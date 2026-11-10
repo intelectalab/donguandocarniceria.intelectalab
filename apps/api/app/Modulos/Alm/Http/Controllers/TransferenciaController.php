@@ -16,12 +16,16 @@ class TransferenciaController extends Controller
     {
         $locales = Access::for($r->user())['establishments'];
         $q = DB::table('stock_transfers as t')->join('warehouses as a', 'a.id', '=', 't.from_warehouse_id')->join('warehouses as b', 'b.id', '=', 't.to_warehouse_id')
-            ->leftJoin('users as u', 'u.id', '=', 't.dispatched_by')
+            ->leftJoin('users as u', 'u.id', '=', 't.dispatched_by')->leftJoin('users as rq', 'rq.id', '=', 't.requested_by')->leftJoin('users as rc', 'rc.id', '=', 't.received_by')
             ->when($r->query('status'), fn ($x, $s) => $x->whereIn('t.status', explode(',', $s)))
+            ->when($r->query('scope') === 'SITES', fn ($x) => $x->whereColumn('t.from_site', '<>', 't.to_site'))
+            ->when($r->query('scope') === 'SAME', fn ($x) => $x->whereColumn('t.from_site', 't.to_site'))
             ->when($locales, fn ($x) => $x->where(fn ($y) => $y->whereIn('t.from_site', $locales)->orWhereIn('t.to_site', $locales)))
             ->when($r->query('site') && $r->query('site') !== 'ALL', fn ($x) => $x->where(fn ($y) => $y->where('t.from_site', $r->query('site'))->orWhere('t.to_site', $r->query('site'))))
             ->selectRaw("t.id, t.number, t.status, t.requires_guide, t.guide_number, t.requested_at, t.dispatched_at, t.received_at, t.notes,
-                a.code as from_code, a.name as from_name, b.code as to_code, b.name as to_name, u.name as dispatched_by_name,
+                a.code as from_code, a.name as from_name, b.code as to_code, b.name as to_name, u.name as dispatched_by_name, rq.name as requested_by_name, rc.name as received_by_name, (t.from_site <> t.to_site) as between_sites,
+                (select coalesce(sum(l.received_qty - l.qty), 0) from stock_transfer_lines l where l.transfer_id = t.id and l.received_qty is not null) as diff_qty,
+                (select string_agg(v.sku || ' ' || trim(to_char(l.qty, 'FM999990.###')), ', ') from stock_transfer_lines l join product_variants v on v.id = l.variant_id where l.transfer_id = t.id) as content,
                 (select count(*) from stock_transfer_lines l where l.transfer_id = t.id) as lines,
                 (select coalesce(sum(l.qty), 0) from stock_transfer_lines l where l.transfer_id = t.id) as total_qty,
                 case when t.status = 'DISPATCHED' then round(extract(epoch from (now() - t.dispatched_at)) / 3600, 1) end as hours_in_transit,

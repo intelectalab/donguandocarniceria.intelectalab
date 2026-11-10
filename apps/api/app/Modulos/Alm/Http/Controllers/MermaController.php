@@ -34,6 +34,7 @@ class MermaController extends Controller
     {
         $m = MermasService::ver($id);
         $m->has_photo = $m->photo_url !== null;
+        $m->above_threshold = (float) $m->estimated_cost > (float) $m->approval_above_pen;
 
         return response()->json($m);
     }

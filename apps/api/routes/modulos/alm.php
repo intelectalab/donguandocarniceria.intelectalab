@@ -5,6 +5,7 @@ use App\Modulos\Alm\Http\Controllers\AlmacenController;
 use App\Modulos\Alm\Http\Controllers\ConteoController;
 use App\Modulos\Alm\Http\Controllers\LoteController;
 use App\Modulos\Alm\Http\Controllers\MermaController;
+use App\Modulos\Alm\Http\Controllers\PantallaController;
 use App\Modulos\Alm\Http\Controllers\RecepcionController;
 use App\Modulos\Alm\Http\Controllers\ReservaController;
 use App\Modulos\Alm\Http\Controllers\StockController;
@@ -17,7 +18,12 @@ Route::prefix('alm')->group(function () {
     Route::get('/variantes', [AlmacenController::class, 'variantes'])->middleware('modulo:ALM');
     Route::get('/disponibles', [AlmacenController::class, 'disponibles'])->middleware('modulo:ALM');
 
+    // Cifras de la cabecera de cada pantalla (01 a 13) y temperaturas de las cámaras (solo lectura, puntos de CAL)
+    Route::get('/cifras/{pantalla}', [PantallaController::class, 'cifras'])->middleware('modulo:ALM')->where('pantalla', '\d{2}');
+    Route::get('/temperaturas', [PantallaController::class, 'temperaturas'])->middleware('modulo:ALM');
+
     // ALM-01 Almacenes y ubicaciones
+    Route::get('/almacenes/{id}', [PantallaController::class, 'almacen'])->middleware('modulo:ALM')->whereUuid('id');
     Route::get('/almacenes', [AlmacenController::class, 'index'])->middleware('modulo:ALM');
     Route::post('/almacenes', [AlmacenController::class, 'store'])->middleware(['modulo:ALM,C', 'permiso:alm.warehouse.manage']);
     Route::put('/almacenes/{id}', [AlmacenController::class, 'update'])->middleware(['modulo:ALM,E', 'permiso:alm.warehouse.manage'])->whereUuid('id');
@@ -25,7 +31,9 @@ Route::prefix('alm')->group(function () {
     // ALM-02 Stock y ALM-03 Kardex
     Route::get('/stock', [StockController::class, 'index'])->middleware('modulo:ALM');
     Route::get('/stock/resumen', [StockController::class, 'resumen'])->middleware('modulo:ALM');
+    Route::get('/stock/{id}', [PantallaController::class, 'saldo'])->middleware('modulo:ALM')->whereUuid('id');
     Route::get('/kardex', [StockController::class, 'kardex'])->middleware('modulo:ALM');
+    Route::get('/kardex/{id}', [PantallaController::class, 'movimiento'])->middleware('modulo:ALM')->whereUuid('id');
     Route::post('/kardex/{id}/reversar', [StockController::class, 'reversar'])->middleware(['modulo:ALM,E', 'permiso:alm.count.approve'])->whereUuid('id');
 
     // ALM-04 Recepción
@@ -38,11 +46,13 @@ Route::prefix('alm')->group(function () {
 
     // ALM-05 Lotes y ALM-06 Liberar o bloquear (el permiso depende del estado: lo valida LotesService)
     Route::get('/lotes', [LoteController::class, 'index'])->middleware('modulo:ALM');
+    Route::get('/lotes/historial', [PantallaController::class, 'historialLotes'])->middleware('modulo:ALM');
     Route::get('/lotes/{id}', [LoteController::class, 'show'])->middleware('modulo:ALM')->whereUuid('id');
     Route::post('/lotes/{id}/estado', [LoteController::class, 'estado'])->middleware('modulo:ALM,E')->whereUuid('id');
 
     // ALM-07 Transferencias y ALM-12 Stock en tránsito
     Route::get('/transferencias', [TransferenciaController::class, 'index'])->middleware('modulo:ALM');
+    Route::get('/transito', [PantallaController::class, 'transito'])->middleware('modulo:ALM');
     Route::get('/transferencias/{id}', [TransferenciaController::class, 'show'])->middleware('modulo:ALM')->whereUuid('id');
     Route::post('/transferencias', [TransferenciaController::class, 'store'])->middleware(['modulo:ALM,C', 'permiso:alm.transfer.create']);
     Route::post('/transferencias/{id}/guia', [TransferenciaController::class, 'guia'])->middleware(['modulo:ALM,E', 'permiso:alm.transfer.create'])->whereUuid('id');
@@ -72,10 +82,15 @@ Route::prefix('alm')->group(function () {
 
     // ALM-10 Reservas
     Route::get('/reservas', [ReservaController::class, 'index'])->middleware('modulo:ALM');
+    Route::get('/reservas/pedidos', [PantallaController::class, 'pedidos'])->middleware('modulo:ALM');
+    Route::get('/reservas/pedidos/{orderId}', [PantallaController::class, 'pedido'])->middleware('modulo:ALM')->whereUuid('orderId');
+    Route::get('/reservas/faltantes', [PantallaController::class, 'faltantes'])->middleware('modulo:ALM');
+    Route::post('/reservas/pedidos/{orderId}/reintentar', [PantallaController::class, 'reintentar'])->middleware('modulo:ALM,E')->whereUuid('orderId');
     Route::post('/reservas/{id}/liberar', [ReservaController::class, 'liberar'])->middleware(['modulo:ALM', 'permiso:alm.reservation.release'])->whereUuid('id');
 
     // ALM-11 Alertas de vencimiento y KPI
     Route::get('/alertas', [AlertaController::class, 'index'])->middleware('modulo:ALM');
     Route::post('/alertas/generar', [AlertaController::class, 'generar'])->middleware('modulo:ALM,E');
+    Route::post('/alertas/{lotId}/promocion', [PantallaController::class, 'promocion'])->middleware(['modulo:ALM,E', 'throttle:20,1'])->whereUuid('lotId');
     Route::get('/kpi', [AlertaController::class, 'kpi'])->middleware('modulo:ALM');
 });

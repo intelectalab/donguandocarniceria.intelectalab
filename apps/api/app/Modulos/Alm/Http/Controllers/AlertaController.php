@@ -7,6 +7,7 @@ use App\Modulos\Alm\Services\AlertasService;
 use App\Modulos\Alm\Services\KpiService;
 use App\Support\Access;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 /** ALM-11 Alertas de vencimiento (RN-ALM-15) y los indicadores KPI-ALM-01 a 08. */
 class AlertaController extends Controller
@@ -21,6 +22,8 @@ class AlertaController extends Controller
             'establishment_id' => $site && $site !== 'ALL' ? $site : null, 'establishments' => $locales ?: null,
             'brand_id' => $brand && $brand !== 'ALL' ? $brand : null,
         ])->when($marcas, fn ($c) => $c->whereIn('brand_id', $marcas))->values();
+        $marcasN = DB::table('brands')->pluck('name', 'id');
+        $filas->each(fn ($f) => $f->brand_name = $marcasN[$f->brand_id] ?? null);
         $suma = fn ($b) => round((float) $filas->where('bucket', $b)->sum(fn ($x) => (float) $x->value), 2);
 
         return response()->json([

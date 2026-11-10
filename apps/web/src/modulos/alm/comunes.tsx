@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { Search, X } from "lucide-react";
-import { Input, Select, toast, confirmAction } from "@/components/ui";
+import Link from "next/link";
+import { Badge, Cifra, Input, Select, toast, confirmAction } from "@/components/ui";
 import { api, mensajeDe } from "@/lib/api";
 import { numero } from "@/lib/formato";
 import { unidad, type Num, type Opciones, type Variante } from "./tipos";
@@ -147,3 +148,59 @@ export const qs = (p: Record<string, string | number | boolean | null | undefine
   const s = u.toString();
   return s ? `?${s}` : "";
 };
+
+/** Cifra que lleva a otra pantalla (o abre algo) al tocarla. */
+export function CifraLink({ href, onClick, ...p }: Parameters<typeof Cifra>[0] & { href?: string; onClick?: () => void }) {
+  const clase = "block rounded-xl text-left outline-none transition hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-primary";
+  if (href) return <Link href={href} className={clase}><Cifra {...p} /></Link>;
+  if (onClick) return <button type="button" onClick={onClick} className={`${clase} w-full cursor-pointer`}><Cifra {...p} /></button>;
+  return <Cifra {...p} />;
+}
+
+/** Barras horizontales simples (desgloses de KPI y mermas por motivo). */
+export function Barras({ filas, formato }: { filas: { label: string | null; value: Num }[]; formato: (v: Num) => string }) {
+  const max = Math.max(...filas.map((f) => Math.abs(Number(f.value ?? 0))), 0);
+  if (!filas.length) return <p className="text-[13px] text-muted">Sin datos en el período.</p>;
+  return (
+    <ul className="space-y-2">
+      {filas.map((f, i) => (
+        <li key={`${f.label}-${i}`} className="grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)_auto] items-center gap-2 text-[13px]">
+          <span className="truncate" title={f.label ?? "Sin dato"}>{f.label ?? "Sin dato"}</span>
+          <span className="h-2.5 overflow-hidden rounded-full bg-surface-2">
+            <span className="block h-full rounded-full bg-primary" style={{ width: `${max ? (Math.abs(Number(f.value ?? 0)) / max) * 100 : 0}%` }} />
+          </span>
+          <span className="tabular-nums text-muted">{formato(f.value)}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Temperatura con su tono: rojo si está fuera de rango. */
+export function Temperatura({ t }: { t: { temp_c: number; out_of_range: boolean } | null | undefined }) {
+  if (!t) return null;
+  return <Badge tone={t.out_of_range ? "bad" : "ok"}>{numero(t.temp_c, 1)} °C</Badge>;
+}
+
+/** Tipos de almacén que nunca venden (RN-ALM-02). */
+export const NO_VENDEN = ["QUARANTINE", "TRANSIT", "VEHICLE", "RETURNS", "PRODUCTION"];
+
+/** Parámetros de la URL al abrir la pantalla (?wh=, ?lote=, ?nuevo=1…). null hasta que la página monta. */
+export function useParametrosIniciales(): URLSearchParams | null {
+  const s = useSyncExternalStore(sinCambios, () => window.location.search, () => null);
+  return useMemo(() => (s === null ? null : new URLSearchParams(s)), [s]);
+}
+const sinCambios = () => () => {};
+
+/** Aplica una vez los parámetros de la URL al estado de la pantalla (filtros, formulario prellenado). */
+export function useAlAbrir(aplicar: (p: URLSearchParams) => void) {
+  const p = useParametrosIniciales();
+  const [hecho, setHecho] = useState(false);
+  if (p && !hecho) {
+    setHecho(true);
+    aplicar(p);
+  }
+}
+
+/** Variante por id (para prellenar un formulario desde la URL). */
+export const varianteDe = (id: string) => api<{ data: Variante[] }>(`/v1/alm/variantes?id=${encodeURIComponent(id)}`).then((r) => r.data[0] ?? null);

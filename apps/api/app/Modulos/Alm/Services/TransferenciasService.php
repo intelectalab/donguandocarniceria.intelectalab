@@ -10,6 +10,7 @@ use App\Support\Access;
 use App\Support\Events;
 use App\Support\RuleError;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Transferencias entre almacenes y locales (ALM-07, ALM-12).
@@ -228,7 +229,9 @@ final class TransferenciasService
     public static function ver(string $id): object
     {
         $tr = DB::table('stock_transfers as t')->join('warehouses as a', 'a.id', '=', 't.from_warehouse_id')->join('warehouses as b', 'b.id', '=', 't.to_warehouse_id')
-            ->where('t.id', $id)->first(['t.*', 'a.code as from_code', 'a.name as from_name', 'b.code as to_code', 'b.name as to_name'])
+            ->leftJoin('users as rq', 'rq.id', '=', 't.requested_by')->leftJoin('users as dp', 'dp.id', '=', 't.dispatched_by')->leftJoin('users as rc', 'rc.id', '=', 't.received_by')
+            ->where('t.id', $id)->first(['t.*', 'a.code as from_code', 'a.name as from_name', 'b.code as to_code', 'b.name as to_name',
+                'rq.name as requested_by_name', 'dp.name as dispatched_by_name', 'rc.name as received_by_name'])
             ?? RuleError::fail('RN-ALM-10', 'Transferencia no encontrada.');
         $tr->lines = DB::table('stock_transfer_lines as l')->join('product_variants as v', 'v.id', '=', 'l.variant_id')->leftJoin('lots as lo', 'lo.id', '=', 'l.lot_id')
             ->where('l.transfer_id', $id)->orderBy('l.created_at')->orderBy('l.id')
@@ -238,6 +241,12 @@ final class TransferenciasService
 
                 return $l;
             });
+        // Lotes que salieron de verdad en cada línea (FEFO), con su código.
+        $ids = $tr->lines->flatMap(fn ($l) => array_column($l->moved, 'lot_id'))->filter(fn ($x) => is_string($x) && Str::isUuid($x))->unique()->values();
+        $codigos = $ids->isEmpty() ? collect() : DB::table('lots')->whereIn('id', $ids)->pluck('code', 'id');
+        $tr->lines->each(function ($l) use ($codigos) {
+            $l->moved = array_map(fn ($m) => $m + ['lot_code' => $codigos[$m['lot_id'] ?? ''] ?? null], $l->moved);
+        });
 
         return $tr;
     }

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Modulos;
 
 use App\Models\User;
+use App\Modulos\Alm\Services\AlertasService;
 use App\Modulos\Alm\Services\InventarioService;
 use App\Modulos\Alm\Services\ReservasService;
 use App\Support\RuleError;
@@ -509,6 +510,31 @@ class AlmTest extends TestCase
         $this->como(self::GERENTE)->postJson('/api/v1/alm/mermas', $merma)->assertCreated();
     }
 
+    public function test_las_fichas_por_id_respetan_el_alcance_por_local(): void
+    {
+        $this->usuario();
+        $wh = $this->almacen('CAM-L1');
+        $saldo = DB::table('stock_balances')->where('warehouse_id', $wh)->value('id');
+        $mov = DB::table('stock_movements')->where('warehouse_id', $wh)->value('id');
+        $pedido = DB::table('sales_orders')->where('establishment_id', DB::table('warehouses')->where('id', $wh)->value('establishment_id'))
+            ->whereIn('status', ['CONFIRMED', 'IN_PREPARATION', 'WEIGHED', 'READY'])->value('id');
+
+        // El almacenero del Local 2 no abre fichas del Local 1 aunque conozca el id, ni reintenta sus reservas.
+        $l2 = $this->como(self::ALMACENERO_L2);
+        $l2->getJson("/api/v1/alm/almacenes/{$wh}")->assertNotFound();
+        $l2->getJson("/api/v1/alm/stock/{$saldo}")->assertNotFound();
+        $l2->getJson("/api/v1/alm/kardex/{$mov}")->assertNotFound();
+        $this->assertNotNull($pedido, 'La demo tiene pedidos en curso del Local 1');
+        $l2->getJson("/api/v1/alm/reservas/pedidos/{$pedido}")->assertNotFound();
+        $l2->postJson("/api/v1/alm/reservas/pedidos/{$pedido}/reintentar")->assertNotFound();
+
+        // El del Local 1 sí.
+        $l1 = $this->como(self::ALMACENERO);
+        $l1->getJson("/api/v1/alm/almacenes/{$wh}")->assertOk();
+        $l1->getJson("/api/v1/alm/stock/{$saldo}")->assertOk();
+        $l1->getJson("/api/v1/alm/kardex/{$mov}")->assertOk();
+    }
+
     public function test_los_costos_solo_se_ven_con_permiso(): void
     {
         $fila = $this->como(self::ALMACENERO)->getJson('/api/v1/alm/stock?per_page=1')->assertOk()->json('data.0');
@@ -538,5 +564,55 @@ class AlmTest extends TestCase
         }
         $this->assertSame(5, $api->getJson('/api/v1/alm/recepciones')->json('total'));
         $this->assertSame(8, count($api->getJson('/api/v1/alm/motivos')->json('data')));
+    }
+
+    public function test_las_cifras_y_fichas_de_cada_pantalla_responden(): void
+    {
+        $api = $this->como(self::GERENTE);
+        foreach (['01', '03', '04', '05', '07', '08', '09', '10', '12', '13'] as $p) {
+            $api->getJson("/api/v1/alm/cifras/{$p}")->assertOk();
+        }
+        foreach (['/api/v1/alm/temperaturas', '/api/v1/alm/lotes/historial', '/api/v1/alm/transito', '/api/v1/alm/reservas/pedidos', '/api/v1/alm/reservas/faltantes'] as $url) {
+            $api->getJson($url)->assertOk();
+        }
+        $this->usuario();
+        $w = $this->almacen('ALM-L1');
+        $b = DB::table('stock_balances')->where('qty', '>', 0)->value('id');
+        $m = DB::table('stock_movements')->where('source_type', 'STOCK_TRANSFER')->value('id');
+        $o = DB::table('stock_reservations')->where('status', 'ACTIVE')->value('order_id');
+        $api->getJson("/api/v1/alm/almacenes/{$w}")->assertOk()->assertJsonPath('code', 'ALM-L1');
+        $api->getJson("/api/v1/alm/stock/{$b}")->assertOk()->assertJsonStructure(['reservations', 'movements']);
+        $this->assertNotNull($api->getJson("/api/v1/alm/kardex/{$m}")->assertOk()->json('document'));
+        $api->getJson("/api/v1/alm/reservas/pedidos/{$o}")->assertOk()->assertJsonStructure(['reservations', 'short']);
+        $this->assertGreaterThan(0, $api->getJson('/api/v1/alm/cifras/10')->json('orders'));
+    }
+
+    public function test_rn_alm_02_cuarentena_transito_y_vehiculo_no_venden(): void
+    {
+        $this->usuario();
+        $local = DB::table('warehouses')->where('code', 'ALM-L1')->value('establishment_id');
+        $this->como(self::GERENTE)->postJson('/api/v1/alm/almacenes', ['code' => 'CUA-NUEVA', 'name' => 'Cuarentena nueva', 'wh_type' => 'QUARANTINE',
+            'establishment_id' => $local, 'allows_sale' => true])->assertStatus(422)->assertJsonPath('code', 'RN-ALM-02');
+    }
+
+    public function test_el_kardex_solo_reversa_ingresos_ajustes_y_mermas(): void
+    {
+        $this->usuario();
+        $venta = DB::table('stock_movements')->where('movement_type', 'SALE')->value('id');
+        $this->como(self::ADMIN)->postJson("/api/v1/alm/kardex/{$venta}/reversar", ['reason' => 'Venta registrada por error'])
+            ->assertStatus(422)->assertJsonPath('code', 'RN-ALM-01');
+    }
+
+    public function test_la_promocion_avisa_a_marketing_y_ventas_y_la_alerta_diaria_tambien_a_ventas(): void
+    {
+        $lot = $this->lote('M3-CHO-1K', 'L-CHO-PRO', now()->addDays(2)->toDateString());
+        $this->entrada('ALM-L1', 'M3-CHO-1K', $lot, 5);
+        $this->como(self::GERENTE)->postJson("/api/v1/alm/alertas/{$lot}/promocion")->assertOk();
+        // El mismo día no se repite el aviso.
+        $this->como(self::GERENTE)->postJson("/api/v1/alm/alertas/{$lot}/promocion")->assertUnprocessable()->assertJsonPath('code', 'RN-ALM-15');
+        $this->usuario();
+        $this->assertSame(2, DB::table('notifications')->where('type', 'stock.promo_suggested')->whereIn('role', ['MARKETING', 'VENDEDORA'])->count());
+        AlertasService::generarDiarias();
+        $this->assertTrue(DB::table('notifications')->where('type', 'stock.expiring')->where('role', 'SUPERVISORA_VENTAS')->exists());
     }
 }

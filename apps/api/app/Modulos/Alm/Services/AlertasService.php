@@ -32,7 +32,7 @@ final class AlertasService
             ->groupBy('l.id', 'l.code', 'l.expiry_date', 'l.qc_status', 'v.id', 'v.sku', 'v.name', 'v.brand_id', 'v.sale_mode', 'p.line')
             ->selectRaw("l.id as lot_id, l.code as lot_code, l.expiry_date, l.qc_status, v.id as variant_id, v.sku, v.name as variant_name, v.brand_id, v.sale_mode, p.line,
                 sum(b.qty) qty, sum(b.reserved_qty) reserved_qty, sum(b.qty * b.avg_cost) value, string_agg(distinct w.code, ', ') warehouses,
-                min(w.establishment_id::text) establishment_id")
+                min(w.establishment_id::text) establishment_id, min(w.id::text) warehouse_id")
             ->orderBy('l.expiry_date')->get();
 
         return $filas->map(function ($r) use ($al) {
@@ -73,6 +73,12 @@ final class AlertasService
                 DB::table('notifications')->insert([
                     'role' => 'ALMACENERO', 'title' => 'Lotes por vencer', 'body' => $txt.'. Revísalos en Alertas de vencimiento.',
                     'ref' => json_encode(['screen' => 'ALM-11', 'date' => $al->toDateString()]), 'tone' => $nuevas['EXPIRED'] || $nuevas['D3'] ? 'warn' : 'info',
+                    'module' => 'ALM', 'at' => now(), 'type' => 'stock.expiring', 'in_app' => true,
+                ]);
+                // Ventas también se entera: ofrece primero lo que vence (RN-ALM-15).
+                DB::table('notifications')->insert([
+                    'role' => 'SUPERVISORA_VENTAS', 'title' => ($nuevas['D3'] + $nuevas['D7']).' lote(s) por vencer', 'body' => $txt.'. Ofrécelos primero o con promoción.',
+                    'ref' => json_encode(['screen' => 'ALM-11', 'date' => $al->toDateString()]), 'tone' => 'warn',
                     'module' => 'ALM', 'at' => now(), 'type' => 'stock.expiring', 'in_app' => true,
                 ]);
                 Events::emit('stock.expiring', 'stock_expiry_alerts', null, ['date' => $al->toDateString(), 'd3' => $nuevas['D3'], 'd7' => $nuevas['D7'],

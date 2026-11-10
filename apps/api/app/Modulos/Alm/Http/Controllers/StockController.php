@@ -26,7 +26,9 @@ class StockController extends Controller
             ->when($r->query('variant_id'), fn ($x, $v) => $x->where('b.variant_id', $v))
             ->when($r->query('lot_id'), fn ($x, $v) => $x->where('b.lot_id', $v))
             ->when($r->query('line'), fn ($x, $v) => $x->where('p.line', $v))
-            ->when($r->query('lot_status'), fn ($x, $v) => $v === 'NONE' ? $x->whereNull('b.lot_id') : $x->where('l.qc_status', $v));
+            ->when($r->query('lot_status'), fn ($x, $v) => $v === 'NONE' ? $x->whereNull('b.lot_id') : ($v === 'HOLD' ? $x->whereIn('l.qc_status', ['QUARANTINE', 'BLOCKED']) : $x->where('l.qc_status', $v)))
+            ->when($r->query('expiring'), fn ($x) => $x->where('l.expiry_date', '<=', S::hoy()->addDays(7)->toDateString()))
+            ->when($r->boolean('reserved'), fn ($x) => $x->where('b.reserved_qty', '>', 0));
         $this->porLocal($q, $r, 'w.establishment_id');
         $this->porMarca($q, $r, 'v.brand_id');
 
@@ -50,19 +52,24 @@ class StockController extends Controller
         $t = DB::query()->fromSub($this->base($r), 's')->selectRaw("count(*) saldos, count(distinct variant_id) variantes, coalesce(sum(value),0) valor,
             count(*) filter (where qc_status = 'QUARANTINE') en_cuarentena, count(*) filter (where qc_status in ('BLOCKED')) bloqueados,
             count(*) filter (where days_left < 0) vencidos, count(*) filter (where days_left between 0 and 7) por_vencer,
+            coalesce(sum(value) filter (where days_left <= 7), 0) valor_por_vencer, count(*) filter (where reserved_qty > 0) con_reserva,
+            coalesce(sum(reserved_qty * avg_cost), 0) valor_reservado, coalesce(sum(qty) filter (where qc_status in ('QUARANTINE','BLOCKED')), 0) retenido,
+            coalesce(sum(qty), 0) cantidad, coalesce(sum(weight_kg), 0) peso,
             coalesce(sum(reserved_qty),0) reservado")->first();
+        $ver = $this->verCostos($r);
 
         return response()->json([
             'balances' => (int) $t->saldos, 'variants' => (int) $t->variantes, 'value' => $this->verCostos($r) ? S::t($t->valor, 2) : null,
             'quarantine' => (int) $t->en_cuarentena, 'blocked' => (int) $t->bloqueados, 'expired' => (int) $t->vencidos, 'expiring' => (int) $t->por_vencer,
-            'reserved' => S::t($t->reservado),
+            'reserved' => S::t($t->reservado), 'reserved_balances' => (int) $t->con_reserva, 'reserved_value' => $ver ? S::t($t->valor_reservado, 2) : null,
+            'expiring_value' => $ver ? S::t($t->valor_por_vencer, 2) : null, 'on_hold_qty' => S::t($t->retenido), 'qty' => S::t($t->cantidad), 'weight_kg' => S::t($t->peso),
         ]);
     }
 
     public function kardex(Request $r)
     {
         $q = DB::table('stock_movements as m')->join('warehouses as w', 'w.id', '=', 'm.warehouse_id')->join('product_variants as v', 'v.id', '=', 'm.variant_id')
-            ->leftJoin('lots as l', 'l.id', '=', 'm.lot_id')
+            ->leftJoin('lots as l', 'l.id', '=', 'm.lot_id')->leftJoin('brands as br', 'br.id', '=', 'v.brand_id')
             ->when($r->query('warehouse_id'), fn ($x, $w) => $x->where('m.warehouse_id', $w))
             ->when($r->query('variant_id'), fn ($x, $v) => $x->where('m.variant_id', $v))
             ->when($r->query('lot_id'), fn ($x, $v) => $x->where('m.lot_id', $v))
@@ -74,8 +81,9 @@ class StockController extends Controller
         $this->porMarca($q, $r, 'v.brand_id');
         $q->selectRaw('m.id, m.moved_at, m.movement_type, m.source_type, m.source_id, m.reason, m."user" as user_name, m.qty, m.weight_kg, m.unit_cost, m.total_cost,
             m.bal_qty, m.reversal_of, m.warehouse_id, w.code as warehouse_code, m.variant_id, v.sku, v.name as variant_name, v.sale_mode, m.lot_id, l.code as lot_code,
+            br.name as brand_name, '.PantallaController::documentoSql('m').' as document,
             exists(select 1 from stock_movements x where x.reversal_of = m.id) as reversed');
-        $pagina = Listado::de(DB::query()->fromSub($q, 's'), $r, buscar: ['sku', 'variant_name', 'lot_code', 'reason', 'user_name'],
+        $pagina = Listado::de(DB::query()->fromSub($q, 's'), $r, buscar: ['sku', 'variant_name', 'lot_code', 'reason', 'user_name', 'document'],
             ordenar: ['moved_at', 'sku', 'movement_type', 'qty'], porDefecto: '-moved_at');
         $this->sinCostos($r, $pagina->getCollection(), ['unit_cost', 'total_cost']);
 
