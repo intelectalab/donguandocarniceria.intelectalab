@@ -251,6 +251,7 @@ class PantallaController extends Controller
             ->leftJoin('vehicles as ve', 've.id', '=', 'w.vehicle_id')->where('w.id', $id)
             ->first(['w.*', 'e.name as establishment_name', 'p.code as parent_code', 'p.name as parent_name', 've.plate as vehicle_plate']);
         abort_unless($w, 404);
+        $this->dentroDelAlcance($r, $w->establishment_id);
         $s = DB::table('stock_balances')->where('warehouse_id', $id)->where('qty', '>', 0)
             ->selectRaw('count(*) saldos, count(distinct lot_id) lotes, count(distinct variant_id) variantes, coalesce(sum(qty * avg_cost), 0) valor')->first();
         $w->balances = (int) $s->saldos;
@@ -277,8 +278,10 @@ class PantallaController extends Controller
             ->join('products as p', 'p.id', '=', 'v.product_id')->leftJoin('lots as l', 'l.id', '=', 'b.lot_id')->leftJoin('brands as br', 'br.id', '=', 'v.brand_id')
             ->leftJoin('suppliers as s', 's.id', '=', 'l.supplier_id')->where('b.id', $id)
             ->first(['b.*', 'w.code as warehouse_code', 'w.name as warehouse_name', 'w.wh_type', 'w.allows_sale', 'v.sku', 'v.name as variant_name', 'v.sale_mode',
-                'br.name as brand_name', 'p.line', 'p.storage', 'l.code as lot_code', 'l.qc_status', 'l.expiry_date', 'l.production_date', 's.trade_name as supplier_name']);
+                'br.name as brand_name', 'p.line', 'p.storage', 'l.code as lot_code', 'l.qc_status', 'l.expiry_date', 'l.production_date', 's.trade_name as supplier_name',
+                'w.establishment_id', 'v.brand_id']);
         abort_unless($b, 404);
+        $this->dentroDelAlcance($r, $b->establishment_id, $b->brand_id);
         $b->days_left = S::diasDeVida($b->expiry_date);
         $b->available_qty = S::t(max(0, (float) $b->qty - (float) $b->reserved_qty));
         $b->value = $this->dinero($r, (float) $b->qty * (float) $b->avg_cost);
@@ -300,8 +303,10 @@ class PantallaController extends Controller
     {
         $m = DB::table('stock_movements as m')->join('warehouses as w', 'w.id', '=', 'm.warehouse_id')->join('product_variants as v', 'v.id', '=', 'm.variant_id')
             ->leftJoin('lots as l', 'l.id', '=', 'm.lot_id')->where('m.id', $id)
-            ->first(['m.*', 'm.user as user_name', 'w.code as warehouse_code', 'w.name as warehouse_name', 'v.sku', 'v.name as variant_name', 'v.sale_mode', 'l.code as lot_code']);
+            ->first(['m.*', 'm.user as user_name', 'w.code as warehouse_code', 'w.name as warehouse_name', 'v.sku', 'v.name as variant_name', 'v.sale_mode', 'l.code as lot_code',
+                'w.establishment_id', 'v.brand_id']);
         abort_unless($m, 404);
+        $this->dentroDelAlcance($r, $m->establishment_id, $m->brand_id);
         $m->document = self::documento($m->source_type, $m->source_id);
         $m->reversal_of_move = $m->reversal_of ? DB::table('stock_movements')->where('id', $m->reversal_of)->first(['id', 'moved_at', 'movement_type', 'qty', 'reason']) : null;
         $m->reversed_by = DB::table('stock_movements')->where('reversal_of', $id)->first(['id', 'moved_at', 'qty', 'reason', 'user as user_name']);
@@ -378,8 +383,9 @@ class PantallaController extends Controller
     public function pedido(Request $r, string $orderId)
     {
         $o = DB::table('sales_orders as o')->leftJoin('customers as c', 'c.id', '=', 'o.customer_id')->where('o.id', $orderId)
-            ->first(['o.id', 'o.number', 'o.status', 'o.delivery_date', 'c.full_name as customer_name']);
+            ->first(['o.id', 'o.number', 'o.status', 'o.delivery_date', 'c.full_name as customer_name', 'o.establishment_id', 'o.brand_id']);
         abort_unless($o, 404);
+        $this->dentroDelAlcance($r, $o->establishment_id, $o->brand_id);
         $o->reservations = DB::table('stock_reservations as r')->join('product_variants as v', 'v.id', '=', 'r.variant_id')->join('warehouses as w', 'w.id', '=', 'r.warehouse_id')
             ->leftJoin('lots as l', 'l.id', '=', 'r.lot_id')->leftJoin('users as u', 'u.id', '=', 'r.released_by')->where('r.order_id', $orderId)->orderBy('r.reserved_at')
             ->get(['r.id', 'r.status', 'r.qty', 'r.reserved_at', 'r.closed_at', 'r.released_reason', 'u.name as released_by_name', 'v.sku', 'v.name as variant_name', 'v.sale_mode',
@@ -420,6 +426,7 @@ class PantallaController extends Controller
     {
         $o = DB::table('sales_orders')->where('id', $orderId)->first(['id', 'number', 'brand_id', 'establishment_id', 'delivery_date', 'status'])
             ?? RuleError::fail('RN-ALM-09', 'Pedido no encontrado.');
+        $this->dentroDelAlcance($r, $o->establishment_id, $o->brand_id);
         if (! in_array($o->status, ['CONFIRMED', 'IN_PREPARATION', 'WEIGHED', 'READY'], true)) {
             RuleError::fail('RN-ALM-09', 'Solo se reserva un pedido confirmado y sin despachar.');
         }
@@ -440,6 +447,10 @@ class PantallaController extends Controller
         $libre = S::cant(max(0, (float) $a->qty - (float) $a->reserved_qty), $a->sale_mode);
         $vence = substr($a->expiry_date, 8, 2).'/'.substr($a->expiry_date, 5, 2);
         $ref = json_encode(['screen' => 'ALM-11', 'lot_id' => $lotId]);
+        // Un aviso por lote y día: repetirlo solo llena las notificaciones de marketing y ventas.
+        if (DB::table('notifications')->where('type', 'stock.promo_suggested')->where('ref', $ref)->where('at', '>=', S::hoy())->exists()) {
+            RuleError::fail('RN-ALM-15', "La promoción del lote {$a->lot_code} ya se avisó hoy.");
+        }
         DB::transaction(function () use ($a, $libre, $vence, $ref) {
             DB::table('notifications')->insert([
                 ['role' => 'MARKETING', 'title' => "Promoción sugerida: {$a->variant_name}", 'body' => "Lote {$a->lot_code} vence el {$vence} · {$libre} libres · S/ ".number_format((float) $a->value, 2),
