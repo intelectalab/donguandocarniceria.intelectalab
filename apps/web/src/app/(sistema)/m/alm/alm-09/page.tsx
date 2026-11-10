@@ -137,8 +137,8 @@ function Nueva({ op, onClose, onCreada }: { op: Opciones; onClose: () => void; o
         <LoteSelect variante={variante} almacen={almacen} value={lote} onChange={setLote} todos />
         <Field label={`Cantidad (${variante?.sale_mode === "KG" ? "kg" : "und"})`} required error={errores.qty}><Input inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} /></Field>
         <Field label="Peso (kg)" error={errores.weight_kg}><Input inputMode="decimal" value={peso} onChange={(e) => setPeso(e.target.value)} /></Field>
-        <Field label="Foto" required={elegido?.requires_photo} error={errores.photo} hint={elegido?.requires_photo ? "Este motivo exige foto" : undefined}>
-          <Input type="file" accept="image/*" capture="environment" onChange={(e) => setFoto(e.target.files?.[0] ?? null)} />
+        <Field label="Foto" required={elegido?.requires_photo} error={errores.photo} hint={(elegido?.requires_photo ? "Este motivo exige foto. " : "") + "PNG, JPG o WEBP de hasta 1 MB"}>
+          <Input type="file" accept="image/png,image/jpeg,image/webp" capture="environment" onChange={(e) => setFoto(e.target.files?.[0] ?? null)} />
         </Field>
         <div className="sm:col-span-2"><Field label="Notas" error={errores.notes}><Textarea rows={2} value={notas} onChange={(e) => setNotas(e.target.value)} maxLength={500} /></Field></div>
       </div>

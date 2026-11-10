@@ -27,7 +27,7 @@ final class RecepcionService
         self::puede($quien);
 
         return DB::transaction(function () use ($d, $quien) {
-            $w = InventarioService::almacen($d['warehouse_id'] ?? null);
+            $w = InventarioService::almacen($d['warehouse_id'] ?? null, $quien);
             if (! in_array($d['source_type'] ?? '', self::ORIGENES, true)) {
                 RuleError::fail('RN-ALM-05', 'Elige el origen de la recepción.');
             }
@@ -81,7 +81,7 @@ final class RecepcionService
                     RuleError::fail($e[0], $e[1]);
                 }
             }
-            $w = InventarioService::almacen($rc->warehouse_id);
+            $w = InventarioService::almacen($rc->warehouse_id, $quien);
             $origen = ['FARM' => 'FARM', 'CUSTOMER_RETURN' => 'RETURN', 'PRODUCTION' => 'PRODUCTION'][$rc->source_type] ?? 'PURCHASE';
             $lotes = [];
             $aceptadas = 0;

@@ -19,7 +19,7 @@ final class ConteosService
     public static function crear(array $d, User $quien): object
     {
         return DB::transaction(function () use ($d, $quien) {
-            $w = InventarioService::almacen($d['warehouse_id'] ?? null);
+            $w = InventarioService::almacen($d['warehouse_id'] ?? null, $quien);
             $saldos = DB::table('stock_balances')->where('warehouse_id', $w->id)->where('qty', '>', S::EPS)
                 ->when(! empty($d['variant_ids']), fn ($q) => $q->whereIn('variant_id', $d['variant_ids']))->orderBy('variant_id')->orderBy('lot_id')->get();
             if ($saldos->isEmpty()) {

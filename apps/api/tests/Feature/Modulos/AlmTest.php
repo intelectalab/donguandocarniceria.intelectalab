@@ -20,7 +20,10 @@ use Tests\TestCase;
  */
 class AlmTest extends TestCase
 {
-    private const ALMACENERO = 'irojas@donguando.pe';
+    /** Almacenero del Local 1 (las pruebas mueven almacenes de L1). irojas es el almacenero de L2. */
+    private const ALMACENERO = 'mtorres@donguando.pe';
+
+    private const ALMACENERO_L2 = 'irojas@donguando.pe';
 
     private const ADMIN = 'chuaman@donguando.pe';
 
@@ -208,7 +211,10 @@ class AlmTest extends TestCase
 
         $this->assertSame([$tr['number']], array_column($api->getJson('/api/v1/alm/transferencias?status=DISPATCHED&q='.$tr['number'])->json('data'), 'number'));
         $linea = $api->getJson("/api/v1/alm/transferencias/{$tr['id']}")->json('lines.0.id');
+        // Recibe el almacenero del local de destino; el de L1 no tiene alcance sobre CAM-L2.
         $api->postJson("/api/v1/alm/transferencias/{$tr['id']}/recibir", ['lines' => [['line_id' => $linea, 'received_qty' => 20]]])
+            ->assertStatus(422)->assertJsonPath('code', 'RN-ALM-01');
+        $this->como(self::ALMACENERO_L2)->postJson("/api/v1/alm/transferencias/{$tr['id']}/recibir", ['lines' => [['line_id' => $linea, 'received_qty' => 20]]])
             ->assertOk()->assertJsonPath('status', 'RECEIVED');
         $this->assertEquals(20, $this->saldo('CAM-L2', 'M3-CHO-1K', $lot)->qty);
         $this->assertEquals(0, $this->saldo('TRA', 'M3-CHO-1K', $lot)->qty);
@@ -373,12 +379,13 @@ class AlmTest extends TestCase
         $api->postJson("/api/v1/alm/transferencias/{$tr['id']}/guia", ['guide_number' => 'T001-00000099'])->assertOk();
         $api->postJson("/api/v1/alm/transferencias/{$tr['id']}/despachar")->assertOk();
         $linea = $tr['lines'][0]['id'];
+        $l2 = $this->como(self::ALMACENERO_L2);   // recibe el almacenero del local de destino
 
-        $api->postJson("/api/v1/alm/transferencias/{$tr['id']}/recibir", ['lines' => [['line_id' => $linea, 'received_qty' => 9]]])
+        $l2->postJson("/api/v1/alm/transferencias/{$tr['id']}/recibir", ['lines' => [['line_id' => $linea, 'received_qty' => 9]]])
             ->assertStatus(422)->assertJsonPath('code', 'RN-ALM-11');
-        $api->postJson("/api/v1/alm/transferencias/{$tr['id']}/recibir", ['lines' => [['line_id' => $linea, 'received_qty' => 11, 'difference_reason' => 'Contado de más']]])
+        $l2->postJson("/api/v1/alm/transferencias/{$tr['id']}/recibir", ['lines' => [['line_id' => $linea, 'received_qty' => 11, 'difference_reason' => 'Contado de más']]])
             ->assertStatus(422)->assertJsonPath('code', 'RN-ALM-11');
-        $api->postJson("/api/v1/alm/transferencias/{$tr['id']}/recibir", ['lines' => [['line_id' => $linea, 'received_qty' => 9, 'difference_reason' => 'Paquete roto en el viaje']]])
+        $l2->postJson("/api/v1/alm/transferencias/{$tr['id']}/recibir", ['lines' => [['line_id' => $linea, 'received_qty' => 9, 'difference_reason' => 'Paquete roto en el viaje']]])
             ->assertOk()->assertJsonPath('status', 'RECEIVED_WITH_DIFF');
 
         $this->assertEquals(9, $this->saldo('CAM-L2', 'M3-CHO-1K', $lot)->qty);
@@ -421,9 +428,9 @@ class AlmTest extends TestCase
         $siete = $this->lote('DG-CUY-ENT', 'L-CUY-D7', now()->addDays(6)->toDateString());
         $lejos = $this->lote('DG-CUY-ENT', 'L-CUY-D30', now()->addDays(30)->toDateString());
         foreach ([$tres, $siete, $lejos] as $l) {
-            $this->entrada('CAM-L2', 'DG-CUY-ENT', $l, 2, 25);   // el almacenero de demo ve solo el Local 2
+            $this->entrada('CAM-L2', 'DG-CUY-ENT', $l, 2, 25);   // el almacenero del Local 2 ve solo su local
         }
-        $api = $this->como(self::ALMACENERO);
+        $api = $this->como(self::ALMACENERO_L2);
         $filas = collect($api->getJson('/api/v1/alm/alertas')->assertOk()->json('data'))->keyBy('lot_code');
         $this->assertSame('D3', $filas['L-CUY-D3']['bucket']);
         $this->assertSame('D7', $filas['L-CUY-D7']['bucket']);
@@ -478,6 +485,28 @@ class AlmTest extends TestCase
         $u = $this->usuario('hsalas@carnesselectas.pe', self::CS);
         $this->falla('RN-ALM-01', fn () => InventarioService::mover(['type' => 'RECEIPT', 'warehouse_id' => $whDg,
             'variant_id' => DB::table('product_variants')->value('id'), 'qty' => 1, 'source_type' => 'TEST', 'reason' => 'x'], $u));
+    }
+
+    public function test_el_alcance_por_local_tambien_limita_las_escrituras(): void
+    {
+        $lot = $this->lote('DG-CUY-ENT', 'L-CUY-ALC', now()->addDays(6)->toDateString());
+        $this->entrada('CAM-L1', 'DG-CUY-ENT', $lot, 5);
+        $this->usuario();
+        $merma = ['warehouse_id' => $this->almacen('CAM-L1'), 'variant_id' => $this->variante('DG-CUY-ENT')->id, 'lot_id' => $lot,
+            'reason_id' => DB::table('waste_reasons')->where('code', 'CORT')->value('id'), 'qty' => 1];
+        $l2 = $this->como(self::ALMACENERO_L2);
+
+        // El almacenero de L2 ve la lista filtrada, pero tampoco puede escribir sobre un almacén de L1 aunque conozca su id.
+        $l2->postJson('/api/v1/alm/mermas', $merma)->assertStatus(422)->assertJsonPath('code', 'RN-ALM-01');
+        $l2->postJson('/api/v1/alm/conteos', ['warehouse_id' => $this->almacen('CAM-L1')])->assertStatus(422)->assertJsonPath('code', 'RN-ALM-01');
+        $l2->postJson('/api/v1/alm/transferencias', ['from_warehouse_id' => $this->almacen('CAM-L1'), 'to_warehouse_id' => $this->almacen('CAM-L2'),
+            'lines' => [['variant_id' => $merma['variant_id'], 'lot_id' => $lot, 'qty' => 1]]])->assertStatus(422)->assertJsonPath('code', 'RN-ALM-01');
+        $this->falla('RN-ALM-01', fn () => InventarioService::mover(['type' => 'WASTE', 'warehouse_id' => $this->almacen('CAM-L1'), 'variant_id' => $merma['variant_id'],
+            'lot_id' => $lot, 'qty' => 1, 'source_type' => 'TEST', 'reason' => 'x', 'allow_unreleased' => true], $this->usuario(self::ALMACENERO_L2)));
+
+        // El almacenero de L1 sí puede, y quien no tiene alcance limitado (gerente) también.
+        $this->como(self::ALMACENERO)->postJson('/api/v1/alm/mermas', $merma)->assertCreated();
+        $this->como(self::GERENTE)->postJson('/api/v1/alm/mermas', $merma)->assertCreated();
     }
 
     public function test_los_costos_solo_se_ven_con_permiso(): void

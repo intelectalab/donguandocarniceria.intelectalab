@@ -207,6 +207,32 @@ ALM-06. Flujo: `QUARANTINE → RELEASED | BLOCKED | REJECTED`; `RELEASED → BLO
 | `stock.expiring` | Alerta diaria de vencimiento (RN-ALM-15) | `date`, `d3`, `d7`, `expired`, `value_pen` |
 | `stock.low` | Mejora posterior (stock mínimo) | `variant_id`, `warehouse_id`, `available_qty`, `min_qty` |
 
+### Permisos y alcance de ALM
+
+Las rutas de escritura exigen el módulo con la acción (`modulo:ALM,C` o `,E`) y, cuando la spec lo nombra, el permiso. Donde el permiso depende del estado o del dato, lo valida el servicio y responde 422 con el código de la regla.
+
+| Acción | Permiso | Dónde se valida |
+|---|---|---|
+| Crear o editar almacenes (ALM-01) | `alm.warehouse.manage` | ruta |
+| Recepciones: crear, editar, confirmar, anular (ALM-04) | `alm.receipt.create` | ruta y `RecepcionService` |
+| Liberar un lote (ALM-06) | `alm.lot.release` | `LotesService` |
+| Bloquear, rechazar o retirar un lote (ALM-06) | `alm.lot.block` + motivo | `LotesService` |
+| Transferencias: crear, guía, despachar, cancelar (ALM-07) | `alm.transfer.create` | ruta y `TransferenciasService` |
+| Recibir una transferencia (ALM-07) | `alm.transfer.receive` | ruta y `TransferenciasService` |
+| Conteos: abrir, contar, cerrar, cancelar (ALM-08) | edición del módulo | ruta |
+| Aprobar un conteo y ajustar (ALM-08) | `alm.count.approve`, distinto de quien contó | ruta y `ConteosService` |
+| **Reversar un movimiento del kardex (ALM-03)** | `alm.count.approve` | ruta. Decisión de ALM: un reverso es un ajuste del kardex y la spec no le asigna permiso propio; lo aprueba quien aprueba ajustes |
+| Registrar una merma (ALM-09) | creación del módulo (+ foto si el motivo la exige) | ruta y `MermasService` |
+| Aprobar o rechazar una merma (ALM-09) | distinto de quien la pidió; sobre el umbral del motivo, `alm.waste.approve` | `MermasService` |
+| Motivos de merma (ALM-13) | `alm.waste.approve` | ruta |
+| Liberar una reserva a mano (ALM-10) | `alm.reservation.release` + motivo | ruta y `ReservasService` |
+| **Generar las alertas de vencimiento a mano (ALM-11)** | edición del módulo | ruta. Solo inserta alertas del día (no duplica) y avisa; no mueve stock, por eso no pide permiso propio |
+| Ver costos en stock, kardex y KPI | `alm.stock.view_cost` | controladores: sin él, los campos de costo van vacíos |
+
+**Alcance por local y marca** (`user_scopes`; sin filas = todo): limita las listas **y las escrituras**. `InventarioService::almacen($id, $quien)` rechaza con `RN-ALM-01` un almacén de un local al que el usuario no tiene alcance, y por ahí pasan `mover`, `trasladar`, recepciones, conteos, mermas y el origen de una transferencia (el destino puede ser de otro local: para eso es la transferencia). El almacén de tránsito, que no tiene local, lo usa cualquiera. RLS separa empresas; el alcance separa locales dentro de la empresa.
+
+**Foto de merma:** PNG, JPG o WEBP de hasta 1 MB (la misma regla que los logos, `App\Support\Logos`), en el disco privado `local` dentro de la carpeta del cliente; se sirve con sesión y `nosniff`.
+
 ### Pendientes del contrato
 - **PED:** llamará a `reservar` al confirmar (si `reservaAlConfirmar`), a `liberar` al cancelar y a `devolver` si el pedido ya había salido. Hoy `stock_reservations.order_id` y `order_line_id` tienen FK a `sales_orders` y `sales_order_lines`: las líneas son genéricas en la firma, pero deben existir en esas tablas.
 - **FAC:** implementa `EmisorGuiaRemision`.

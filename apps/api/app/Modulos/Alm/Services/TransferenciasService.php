@@ -23,7 +23,8 @@ final class TransferenciasService
         self::permiso($quien, 'alm.transfer.create');
 
         return DB::transaction(function () use ($t, $quien) {
-            $de = InventarioService::almacen($t['from_warehouse_id'] ?? null);
+            // El origen debe ser de un local del usuario; el destino puede ser de otro local (para eso es la transferencia).
+            $de = InventarioService::almacen($t['from_warehouse_id'] ?? null, $quien);
             $a = InventarioService::almacen($t['to_warehouse_id'] ?? null);
             if ($de->id === $a->id) {
                 RuleError::fail('RN-ALM-10', 'Elige un almacén de origen y otro de destino.');

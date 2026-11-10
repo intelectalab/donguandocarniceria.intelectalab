@@ -43,8 +43,9 @@ class MermaController extends Controller
         $d = $r->validate([
             'warehouse_id' => 'required|uuid', 'variant_id' => 'required|uuid', 'lot_id' => 'nullable|uuid', 'reason_id' => 'required|uuid',
             'qty' => 'required|numeric|gt:0', 'weight_kg' => 'nullable|numeric|min:0', 'notes' => 'nullable|string|max:500',
-            'photo' => 'nullable|file|image|max:8192',
-        ]);
+            // Misma regla que los logos (App\Support\Logos): PNG, JPG o WEBP de hasta 1 MB, sin SVG.
+            'photo' => ['nullable', 'file', 'max:1024', 'mimes:png,jpg,jpeg,webp'],
+        ], ['photo.max' => 'La foto no puede pesar más de 1 MB.', 'photo.mimes' => 'La foto debe ser PNG, JPG o WEBP.']);
         if ($r->hasFile('photo')) {
             $d['photo_url'] = $r->file('photo')->store('alm/mermas/'.$r->attributes->get('tenant_id'), 'local');
         }
@@ -58,7 +59,7 @@ class MermaController extends Controller
         $ruta = DB::table('stock_waste_records')->where('id', $id)->value('photo_url');
         abort_unless($ruta && Storage::disk('local')->exists($ruta), 404);
 
-        return response()->file(Storage::disk('local')->path($ruta), ['Cache-Control' => 'private, max-age=3600']);
+        return response()->file(Storage::disk('local')->path($ruta), ['Cache-Control' => 'private, max-age=3600', 'X-Content-Type-Options' => 'nosniff']);
     }
 
     public function aprobar(Request $r, string $id)

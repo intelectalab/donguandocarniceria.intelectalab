@@ -5,6 +5,7 @@ namespace App\Modulos\Alm\Services;
 use App\Models\User;
 use App\Modulos\Alm\Services\Soporte as S;
 use App\Modulos\Plt\Services\Periodos;
+use App\Support\Access;
 use App\Support\Events;
 use App\Support\Params;
 use App\Support\RuleError;
@@ -43,7 +44,7 @@ final class InventarioService
                 RuleError::fail('RN-ALM-01', "Tipo de movimiento no válido: {$tipo}.");
             }
             $v = self::variante($m['variant_id'] ?? null);
-            $w = self::almacen($m['warehouse_id'] ?? null);
+            $w = self::almacen($m['warehouse_id'] ?? null, $quien);
             $cuando = isset($m['moved_at']) ? CarbonImmutable::parse($m['moved_at'])->setTimezone('America/Lima') : S::ahora();
             self::periodoAbierto($cuando, $w->company_id ?? ($m['company_id'] ?? null));
             if (trim((string) ($m['reason'] ?? '')) === '') {
@@ -172,8 +173,8 @@ final class InventarioService
     public static function trasladar(array $t, User $quien, bool $permitirNoLiberado = false): array
     {
         return DB::transaction(function () use ($t, $quien, $permitirNoLiberado) {
-            $de = self::almacen($t['from_warehouse_id'] ?? null);
-            $a = self::almacen($t['to_warehouse_id'] ?? null);
+            $de = self::almacen($t['from_warehouse_id'] ?? null, $quien);
+            $a = self::almacen($t['to_warehouse_id'] ?? null, $quien);
             if ($de->id === $a->id) {
                 RuleError::fail('RN-ALM-10', 'Elige un almacén de destino distinto del de origen.');
             }
@@ -368,7 +369,12 @@ final class InventarioService
         return $v ?? RuleError::fail('RN-ALM-01', 'Producto no encontrado.');
     }
 
-    public static function almacen(?string $id): object
+    /**
+     * Almacén activo. Con $quien, además se exige que el usuario tenga alcance sobre el local del
+     * almacén (user_scopes; sin filas = todos): el alcance limita las escrituras, no solo las listas.
+     * Un almacén sin local (tránsito) lo puede usar cualquiera.
+     */
+    public static function almacen(?string $id, ?User $quien = null): object
     {
         $w = $id ? DB::table('warehouses as w')->leftJoin('establishments as e', 'e.id', '=', 'w.establishment_id')->where('w.id', $id)
             ->first(['w.*', 'e.company_id', 'e.name as establishment_name']) : null;
@@ -377,6 +383,12 @@ final class InventarioService
         }
         if ($w->status !== 'ACTIVE') {
             RuleError::fail('RN-ALM-01', "{$w->name} está inactivo.");
+        }
+        if ($quien && $w->establishment_id) {
+            $locales = Access::for($quien)['establishments'];
+            if ($locales && ! in_array($w->establishment_id, $locales, true)) {
+                RuleError::fail('RN-ALM-01', "{$w->name} es del local {$w->establishment_name}: no tienes acceso a ese local.");
+            }
         }
 
         return $w;

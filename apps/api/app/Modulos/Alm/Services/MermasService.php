@@ -23,7 +23,7 @@ final class MermasService
             $motivo = DB::table('waste_reasons')->where('id', $d['reason_id'] ?? null)->where('status', 'ACTIVE')->first()
                 ?? RuleError::fail('RN-ALM-13', 'Elige el motivo de la merma.');
             $v = InventarioService::variante($d['variant_id'] ?? null);
-            $w = InventarioService::almacen($d['warehouse_id'] ?? null);
+            $w = InventarioService::almacen($d['warehouse_id'] ?? null, $quien);
             if ($v->requires_lot && empty($d['lot_id'])) {
                 RuleError::fail('RN-ALM-08', "{$v->name} se controla por lote: indica el lote.");
             }

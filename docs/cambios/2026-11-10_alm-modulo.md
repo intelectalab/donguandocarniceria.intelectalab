@@ -56,21 +56,27 @@ Sigue a [2026-11-09_alm-contrato-y-base.md](2026-11-09_alm-contrato-y-base.md). 
   - ALM-13: motivos de merma.
 
 ## Pruebas
-- `tests/Feature/Modulos/AlmTest.php` tiene 21 pruebas:
+- `tests/Feature/Modulos/AlmTest.php` tiene 22 pruebas:
   - CA-ALM-01 a CA-ALM-08.
   - RN-ALM-03, 04, 07, 08, 11, 13, 15 y 16.
-  - Reverso, aislamiento entre empresas, costos con permiso, liberación a mano y las pantallas con los datos de demo.
-- `php artisan test --testsuite=Feature`: **154 pruebas en verde**. `php artisan test` sin suite sigue fallando porque falta `tests/Unit`; no es de ALM.
+  - Reverso, aislamiento entre empresas, alcance por local en escrituras, costos con permiso, liberación a mano y las pantallas con los datos de demo.
+- `php artisan test --testsuite=Feature`: **155 pruebas en verde**. `php artisan test` sin suite sigue fallando porque falta `tests/Unit`; no es de ALM.
 - `npm run typecheck` y `npm run lint` limpios.
 
 ## Decisiones para revisar
 - **Merma bajo el umbral:** tampoco la aprueba quien la pidió. Sigue la regla del repositorio («quien pide no aprueba la merma»), que es más estricta que la spec, donde bajo el umbral se aprobaba sola.
-- **Reverso del kardex:** pide `alm.count.approve`, el mismo permiso que aprueba ajustes. La spec no dice qué permiso.
-- **Alcance por local:** limita las listas, no las escrituras. Un usuario de L2 que conoce el id de un almacén de L1 podría moverlo. RLS solo separa empresas. Si se quiere, se agrega la revisión en los servicios.
+- **Reverso del kardex:** pide `alm.count.approve`, el mismo permiso que aprueba ajustes. La spec no dice qué permiso; la decisión quedó escrita en la tabla «Permisos y alcance de ALM» de `docs/contratos.md`, junto con la de generar alertas a mano (edición del módulo).
+- **Alcance por local:** ahora limita también las escrituras (ver «Ajustes tras la revisión»).
 - **ADMIN_SISTEMA** no tiene acceso al módulo ALM en la matriz de PLT. No lo cambié.
 - **Archivos compartidos tocados:** `routes/console.php` (una línea del horario), `DatabaseSeeder.php` (una línea) y `app/Console/Commands/AlmAlertasVencimiento.php` (nuevo).
 - **Reservas sin PED:** `stock_reservations` tiene FK a `sales_orders` y `sales_order_lines`, así que hoy solo se reserva sobre los pedidos de demo. PED llamará a `ReservasService::reservar` con sus líneas.
 - **Liberar lotes:** lo hace quien tenga `alm.lot.release` (hoy, el almacenero). Pasa a CALIDAD cuando exista CAL.
+
+## Ajustes tras la revisión de PLT
+- **Alcance por local en escrituras.** `InventarioService::almacen()` recibe al usuario y rechaza con `RN-ALM-01` un almacén de un local fuera de su alcance. Lo llaman con el usuario `mover`, `trasladar`, `RecepcionService` (crear y confirmar), `ConteosService::crear`, `MermasService::registrar` y el origen en `TransferenciasService::crear`. El destino de una transferencia y el almacén de tránsito no se restringen. Como toda salida y entrada pasa por `mover`, aprobar una merma, un conteo o recibir una transferencia de otro local también se rechaza.
+  - En las pruebas, el almacenero pasa a ser `mtorres@donguando.pe` (Local 1): `irojas@donguando.pe` es el almacenero del Local 2 y las pruebas mueven almacenes del Local 1. Prueba nueva: `test_el_alcance_por_local_tambien_limita_las_escrituras`.
+- **Foto de merma:** misma regla que los logos (PNG, JPG o WEBP, máximo 1 MB, sin SVG) y `X-Content-Type-Options: nosniff` al servirla. En ALM-09 el campo acepta solo esos tipos y lo dice en la ayuda. Si en el celular las fotos superan 1 MB, se puede subir el límite o reducir la imagen antes de enviarla; se decide con la primera prueba en campo.
+- **Permisos de reverso y de generar alertas:** documentados en `docs/contratos.md` («Permisos y alcance de ALM»).
 
 ## Después (mejoras acordadas, no hechas)
 - Stock mínimo con sugerencia de compra en ALM-02.
