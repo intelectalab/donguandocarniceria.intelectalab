@@ -23,7 +23,7 @@ final class Bitacora
         'SESSION_REVOKED' => 'Sesión cerrada', 'SESSION_EXPIRED' => 'Sesión vencida', 'USER_INVITED' => 'Usuario invitado', 'USER_UPDATED' => 'Rol o alcance cambiado',
         'USER_DEACTIVATED' => 'Usuario desactivado', 'USER_REACTIVATED' => 'Usuario reactivado', 'MFA_RESET' => 'Segundo factor reiniciado',
         'MFA_OK' => 'Segundo factor correcto', 'MFA_FAILED' => 'Segundo factor fallido', 'PASSWORD_RESET' => 'Contraseña restablecida',
-        'PASSWORD_RESET_REQUESTED' => 'Pidió restablecer contraseña', 'PASSWORD_CHANGED' => 'Contraseña cambiada',
+        'PASSWORD_RESET_REQUESTED' => 'Pidió restablecer contraseña', 'PASSWORD_CHANGED' => 'Contraseña cambiada', 'PROFILE_UPDATED' => 'Preferencias cambiadas',
         'PERMISSION_DENIED' => 'Permiso denegado', 'MODULE_DISABLED' => 'Módulo apagado', 'DEVICE_PENDING' => 'Celular por aprobar',
         'ROLE_CHANGED' => 'Rol o permisos cambiados', 'EXPORT_DOWNLOADED' => 'Exportó un reporte', 'DEVICE_APPROVED' => 'Dispositivo aprobado', 'DEVICE_REVOKED' => 'Dispositivo revocado', 'LOGIN_DENIED_DEVICE' => 'Celular no aprobado',
     ];

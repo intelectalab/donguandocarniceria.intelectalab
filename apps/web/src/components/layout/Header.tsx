@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChevronDown, Home, KeyRound, LogOut, Menu, Moon, RotateCcw, Sun, User as UserIcon } from "lucide-react";
 import GlobalSearch, { type SearchScreen } from "./GlobalSearch";
 import ChangePasswordModal from "./ChangePasswordModal";
+import { api } from "@/lib/api";
 import NotificationBell from "./NotificationBell";
 import { iniciales } from "@/lib/empresa";
 
@@ -61,6 +62,8 @@ export default function Header({ open, currentSection, crumbs = [], onToggle, us
     try {
       localStorage.setItem("aycha-tema", nuevo);
     } catch {}
+    // También en la cuenta (SEG-06), para que el modo siga a la persona en otros equipos.
+    api("/v1/seg/mi-cuenta/preferencias", { method: "PUT", body: { ui_theme_mode: nuevo === "dark" ? "DARK" : "LIGHT" } }).catch(() => {});
   }
 
   const menuItem = "flex w-full cursor-pointer items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-ink transition-colors hover:bg-surface-2";

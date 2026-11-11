@@ -4,11 +4,12 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { api } from "./api";
 
 import type { TemaMarca } from "./temaMarca";
+import { aplicarModo } from "./modoColor";
 
 export type Accion = "C" | "L" | "E" | "A";
 
 export type Me = {
-  user: { id: string; name: string; email: string; role: string; default_brand_id: string | null; must_change_password: boolean };
+  user: { id: string; name: string; email: string; role: string; default_brand_id: string | null; ui_theme_mode?: string | null; must_change_password: boolean };
   tenant: { id: string; name: string; short: string; plan: string; logo_url?: string | null };
   roles: string[];
   permissions: string[];
@@ -63,7 +64,16 @@ export function SesionProvider({ children }: { children: ReactNode }) {
   const recargar = useCallback(async () => {
     try {
       setError(null);
-      setMe(await api<Me>("/v1/me"));
+      const datos = await api<Me>("/v1/me");
+      setMe(datos);
+      // Preferencias de Mi cuenta (SEG-06): el modo de color guardado y, si en este navegador no se
+      // eligió una marca, la marca por defecto.
+      if (datos.user.ui_theme_mode) aplicarModo(datos.user.ui_theme_mode);
+      let elegida: string | null = null;
+      try { elegida = localStorage.getItem("aycha-marca"); } catch {}
+      if (!elegida && datos.user.default_brand_id && datos.brands.some((b) => b.id === datos.user.default_brand_id)) {
+        setMarcaState(datos.user.default_brand_id);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo cargar tu sesión.");
     }

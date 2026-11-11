@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Modulos\Seg\Services\Bitacora;
 use App\Modulos\Seg\Services\Sesiones;
 use App\Support\PasswordPolicy;
 use Illuminate\Http\Request;
@@ -28,6 +29,8 @@ class ProfileController extends Controller
 
         PasswordPolicy::store($user, $data['password']);
         Sesiones::cerrando('REVOKED', 'Contraseña cambiada', fn () => $user->tokens()->where('id', '!=', $user->currentAccessToken()->id)->delete());
+
+        Bitacora::registrar('PASSWORD_CHANGED', ['user' => $user, 'entity' => 'users', 'entity_id' => $user->id]);
 
         return response()->json(['message' => 'Contraseña actualizada.']);
     }
