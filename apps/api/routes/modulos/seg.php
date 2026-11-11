@@ -51,7 +51,8 @@ Route::prefix('seg')->group(function () {
     Route::delete('/mis-sesiones', [SesionController::class, 'cerrarLasDemas'])->middleware('throttle:20,1');
     Route::delete('/mis-sesiones/{tokenId}', [SesionController::class, 'cerrarMia'])->middleware('throttle:20,1')->whereUuid('tokenId');
 
-    // Dispositivos (SEG-09; SEG-13 los reutiliza). El permiso basta: el coordinador de delivery los aprueba sin gestionar SEG.
+    // Dispositivos (SEG-13 y SEG-09). El permiso basta: el coordinador de delivery los aprueba sin gestionar SEG.
+    Route::get('/dispositivos', [DispositivoController::class, 'index']);  // revisa el módulo SEG o seg.device.approve
     Route::post('/dispositivos/{id}/aprobar', [DispositivoController::class, 'aprobar'])->middleware('permiso:seg.device.approve')->whereUuid('id');
     Route::post('/dispositivos/{id}/revocar', [DispositivoController::class, 'revocar'])->middleware('permiso:seg.device.approve')->whereUuid('id');
 });

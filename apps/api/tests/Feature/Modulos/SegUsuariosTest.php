@@ -296,6 +296,8 @@ class SegUsuariosTest extends TestCase
 
         $api = $this->como(self::ADMIN);
         $api->postJson("/api/v1/seg/dispositivos/{$nuevo}/aprobar")->assertOk()->assertJsonPath('status', 'APPROVED');
+        $this->usuario(self::ADMIN);
+        $this->assertTrue(DB::table('notifications')->where('user_id', $repartidor->id)->where('title', 'Celular aprobado')->exists(), 'Se avisa al dueño');
         $api->postJson("/api/v1/seg/dispositivos/{$nuevo}/aprobar")->assertUnprocessable()->assertJsonPath('code', 'RN-SEG-11');
         $api->postJson("/api/v1/seg/dispositivos/{$nuevo}/revocar", ['reason' => 'x'])->assertUnprocessable()->assertJsonValidationErrors(['reason']);
 

@@ -35,6 +35,11 @@ final class Dispositivos
             Bitacora::registrar('DEVICE_APPROVED', ['user' => $quien, 'device_id' => $id, 'entity' => 'users', 'entity_id' => $d->user_id,
                 'detail' => "Aprobó «{$d->name}»".($propia ? ' (propio: única persona con el permiso)' : ''), 'details' => ['self_approval' => $propia]]);
             Events::emit('device.approved', 'user_devices', $id, ['user_id' => $d->user_id, 'by' => $quien->id]);
+            // Aviso a su dueño, como el prototipo.
+            DB::table('notifications')->insert([
+                'user_id' => $d->user_id, 'title' => 'Celular aprobado', 'body' => "«{$d->name}» ya puede iniciar sesión en la app.",
+                'ref' => json_encode(['screen' => 'SEG-07']), 'tone' => 'ok', 'module' => 'SEG', 'at' => now(), 'type' => 'SECURITY', 'in_app' => true,
+            ]);
 
             return self::fila($id);
         });
