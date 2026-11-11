@@ -117,7 +117,7 @@ final class Usuarios
 
         return DB::transaction(function () use ($u, $motivo, $quien) {
             $u->forceFill(['status' => 'LOCKED', 'locked_until' => null, 'lock_reason' => mb_substr(trim($motivo), 0, 80), 'updated_at' => now()])->save();
-            $n = self::cerrarSesionesDe($u);
+            $n = self::cerrarSesionesDe($u, motivo: 'Usuario bloqueado: '.trim($motivo));
             Bitacora::registrar('LOCKED', ['user' => $quien, 'entity' => 'users', 'entity_id' => $u->id, 'detail' => "Bloqueó a {$u->email}: ".trim($motivo), 'details' => ['sessions_closed' => $n]], denegado: true);
             Events::emit('user.locked', 'users', $u->id, ['reason' => trim($motivo), 'by' => $quien->id]);
 
@@ -154,7 +154,7 @@ final class Usuarios
         return DB::transaction(function () use ($u, $motivo, $quien) {
             $u->forceFill(['status' => 'INACTIVE', 'deactivated_at' => now(), 'deactivated_reason' => mb_substr(trim($motivo), 0, 255),
                 'locked_until' => null, 'updated_at' => now()])->save();
-            $n = self::cerrarSesionesDe($u);
+            $n = self::cerrarSesionesDe($u, motivo: 'Usuario desactivado: '.trim($motivo));
             $d = DB::table('user_devices')->where('user_id', $u->id)->whereIn('status', ['APPROVED', 'PENDING'])
                 ->update(['status' => 'REVOKED', 'revoked_at' => now(), 'revoke_reason' => 'Usuario desactivado (RN-SEG-18)', 'updated_at' => now()]);
             Bitacora::registrar('USER_DEACTIVATED', ['user' => $quien, 'entity' => 'users', 'entity_id' => $u->id,
@@ -196,7 +196,7 @@ final class Usuarios
         }
 
         return DB::transaction(function () use ($u, $quien, $tokenId, $actual) {
-            $n = self::cerrarSesionesDe($u, $tokenId, $actual);
+            $n = self::cerrarSesionesDe($u, $tokenId, $actual, "Cerrada por {$quien->name}");
             Bitacora::registrar('SESSION_REVOKED', ['user' => $quien, 'entity' => 'users', 'entity_id' => $u->id,
                 'detail' => ($tokenId ? 'Cerró una sesión de ' : 'Cerró las sesiones de ').$u->email, 'details' => ['sessions_closed' => $n]]);
 
@@ -329,9 +329,9 @@ final class Usuarios
         }
     }
 
-    private static function cerrarSesionesDe(User $u, ?string $tokenId = null, ?string $salvo = null): int
+    private static function cerrarSesionesDe(User $u, ?string $tokenId = null, ?string $salvo = null, string $motivo = 'Sesión cerrada'): int
     {
-        return $u->tokens()->when($tokenId, fn ($q) => $q->where('id', $tokenId))->when($salvo, fn ($q) => $q->where('id', '<>', $salvo))->delete();
+        return Sesiones::cerrando('REVOKED', $motivo, fn () => $u->tokens()->when($tokenId, fn ($q) => $q->where('id', $tokenId))->when($salvo, fn ($q) => $q->where('id', '<>', $salvo))->delete());
     }
 
     private static function codigosDeRoles(User $u): array

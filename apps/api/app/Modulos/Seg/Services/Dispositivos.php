@@ -56,7 +56,7 @@ final class Dispositivos
             DB::table('user_devices')->where('id', $id)->update(['status' => 'REVOKED', 'revoked_at' => now(),
                 'revoke_reason' => mb_substr($motivo, 0, 80), 'updated_at' => now()]);
             // Las sesiones abiertas desde ese dispositivo se cierran en ese momento.
-            $n = DB::table('personal_access_tokens')->where('device_id', $id)->delete();
+            $n = Sesiones::cerrando('REVOKED', "Dispositivo revocado: {$motivo}", fn () => DB::table('personal_access_tokens')->where('device_id', $id)->delete());
             Bitacora::registrar('DEVICE_REVOKED', ['user' => $quien, 'device_id' => $id, 'entity' => 'users', 'entity_id' => $d->user_id,
                 'detail' => "Revocó «{$d->name}»: {$motivo}", 'details' => ['sessions_closed' => $n]], denegado: true);
             Events::emit('device.revoked', 'user_devices', $id, ['user_id' => $d->user_id, 'reason' => $motivo, 'by' => $quien->id]);

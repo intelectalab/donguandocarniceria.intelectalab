@@ -9,7 +9,7 @@ import { fecha, fechaHora } from "@/lib/formato";
 import { useSesion } from "@/lib/sesion";
 import { useListado } from "@/lib/useListado";
 import { UsuarioForm } from "@/modulos/seg/UsuarioForm";
-import { ESTADOS_DISPOSITIVO, ESTADOS_USUARIO, PLATAFORMAS, alcanceDe, clienteDe, tonoEvento, type Acceso, type Ficha, type Opciones, type Usuario } from "@/modulos/seg/tipos";
+import { ESTADOS_DISPOSITIVO, ESTADOS_SESION, ESTADOS_USUARIO, PLATAFORMAS, alcanceDe, clienteDe, tonoEvento, type Acceso, type Ficha, type Opciones, type Usuario } from "@/modulos/seg/tipos";
 
 /** SEG-09 Ficha del usuario: roles, alcance, trabajador, estado, acciones de seguridad y su bitácora de accesos. */
 export default function FichaUsuario() {
@@ -72,7 +72,7 @@ function Detalle({ id }: { id: string }) {
 
   const soyYo = u?.id === me.user.id;
   // Sesiones abiertas sin contar la actual: la actual nunca se cierra desde aquí.
-  const otrasAbiertas = u ? u.sessions.filter((s) => s.activa && !s.actual).length : 0;
+  const otrasAbiertas = u ? u.sessions.filter((s) => s.estado === "OPEN" && !s.actual).length : 0;
   const acciones = u && (
     <div className="flex flex-wrap gap-2">
       {u.estado === "LOCKED" && can("seg.user.unlock") && (
@@ -112,19 +112,21 @@ function Detalle({ id }: { id: string }) {
 
   // Mismas columnas que el prototipo: cliente, dispositivo, IP, inicio, última actividad, vence y estado.
   const colSesion: Column<Ficha["sessions"][number]>[] = [
-    { key: "name", header: "Cliente", cardTitle: true, render: (s) => clienteDe(s.name) },
+    { key: "client", header: "Cliente", cardTitle: true, render: (s) => clienteDe(s.client) },
     { key: "device", header: "Dispositivo", render: (s) => s.device ?? <span className="text-muted">Sin dato</span> },
     { key: "ip", header: "IP", render: (s) => s.ip ? <span className="font-mono text-[12.5px]">{s.ip}</span> : <span className="text-muted">—</span> },
     { key: "created_at", header: "Inicio", render: (s) => fechaHora(s.created_at) },
     { key: "last_used_at", header: "Última actividad", render: (s) => s.last_used_at ? fechaHora(s.last_used_at) : <span className="text-muted">—</span> },
     { key: "expires_at", header: "Vence", hideOnMobile: true, render: (s) => s.expires_at ? fechaHora(s.expires_at) : <span className="text-muted">No vence</span> },
-    { key: "activa", header: "Estado", render: (s) => (
-      <span className="flex flex-wrap items-center gap-1.5">
-        {s.activa ? <Badge tone="ok">Abierta</Badge> : <Badge>Vencida</Badge>}
-        {s.actual && <Badge tone="info">Esta sesión</Badge>}
-      </span>
+    { key: "estado", header: "Estado", render: (s) => (
+      <div className="min-w-0">
+        <span className="flex flex-wrap items-center gap-1.5">
+          <StatusBadge status={s.estado} labels={ESTADOS_SESION} />{s.actual && <Badge tone="info">Esta sesión</Badge>}
+        </span>
+        {s.motivo && <p className="mt-0.5 text-[12px] text-muted">{s.motivo}{s.cerrada_en ? ` · ${fechaHora(s.cerrada_en)}` : ""}</p>}
+      </div>
     ) },
-    { key: "acciones", header: "", align: "right", hideInCard: false, render: (s) => s.activa && !s.actual && can("seg.session.revoke") ? (
+    { key: "acciones", header: "", align: "right", hideInCard: false, render: (s) => s.estado === "OPEN" && !s.actual && can("seg.session.revoke") ? (
       <Button size="sm" variant="ghost" loading={ocupado === `s-${s.id}`}
         onClick={() => accion(`s-${s.id}`, `/sesiones/${s.id}`, { titulo: "Cerrar esta sesión", mensaje: "Ese equipo tendrá que iniciar sesión de nuevo.", boton: "Cerrar", metodo: "DELETE" })}>Cerrar</Button>
     ) : null },
@@ -137,7 +139,7 @@ function Detalle({ id }: { id: string }) {
     { key: "platform", header: "Plataforma", render: (d) => PLATAFORMAS[d.platform] ?? d.platform },
     { key: "status", header: "Estado", render: (d) => <StatusBadge status={d.status} labels={ESTADOS_DISPOSITIVO} /> },
     { key: "requested_at", header: "Registrado", hideOnMobile: true, render: (d) => fechaHora(d.requested_at) },
-    { key: "approved_by_name", header: "Aprobó", hideOnMobile: true, render: (d) => d.approved_by_name ? `${d.approved_by_name} · ${fecha(d.approved_at)}` : <span className="text-muted">—</span> },
+    { key: "approved_by_name", header: "Aprobado por", hideOnMobile: true, render: (d) => d.approved_by_name ? `${d.approved_by_name} · ${fecha(d.approved_at)}` : <span className="text-muted">—</span> },
     { key: "revoke_reason", header: "Motivo de revocación", hideOnMobile: true, render: (d) => d.revoke_reason ?? <span className="text-muted">—</span> },
     { key: "last_seen_at", header: "Último uso", render: (d) => fechaHora(d.last_seen_at) },
     { key: "acciones", header: "", align: "right", render: (d) => can("seg.device.approve") && d.status !== "REVOKED" ? (
@@ -189,7 +191,7 @@ function Detalle({ id }: { id: string }) {
 
           <Tabs<Pestana> value={pestana} onChange={setPestana} tabs={[
             { key: "alcance", label: "Rol y alcance" },
-            { key: "sesiones", label: "Sesiones", count: u.sessions.filter((s) => s.activa).length },
+            { key: "sesiones", label: "Sesiones", count: u.sessions.filter((s) => s.estado === "OPEN").length },
             { key: "dispositivos", label: "Dispositivos", count: u.devices.length },
             { key: "bitacora", label: "Bitácora de accesos", count: accesos.tabla.pagination?.total },
           ]} />
@@ -208,7 +210,7 @@ function Detalle({ id }: { id: string }) {
             <div className="space-y-2">
               <DataTable rows={u.sessions} rowKey={(s) => s.id} columns={colSesion} empty="Sin sesiones registradas." />
               {u.sessions.some((s) => !s.ip) && (
-                <p className="text-[12.5px] text-muted">Las sesiones sin dispositivo ni IP se abrieron antes de que el sistema empezara a anotarlos.</p>
+                <p className="text-[12.5px] text-muted">Primero las abiertas y luego las anteriores. Las que no tienen dispositivo ni IP se abrieron antes de que el sistema empezara a anotarlos.</p>
               )}
             </div>
           )}

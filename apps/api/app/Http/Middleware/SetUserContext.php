@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Modulos\Seg\Services\Sesiones;
 use App\Support\TenantContext;
 use Closure;
 use Illuminate\Http\Request;
@@ -15,7 +16,7 @@ class SetUserContext
         $user = $request->user();
 
         if ($user->status !== 'ACTIVE') {
-            $user->currentAccessToken()?->delete();
+            Sesiones::cerrando('REVOKED', 'Usuario no activo', fn () => $user->currentAccessToken()?->delete());
 
             return response()->json(['message' => 'Tu usuario no está activo.', 'code' => 'USER_INACTIVE'], 401);
         }

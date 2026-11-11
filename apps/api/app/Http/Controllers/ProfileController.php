@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Modulos\Seg\Services\Sesiones;
 use App\Support\PasswordPolicy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -26,7 +27,7 @@ class ProfileController extends Controller
         }
 
         PasswordPolicy::store($user, $data['password']);
-        $user->tokens()->where('id', '!=', $user->currentAccessToken()->id)->delete();
+        Sesiones::cerrando('REVOKED', 'Contraseña cambiada', fn () => $user->tokens()->where('id', '!=', $user->currentAccessToken()->id)->delete());
 
         return response()->json(['message' => 'Contraseña actualizada.']);
     }

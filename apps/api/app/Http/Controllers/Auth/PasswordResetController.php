@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Modulos\Seg\Services\Bitacora;
+use App\Modulos\Seg\Services\Sesiones;
 use App\Support\Params;
 use App\Support\PasswordPolicy;
 use App\Support\TenantContext;
@@ -114,7 +115,7 @@ class PasswordResetController extends Controller
             }
             DB::table('password_reset_tokens')->where('id', $token->id)->update(['used_at' => now(), 'updated_at' => now()]);
             // Con la contraseña nueva se cierran las sesiones abiertas en otros equipos.
-            $user->tokens()->delete();
+            Sesiones::cerrando('REVOKED', 'Contraseña restablecida', fn () => $user->tokens()->delete());
             Bitacora::registrar('PASSWORD_RESET', ['user' => $user, 'details' => ['kind' => $token->kind]]);
         });
 

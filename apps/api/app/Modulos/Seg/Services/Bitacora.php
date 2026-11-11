@@ -20,7 +20,7 @@ final class Bitacora
     public const EVENTOS = [
         'LOGIN_OK' => 'Ingreso', 'LOGIN_FAILED' => 'Ingreso fallido', 'LOGIN_BLOCKED' => 'Ingreso con cuenta bloqueada',
         'LOCKED' => 'Cuenta bloqueada', 'UNLOCKED' => 'Cuenta desbloqueada', 'LOGOUT' => 'Cierre de sesión',
-        'SESSION_REVOKED' => 'Sesión cerrada por otro', 'USER_INVITED' => 'Usuario invitado', 'USER_UPDATED' => 'Rol o alcance cambiado',
+        'SESSION_REVOKED' => 'Sesión cerrada', 'SESSION_EXPIRED' => 'Sesión vencida', 'USER_INVITED' => 'Usuario invitado', 'USER_UPDATED' => 'Rol o alcance cambiado',
         'USER_DEACTIVATED' => 'Usuario desactivado', 'USER_REACTIVATED' => 'Usuario reactivado', 'MFA_RESET' => 'Segundo factor reiniciado',
         'MFA_OK' => 'Segundo factor correcto', 'MFA_FAILED' => 'Segundo factor fallido', 'PASSWORD_RESET' => 'Contraseña restablecida',
         'PASSWORD_RESET_REQUESTED' => 'Pidió restablecer contraseña', 'PASSWORD_CHANGED' => 'Contraseña cambiada',

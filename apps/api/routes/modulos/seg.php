@@ -1,7 +1,9 @@
 <?php
 
 use App\Modulos\Seg\Http\Controllers\DispositivoController;
+use App\Modulos\Seg\Http\Controllers\PoliticaController;
 use App\Modulos\Seg\Http\Controllers\RolController;
+use App\Modulos\Seg\Http\Controllers\SesionController;
 use App\Modulos\Seg\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
@@ -34,6 +36,20 @@ Route::prefix('seg')->group(function () {
     Route::delete('/roles/{id}', [RolController::class, 'destroy'])->middleware(['modulo:SEG,E', 'permiso:seg.role.manage'])->whereUuid('id');
     Route::put('/roles/{id}/acceso', [RolController::class, 'acceso'])->middleware(['modulo:SEG,E', 'permiso:seg.role.manage'])->whereUuid('id');
     Route::put('/roles/{id}/permisos', [RolController::class, 'permiso'])->middleware(['modulo:SEG,E', 'permiso:seg.role.manage'])->whereUuid('id');
+
+    // SEG-14 Política de contraseñas y sesiones (los valores se cambian con el editor de parámetros de PLT)
+    Route::get('/politica', [PoliticaController::class, 'index'])->middleware('modulo:SEG');
+    Route::get('/politica/historial', [PoliticaController::class, 'historial'])->middleware('modulo:SEG');
+    Route::post('/politica/probar', [PoliticaController::class, 'probar'])->middleware(['modulo:SEG', 'throttle:30,1']);
+
+    // SEG-15 Sesiones activas de la empresa
+    Route::get('/sesiones', [SesionController::class, 'index'])->middleware(['modulo:SEG', 'permiso:seg.session.view_all']);
+    Route::delete('/sesiones/{tokenId}', [SesionController::class, 'cerrar'])->middleware(['modulo:SEG,E', 'permiso:seg.session.revoke'])->whereUuid('tokenId');
+
+    // SEG-07 Mis sesiones y dispositivos: cada persona las suyas, sin permiso especial ni acceso al módulo.
+    Route::get('/mis-sesiones', [SesionController::class, 'mias']);
+    Route::delete('/mis-sesiones', [SesionController::class, 'cerrarLasDemas'])->middleware('throttle:20,1');
+    Route::delete('/mis-sesiones/{tokenId}', [SesionController::class, 'cerrarMia'])->middleware('throttle:20,1')->whereUuid('tokenId');
 
     // Dispositivos (SEG-09; SEG-13 los reutiliza). El permiso basta: el coordinador de delivery los aprueba sin gestionar SEG.
     Route::post('/dispositivos/{id}/aprobar', [DispositivoController::class, 'aprobar'])->middleware('permiso:seg.device.approve')->whereUuid('id');

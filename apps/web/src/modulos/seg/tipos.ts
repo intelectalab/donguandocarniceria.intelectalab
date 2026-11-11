@@ -41,7 +41,8 @@ export type Ficha = Usuario & {
   role_ids: string[];
   brand_ids: string[];
   establishment_ids: string[];
-  sessions: { id: string; name: string; ip: string | null; device: string | null; created_at: string; last_used_at: string | null; expires_at: string | null; activa: boolean; actual: boolean }[];
+  /** Abiertas primero y luego las anteriores (cerradas o vencidas). */
+  sessions: SesionFila[];
   devices: { id: string; name: string; platform: string; status: string; fingerprint_hint: string; requested_at: string; approved_at: string | null; approved_by_name: string | null; revoked_at: string | null; revoke_reason: string | null; last_seen_at: string }[];
 };
 
@@ -133,3 +134,33 @@ export function enOrdenDelMenu<T extends { code: string }>(lista: T[]): T[] {
 
 /** Nombre corto del módulo («Seguridad»), del catálogo de la web. */
 export const nombreModulo = (code: string, porDefecto = code) => MODULOS.find((m) => m.code === code)?.name ?? porDefecto;
+
+/* ------------------------------------------------------------ sesiones (SEG-07, SEG-15) */
+
+export type PoliticaSesiones = { max_sesiones: number; inactividad_minutos: number; duracion_horas: number; movil_dias: number };
+
+export type SesionEmpresa = {
+  id: string; user_id: string; user_name: string; email: string; role: string; client: string; ip: string | null; device: string | null;
+  created_at: string; last_used_at: string; expires_at: string | null; actual: boolean;
+  /** Sesiones abiertas de ese usuario (para «Todas del usuario»). */
+  sesiones_usuario: number;
+};
+
+/** Una sesión abierta o anterior (SEG-07, SEG-09). estado: OPEN, EXPIRED (vencida) o REVOKED (cerrada). */
+export type SesionFila = {
+  id: string; client: string; ip: string | null; device: string | null; created_at: string; last_used_at: string | null; expires_at: string | null;
+  estado: "OPEN" | "EXPIRED" | "REVOKED"; motivo: string | null; cerrada_en: string | null; actual: boolean;
+};
+
+export type MiSesion = SesionFila;
+
+export const ESTADOS_SESION: Record<string, [string, Tone]> = { OPEN: ["Abierta", "ok"], EXPIRED: ["Vencida", "warn"], REVOKED: ["Cerrada", "neutral"] };
+
+export type MiDispositivo = {
+  id: string; name: string; platform: string; status: string; requested_at: string; approved_at: string | null; approved_by_name: string | null;
+  revoke_reason: string | null; last_seen_at: string;
+};
+
+/** La política de sesiones en una frase, para las pantallas. */
+export const textoPolitica = (p: PoliticaSesiones) =>
+  `Máximo ${p.max_sesiones} sesiones a la vez: al abrir otra se cierra la de uso más antiguo. La web se cierra tras ${p.inactividad_minutos} minutos sin uso o a las ${p.duracion_horas} horas; la app, tras ${p.movil_dias} días sin uso.`;

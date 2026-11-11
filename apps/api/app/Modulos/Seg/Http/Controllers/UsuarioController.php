@@ -5,10 +5,10 @@ namespace App\Modulos\Seg\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Modulos\Seg\Services\Bitacora;
+use App\Modulos\Seg\Services\Sesiones;
 use App\Modulos\Seg\Services\Usuarios;
 use App\Support\Listado;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -81,9 +81,9 @@ class UsuarioController extends Controller
         $u->establishment_ids = DB::table('user_scopes')->where('user_id', $id)->whereNotNull('establishment_id')->pluck('establishment_id');
         // La sesión con la que se está mirando la ficha se marca como «actual».
         $actual = request()->user()?->currentAccessToken()?->id;
-        $u->sessions = DB::table('personal_access_tokens')->where('tokenable_id', $id)->orderByDesc('last_used_at')->orderByDesc('created_at')
-            ->get(['id', 'name', 'ip', 'device', 'created_at', 'last_used_at', 'expires_at'])
-            ->map(fn ($s) => (array) $s + ['activa' => $s->expires_at === null || Carbon::parse($s->expires_at)->isFuture(), 'actual' => $s->id === $actual]);
+        // Abiertas (sin vencer por fecha ni por inactividad, RN-SEG-09) y anteriores (archivadas al cerrarse o vencer).
+        $ses = Sesiones::delUsuario($id, $actual, 30);
+        $u->sessions = $ses['abiertas']->concat($ses['anteriores'])->values();
         $u->devices = DB::table('user_devices as d')->leftJoin('users as a', 'a.id', '=', 'd.approved_by')->where('d.user_id', $id)->orderByDesc('d.last_seen_at')
             ->get(['d.id', 'd.name', 'd.platform', 'd.status', 'd.fingerprint_hint', 'd.requested_at', 'd.approved_at', 'a.name as approved_by_name',
                 'd.revoked_at', 'd.revoke_reason', 'd.last_seen_at']);
@@ -192,7 +192,8 @@ class UsuarioController extends Controller
                 (select bool_and(r.scope_mode = \'ASSIGNED\') from user_roles ur join roles r on r.id = ur.role_id where ur.user_id = u.id) as alcance_asignado,
                 (select string_agg(b.name, \', \' order by b.sort_order) from user_scopes s join brands b on b.id = s.brand_id where s.user_id = u.id) as scope_brands,
                 (select string_agg(es.short, \', \' order by es.code) from user_scopes s join establishments es on es.id = s.establishment_id where s.user_id = u.id) as scope_sites,
-                (select count(*) from personal_access_tokens t where t.tokenable_id = u.id and (t.expires_at is null or t.expires_at > now())) as sesiones');
+                coalesce(ses.n, 0) as sesiones')
+            ->leftJoinSub(Sesiones::vigentes(DB::table('personal_access_tokens'))->selectRaw('tokenable_id, count(*) n')->groupBy('tokenable_id'), 'ses', 'ses.tokenable_id', '=', 'u.id');
     }
 
     private function datos(Request $request, bool $nuevo = true): array

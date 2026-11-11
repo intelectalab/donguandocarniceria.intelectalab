@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Modulos\Seg\Services\Bitacora;
+use App\Modulos\Seg\Services\Sesiones;
 use App\Support\Events;
 use App\Support\Params;
 use App\Support\TenantContext;
@@ -74,11 +75,14 @@ class AuthController extends Controller
         $user->forceFill(['failed_logins' => 0, 'locked_until' => null, 'last_login' => now()])->save();
         TenantContext::setUser($user->id);
 
-        $hours = ($data['remember'] ?? false) ? 24 * 30 : 12;
-        $token = $user->createToken('web', ['*'], now()->addHours($hours));
+        // RN-SEG-09: la sesión web dura como máximo seg_session_max_hours, también con «Recordarme»
+        // (que solo guarda la sesión en el navegador al cerrarlo).
+        $token = $user->createToken('web', ['*'], Sesiones::vence('web'));
         // IP y dispositivo de la sesión, para SEG-07, SEG-09 y SEG-15.
         $token->accessToken->forceFill(['ip' => mb_substr((string) $request->ip(), 0, 40), 'device' => Bitacora::dispositivo((string) $request->userAgent())])->save();
         Bitacora::registrar('LOGIN_OK', ['user' => $user, 'details' => ['remember' => (bool) ($data['remember'] ?? false)]]);
+        // RN-SEG-10: con más sesiones que el máximo se cierran las de uso más antiguo.
+        Sesiones::limitar($user, $token->accessToken->id);
 
         return response()->json([
             'token' => $token->plainTextToken,
@@ -90,7 +94,7 @@ class AuthController extends Controller
     public function logout(Request $request)
     {
         Bitacora::registrar('LOGOUT', ['user' => $request->user()]);
-        $request->user()->currentAccessToken()?->delete();
+        Sesiones::cerrando('REVOKED', 'Cierre de sesión', fn () => $request->user()->currentAccessToken()?->delete());
 
         return response()->noContent();
     }
@@ -106,7 +110,7 @@ class AuthController extends Controller
             $patch = ['failed_logins' => 0, 'last_failed_login_at' => now(), 'locked_until' => now()->addMinutes($minutes),
                 'lock_reason' => "{$fails} intentos fallidos seguidos", 'status' => $user->status === 'ACTIVE' ? 'LOCKED' : $user->status];
             // RN-SEG-18: bloquear cierra sus sesiones al instante.
-            $user->tokens()->delete();
+            Sesiones::cerrando('REVOKED', 'Cuenta bloqueada por intentos fallidos', fn () => $user->tokens()->delete());
             Bitacora::registrar('LOCKED', ['user' => $user, 'details' => ['until' => $patch['locked_until']->toIso8601String(), 'attempts' => $fails]], denegado: true);
             Events::emit('user.locked', 'users', $user->id, ['until' => $patch['locked_until']->toIso8601String()]);
         }
