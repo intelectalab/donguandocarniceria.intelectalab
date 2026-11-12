@@ -59,7 +59,7 @@ class AuthController extends Controller
                 return null;
             }
             if (! $correcta) {
-                $this->registerFailure($user);
+                self::registrarFallo($user);
 
                 return null;
             }
@@ -111,7 +111,8 @@ class AuthController extends Controller
         return response()->noContent();
     }
 
-    private function registerFailure(User $user): void
+    /** Un intento fallido (al ingresar o al cambiar la contraseña): al llegar al máximo bloquea y cierra sus sesiones. */
+    public static function registrarFallo(User $user): void
     {
         $max = (int) (Params::get('seg_max_failed_logins') ?? 5);
         $fails = $user->failed_logins + 1;

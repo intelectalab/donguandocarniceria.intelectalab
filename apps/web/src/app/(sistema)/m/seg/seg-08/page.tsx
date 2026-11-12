@@ -71,7 +71,7 @@ export default function Usuarios() {
         empty="No hay usuarios con esos filtros."
         toolbar={<>
           <Filtro label="Rol" value={rol} onChange={setRol} options={(opciones?.roles ?? []).map((x) => ({ value: x.code, label: x.name }))} />
-          <Filtro label="Local" value={local} onChange={setLocal} options={(opciones?.establishments ?? []).map((x) => ({ value: x.id, label: x.short }))} />
+          <Filtro label="Local" value={local} onChange={setLocal} options={[{ value: "SIN", label: "Todos (sin asignar)" }, ...(opciones?.establishments ?? []).map((x) => ({ value: x.id, label: x.short }))]} />
           <Filtro label="Marca" value={marca} onChange={setMarca} options={(opciones?.brands ?? []).map((x) => ({ value: x.id, label: x.name }))} />
           <Filtro label="Estado" value={estado} onChange={setEstado} options={Object.entries(ESTADOS_USUARIO).map(([value, [label]]) => ({ value, label }))} />
         </>} />

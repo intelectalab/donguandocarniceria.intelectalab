@@ -66,11 +66,9 @@ export default function PoliticaSeguridad() {
       <PageHeader description="Los parámetros de Seguridad con su valor vigente y su historial. Cambiarlos exige el permiso de la política y un motivo; rigen desde el siguiente inicio de sesión o la siguiente petición." />
       {error && <Alert tone="bad">{error}</Alert>}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3">
         <Cifra titulo="Bloqueos del mes" valor={p ? numero(p.mes.bloqueos) : undefined} detalle="Cuentas bloqueadas por intentos" icono={Lock} tono={p?.mes.bloqueos ? "warn" : "ok"} destacada />
         <Cifra titulo="Inicios fallidos" valor={p ? porcentaje(p.mes.tasa_fallidos, 1) : undefined} detalle={p ? `${numero(p.mes.fallidos)} de ${numero(p.mes.intentos)} intentos del mes` : undefined} icono={XCircle} />
-        <Cifra titulo="Largo mínimo" valor={p ? fmt("seg_password_min_length", porClave.get("seg_password_min_length")?.value ?? null) : undefined} detalle="De la contraseña" icono={KeyRound} />
-        <Cifra titulo="Sesiones a la vez" valor={p ? fmt("seg_max_concurrent_sessions", porClave.get("seg_max_concurrent_sessions")?.value ?? null) : undefined} detalle="Por usuario" icono={Timer} />
       </div>
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-2 xl:grid-cols-3">

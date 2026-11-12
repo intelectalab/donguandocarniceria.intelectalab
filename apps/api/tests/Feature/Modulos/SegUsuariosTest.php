@@ -327,4 +327,28 @@ class SegUsuariosTest extends TestCase
         $this->assertGreaterThanOrEqual(1, $r->json('cerradas'));
         $this->desde(self::DG, $token)->getJson('/api/v1/me')->assertUnauthorized();
     }
+
+    public function test_filtro_de_usuarios_sin_local_asignado(): void
+    {
+        $api = $this->como(self::ADMIN);
+        $sin = collect($api->getJson('/api/v1/seg/usuarios?establishment_id=SIN&per_page=100')->assertOk()->json('data'));
+        $this->assertNotEmpty($sin);
+        $this->usuario(self::ADMIN);
+        $conLocal = DB::table('user_scopes')->whereNotNull('establishment_id')->pluck('user_id')->unique();
+        $this->assertTrue($sin->pluck('id')->intersect($conLocal)->isEmpty(), 'Ninguno tiene un local asignado');
+        $api->getJson('/api/v1/seg/usuarios?establishment_id=cualquiera')->assertUnprocessable();
+    }
+
+    public function test_la_bitacora_de_la_ficha_se_filtra_por_evento(): void
+    {
+        $u = $this->usuario(self::VENDEDORA);
+        $this->desde(self::DG)->postJson('/api/v1/auth/login', ['email' => self::VENDEDORA, 'password' => 'mala-clave'])->assertUnprocessable();
+        $this->ingresar(self::DG, self::VENDEDORA);
+
+        $api = $this->como(self::ADMIN);
+        $r = $api->getJson("/api/v1/seg/usuarios/{$u->id}/accesos?event=LOGIN_FAILED")->assertOk();
+        $this->assertSame(['LOGIN_FAILED'], collect($r->json('data'))->pluck('event')->unique()->values()->all());
+        $this->assertContains('LOGIN_OK', collect($r->json('eventos'))->pluck('value')->all(), 'El filtro ofrece los eventos de este usuario');
+        $api->getJson("/api/v1/seg/usuarios/{$u->id}/accesos?event=NO_EXISTE")->assertUnprocessable();
+    }
 }

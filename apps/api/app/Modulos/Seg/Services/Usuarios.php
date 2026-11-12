@@ -32,6 +32,8 @@ final class Usuarios
 {
     public const ADMIN = 'ADMIN_SISTEMA';
 
+    public const GERENTE = 'GERENTE';
+
     /** SOPORTE_PLATAFORMA es de Intelectalab; CLIENTE_B2B es de los usuarios del portal (módulo B2B). */
     public const NO_ASIGNABLES = ['SOPORTE_PLATAFORMA', 'CLIENTE_B2B'];
 
@@ -54,6 +56,9 @@ final class Usuarios
         $roles = self::rolesValidos([$d['role_id']]);
         $d = self::alcanceDelRol($roles, $d);
         self::trabajadorLibre($d['employee_id'] ?? null);
+        if ($roles->contains('code', self::GERENTE)) {
+            self::soloLaGerencia($quien, 'crear un usuario gerente');
+        }
 
         return DB::transaction(function () use ($d, $email, $roles, $quien) {
             $u = new User;
@@ -81,6 +86,17 @@ final class Usuarios
         $roles = self::rolesValidos([$d['role_id']]);
         $d = self::alcanceDelRol($roles, $d);
         self::trabajadorLibre($d['employee_id'] ?? null, $u->id);
+        $antes = self::codigosDeRoles($u);
+        $mismo = fn (array $a, array $b) => collect($a)->sort()->values()->all() === collect($b)->sort()->values()->all();
+        $cambiaAcceso = ! $mismo($antes, $roles->pluck('code')->all())
+            || ! $mismo(self::alcance($u, 'brand_id'), $d['brand_ids'] ?? []) || ! $mismo(self::alcance($u, 'establishment_id'), $d['establishment_ids'] ?? []);
+        // RN-SEG-16: nadie se cambia a sí mismo el rol ni el alcance (solo su nombre o su trabajador).
+        if ($cambiaAcceso && $u->id === $quien->id) {
+            RuleError::fail('RN-SEG-16', 'No puedes cambiar tu propio rol ni tu alcance: pídeselo a otro administrador.');
+        }
+        if ($roles->contains('code', self::GERENTE) !== in_array(self::GERENTE, $antes, true)) {
+            self::soloLaGerencia($quien, in_array(self::GERENTE, $antes, true) ? 'quitar el rol de gerente' : 'dar el rol de gerente');
+        }
         if (! $roles->contains('code', self::ADMIN)) {
             self::noEsElUltimoAdmin($u, 'quitarle el rol de administrador del sistema');
         }
@@ -207,6 +223,9 @@ final class Usuarios
     /** El usuario deberá activar el segundo factor otra vez; sus códigos de recuperación dejan de servir. */
     public static function reiniciarSegundoFactor(User $u, User $quien): User
     {
+        if ($u->id === $quien->id) {
+            RuleError::fail('RN-SEG-16', 'No puedes reiniciar tu propio segundo factor: pídeselo a otro administrador.');
+        }
         if (! $u->twofa_enabled) {
             RuleError::fail('RN-SEG-05', 'El usuario no tiene el segundo factor activo.');
         }
@@ -332,6 +351,14 @@ final class Usuarios
     private static function cerrarSesionesDe(User $u, ?string $tokenId = null, ?string $salvo = null, string $motivo = 'Sesión cerrada'): int
     {
         return Sesiones::cerrando('REVOKED', $motivo, fn () => $u->tokens()->when($tokenId, fn ($q) => $q->where('id', $tokenId))->when($salvo, fn ($q) => $q->where('id', '<>', $salvo))->delete());
+    }
+
+    /** El rol Gerente lo tiene todo: solo otra persona de la gerencia lo da o lo quita. */
+    private static function soloLaGerencia(User $quien, string $accion): void
+    {
+        if (! in_array(self::GERENTE, self::codigosDeRoles($quien), true)) {
+            RuleError::fail('RN-SEG-16', "Solo la gerencia puede {$accion}.");
+        }
     }
 
     private static function codigosDeRoles(User $u): array

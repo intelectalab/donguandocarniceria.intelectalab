@@ -7,7 +7,7 @@ import { MiCuenta } from "@/modulos/seg/MiCuenta";
 export default function PantallaMiCuenta() {
   return (
     <div className="space-y-5">
-      <PageHeader description="Tus datos, contraseña, segundo factor, marca por defecto, modo de color, avisos y sesiones. Todo queda en la bitácora de accesos." />
+      <PageHeader description="Tus datos, contraseña, segundo factor, marca por defecto, modo de color y avisos. Todo queda en la bitácora de accesos." />
       <MiCuenta />
     </div>
   );

@@ -96,7 +96,7 @@ final class Roles
     /** Acceso del rol a un módulo: letras de CLEA ('' = ninguno). Pisa el valor por defecto (*). */
     public static function cambiarAcceso(string $id, string $modulo, string $letras, User $quien): array
     {
-        $r = self::editable($id);
+        $r = self::editable($id, $quien);
         $modulo = strtoupper($modulo);
         if (! DB::table('platform_modules')->where('code', $modulo)->exists()) {
             RuleError::fail('RN-SEG-12', 'Ese módulo no existe.');
@@ -124,7 +124,7 @@ final class Roles
     /** Concede o quita un permiso especial. */
     public static function cambiarPermiso(string $id, string $codigo, bool $conceder, User $quien): array
     {
-        $r = self::editable($id);
+        $r = self::editable($id, $quien);
         $p = DB::table('permissions')->where('code', $codigo)->first() ?? RuleError::fail('RN-SEG-12', 'Ese permiso no existe.');
         if ($p->everyone) {
             RuleError::fail('RN-SEG-12', "El permiso {$codigo} lo tienen todos: no se quita ni se concede por rol.");
@@ -196,9 +196,13 @@ final class Roles
         return DB::table('roles')->where('id', $id)->first() ?? abort(404, 'Rol no encontrado.');
     }
 
-    private static function editable(string $id): object
+    private static function editable(string $id, User $quien): object
     {
         $r = self::fila($id);
+        // Nadie se da más acceso a sí mismo: los permisos del rol propio los cambia otra persona.
+        if (DB::table('user_roles')->where('user_id', $quien->id)->where('role_id', $id)->exists()) {
+            RuleError::fail('RN-SEG-16', 'No puedes cambiar los permisos de tu propio rol: pídeselo a otra persona con el permiso de gestionar roles.');
+        }
         if ($r->code === 'GERENTE') {
             RuleError::fail('RN-SEG-14', 'La gerencia ve todo y tiene todos los permisos por contrato del núcleo.');
         }

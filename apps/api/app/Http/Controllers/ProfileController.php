@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Auth\AuthController;
 use App\Modulos\Seg\Services\Bitacora;
 use App\Modulos\Seg\Services\Sesiones;
 use App\Support\PasswordPolicy;
@@ -20,8 +21,14 @@ class ProfileController extends Controller
         ]);
         $user = $request->user();
 
+        // RN-SEG-04: un fallo aquí cuenta igual que al ingresar; al llegar al máximo se bloquea la cuenta y
+        // se cierran sus sesiones (también esta), así una sesión robada no sirve para adivinar la contraseña.
         if (! Hash::check($data['current_password'], $user->password)) {
-            throw ValidationException::withMessages(['current_password' => ['La contraseña actual no es correcta.']]);
+            AuthController::registrarFallo($user);
+            $bloqueada = $user->fresh()->locked_until?->isFuture();
+            throw ValidationException::withMessages(['current_password' => [$bloqueada
+                ? 'Demasiados intentos: tu cuenta quedó bloqueada y se cerraron tus sesiones.'
+                : 'La contraseña actual no es correcta.']]);
         }
         if ($problema = PasswordPolicy::problem($user, $data['password'])) {
             throw ValidationException::withMessages(['password' => [$problema]]);

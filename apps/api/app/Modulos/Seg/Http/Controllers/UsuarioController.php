@@ -10,6 +10,8 @@ use App\Modulos\Seg\Services\Usuarios;
 use App\Support\Listado;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 /**
  * SEG-08 Usuarios y SEG-09 Ficha del usuario. Los usuarios del portal de clientes (B2B, con
@@ -20,12 +22,21 @@ class UsuarioController extends Controller
 {
     private const ESTADO = "CASE WHEN u.status = 'ACTIVE' AND u.locked_until > now() THEN 'LOCKED' ELSE u.status END";
 
+    public const SIN_LOCAL = 'SIN';
+
     public function index(Request $request)
     {
+        $request->validate([
+            'establishment_id' => ['nullable', 'string', fn ($a, $v, $fail) => $v === self::SIN_LOCAL || Str::isUuid($v) ?: $fail('Elige un local.')],
+            'brand_id' => ['nullable', 'uuid'],
+        ]);
         $q = $this->base()
             ->when($request->query('role'), fn ($x, $v) => $x->whereExists(fn ($s) => $s->from('user_roles as fr')->join('roles as frr', 'frr.id', '=', 'fr.role_id')
                 ->whereColumn('fr.user_id', 'u.id')->where('frr.code', $v)))
-            ->when($request->query('establishment_id'), fn ($x, $v) => $x->whereExists(fn ($s) => $s->from('user_scopes as fs')->whereColumn('fs.user_id', 'u.id')->where('fs.establishment_id', $v)))
+            // Local: uno en particular, o SIN (los que no tienen local asignado: ven todos los locales).
+            ->when($request->query('establishment_id'), fn ($x, $v) => $v === self::SIN_LOCAL
+                ? $x->whereNotExists(fn ($s) => $s->from('user_scopes as fs')->whereColumn('fs.user_id', 'u.id')->whereNotNull('fs.establishment_id'))
+                : $x->whereExists(fn ($s) => $s->from('user_scopes as fs')->whereColumn('fs.user_id', 'u.id')->where('fs.establishment_id', $v)))
             ->when($request->query('brand_id'), fn ($x, $v) => $x->whereExists(fn ($s) => $s->from('user_scopes as fb')->whereColumn('fb.user_id', 'u.id')->where('fb.brand_id', $v)))
             ->when($request->query('status'), fn ($x, $v) => $x->whereRaw(self::ESTADO.' = ?', [$v]));
 
@@ -95,10 +106,14 @@ class UsuarioController extends Controller
     public function accesos(Request $request, string $id)
     {
         $u = User::findOrFail($id);
+        $request->validate(['event' => ['nullable', 'string', Rule::in(array_keys(Bitacora::EVENTOS))]]);
         // Lo que hizo el usuario, lo que intentaron con su correo y lo que otros hicieron sobre su cuenta.
-        $q = DB::table('access_log')->where(fn ($w) => $w->where('user_id', $id)->orWhereRaw('lower(email_attempted) = ?', [mb_strtolower($u->email)])
-            ->orWhere(fn ($x) => $x->where('entity', 'users')->where('entity_id', $id)))
-            ->when($request->query('event'), fn ($x, $v) => $x->where('event', $v))
+        $base = DB::table('access_log')->where(fn ($w) => $w->where('user_id', $id)->orWhereRaw('lower(email_attempted) = ?', [mb_strtolower($u->email)])
+            ->orWhere(fn ($x) => $x->where('entity', 'users')->where('entity_id', $id)));
+        // Para el filtro: los eventos que tiene este usuario, con su nombre.
+        $eventos = (clone $base)->distinct()->orderBy('event')->pluck('event')
+            ->map(fn ($e) => ['value' => $e, 'label' => Bitacora::EVENTOS[$e] ?? $e])->sortBy('label')->values();
+        $q = (clone $base)->when($request->query('event'), fn ($x, $v) => $x->where('event', $v))
             ->select(['id', 'event', 'result', 'ip', 'device', 'user_agent', 'detail', 'details', 'at', 'user_name']);
 
         $pagina = Listado::de($q, $request, buscar: ['detail', 'ip'], ordenar: ['at', 'event'], porDefecto: '-at');
@@ -109,7 +124,7 @@ class UsuarioController extends Controller
             return $f;
         });
 
-        return response()->json($pagina);
+        return response()->json($pagina->toArray() + ['eventos' => $eventos]);
     }
 
     public function store(Request $request)

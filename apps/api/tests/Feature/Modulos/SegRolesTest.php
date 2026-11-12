@@ -150,9 +150,12 @@ class SegRolesTest extends TestCase
         // Pero sus permisos sí se ajustan.
         $api->putJson("/api/v1/seg/roles/{$vendedora}/permisos", ['permission_code' => 'alm.stock.view_cost', 'granted' => true])->assertOk();
 
-        // El administrador conserva lo necesario para administrar.
-        $api->putJson("/api/v1/seg/roles/{$admin}/permisos", ['permission_code' => 'seg.role.manage', 'granted' => false])->assertUnprocessable()->assertJsonPath('code', 'RN-SEG-15');
-        $api->putJson("/api/v1/seg/roles/{$admin}/acceso", ['module_code' => 'SEG', 'actions' => 'L'])->assertUnprocessable()->assertJsonPath('code', 'RN-SEG-15');
+        // El administrador no cambia su propio rol (RN-SEG-16); y, aunque lo cambie otra persona, el rol
+        // conserva lo necesario para administrar (RN-SEG-15).
+        $api->putJson("/api/v1/seg/roles/{$admin}/permisos", ['permission_code' => 'seg.role.manage', 'granted' => false])->assertUnprocessable()->assertJsonPath('code', 'RN-SEG-16');
+        $gerencia = $this->como(self::GERENTE);
+        $gerencia->putJson("/api/v1/seg/roles/{$admin}/permisos", ['permission_code' => 'seg.role.manage', 'granted' => false])->assertUnprocessable()->assertJsonPath('code', 'RN-SEG-15');
+        $gerencia->putJson("/api/v1/seg/roles/{$admin}/acceso", ['module_code' => 'SEG', 'actions' => 'L'])->assertUnprocessable()->assertJsonPath('code', 'RN-SEG-15');
     }
 
     public function test_editar_y_borrar_un_rol_propio(): void

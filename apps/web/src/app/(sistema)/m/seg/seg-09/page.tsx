@@ -37,7 +37,15 @@ function Detalle({ id }: { id: string }) {
   const [dBusca, setDBusca] = useState("");
   const [dEstado, setDEstado] = useState("");
   const [dPlataforma, setDPlataforma] = useState("");
-  const accesos = useListado<Acceso>(`/v1/seg/usuarios/${id}/accesos`, { orden: "-at", porPagina: 15 });
+  const [evento, setEvento] = useState("");
+  const [eventos, setEventos] = useState<{ value: string; label: string }[]>([]);
+  const accesos = useListado<Acceso>(`/v1/seg/usuarios/${id}/accesos`, { orden: "-at", porPagina: 15, filtros: { event: evento } });
+  // Los eventos que tiene este usuario, para el filtro (se piden una vez por usuario).
+  useEffect(() => {
+    let vigente = true;
+    if (id) api<{ eventos: { value: string; label: string }[] }>(`/v1/seg/usuarios/${id}/accesos?per_page=1`).then((r) => vigente && setEventos(r.eventos)).catch(() => {});
+    return () => { vigente = false; };
+  }, [id]);
   const puedeGestionar = can("seg.user.manage");
 
   useEffect(() => {
@@ -226,7 +234,9 @@ function Detalle({ id }: { id: string }) {
               </>} />
           )}
           {pestana === "bitacora" && (
-            <DataTable {...accesos.tabla} columns={colAcceso} search={{ ...accesos.tabla.search, placeholder: "Buscar detalle o IP…" }} empty="Sin accesos registrados." />
+            <DataTable {...accesos.tabla} columns={colAcceso} search={{ ...accesos.tabla.search, placeholder: "Buscar detalle o IP…" }}
+              empty={evento ? "No hay accesos con ese evento." : "Sin accesos registrados."}
+              toolbar={<FiltroLocal label="Evento" value={evento} onChange={setEvento} options={eventos} />} />
           )}
         </>
       )}

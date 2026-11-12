@@ -21,4 +21,22 @@ Se comparó Seguridad con la spec: reglas, criterios de aceptación, indicadores
 ## Sigue pendiente
 - Segundo factor (verificar y activar al ingresar, códigos de recuperación).
 - Ingreso de la app móvil desde un dispositivo aprobado (llega con la app).
-- Que el coordinador de delivery vea Dispositivos desde su menú.
+
+# Segunda revisión (11/11/2026)
+
+## Nadie se da más acceso a sí mismo
+- Nadie cambia su **propio rol ni su alcance**. Sí puede cambiar su nombre o su trabajador (`Usuarios::actualizar`).
+- Nadie cambia los **accesos ni los permisos de su propio rol** (`Roles::editable`). Si otra persona edita el rol de administrador, sigue sin poder dejarlo sin lo necesario para administrar.
+- El rol **Gerente** lo da o lo quita solo la gerencia, también al crear un usuario (`Usuarios::soloLaGerencia`).
+- Nadie reinicia su **propio segundo factor**.
+- Al cambiar la contraseña en Mi cuenta, cada fallo de la contraseña actual **cuenta para el bloqueo**, como al ingresar. Al llegar al máximo se bloquea la cuenta y se cierran sus sesiones, también la actual (`AuthController::registrarFallo`).
+- La base solo acepta **correos en minúsculas** y sin espacios (migración `2026_11_11_000200_seg_correo_en_minusculas`).
+
+## Pantallas
+- Ficha del usuario: la bitácora de accesos se filtra **por evento**. Solo se ofrecen los eventos que tiene ese usuario, y la API rechaza un evento desconocido.
+- Usuarios: el filtro de local tiene «Todos (sin asignar)», para ver quién no tiene local asignado y por eso ve todos. La API valida los filtros de local y marca.
+- Mi cuenta: el texto de arriba ya no menciona las sesiones.
+- Política de contraseñas y sesiones: arriba quedan solo las cifras del prototipo, Bloqueos del mes e Inicios fallidos. Se quitaron «Largo mínimo» y «Sesiones a la vez», que repetían valores de la lista de parámetros.
+
+## Pruebas
+`SegNadieSeDaMasAccesoTest` (6 pruebas), más 2 de filtros en `SegUsuariosTest`. `SegRolesTest` ahora prueba que el rol de administrador lo protege también cuando lo edita la gerencia.
