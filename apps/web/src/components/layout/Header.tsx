@@ -23,13 +23,15 @@ type HeaderProps = {
   screens: SearchScreen[];
   /** Sin sesión todavía: sin buscador, campana ni menú. */
   ready: boolean;
+  /** Módulos del día a día de la persona (los de su menú corto), para las notificaciones importantes. */
+  modulosDelDia?: string[];
 };
 
 // Botón de ícono de la barra: color de la marca, igual en tema claro y oscuro.
 const ICON_BUTTON =
   "relative flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-[10px] text-primary transition-colors hover:bg-primary-soft active:scale-95";
 
-export default function Header({ open, currentSection, crumbs = [], onToggle, user, onLogout, tenantName, screens, ready }: HeaderProps) {
+export default function Header({ open, currentSection, crumbs = [], onToggle, user, onLogout, tenantName, screens, ready, modulosDelDia = [] }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -97,7 +99,7 @@ export default function Header({ open, currentSection, crumbs = [], onToggle, us
           <Sun size={19} className="theme-sun-icon" />
         </button>
 
-        {ready && <NotificationBell className={ICON_BUTTON} />}
+        {ready && <NotificationBell className={ICON_BUTTON} modulosDelDia={modulosDelDia} />}
 
         {ready && (
           <div className="relative" ref={dropdownRef}>

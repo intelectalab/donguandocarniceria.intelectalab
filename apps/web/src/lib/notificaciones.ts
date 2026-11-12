@@ -10,7 +10,8 @@ export type Notificacion = {
   created_at: string;
   link: string | null;
 };
-export type ResumenNotificaciones = { unread: number; latest: Notificacion[] };
+/** unread: todas sin leer; importantes: las importantes para tu puesto sin leer (lo que cuenta la campana). */
+export type ResumenNotificaciones = { unread: number; importantes: number; latest: Notificacion[]; latest_importantes: Notificacion[] };
 
 // Al marcar como leídas en una pantalla, la campana se actualiza sin esperar su próxima consulta.
 const EVENTO = "aycha-notificaciones-cambio";

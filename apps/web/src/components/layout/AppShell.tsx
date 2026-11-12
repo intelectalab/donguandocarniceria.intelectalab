@@ -135,6 +135,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
   // 3 pantallas del día; con menos, siempre el completo. Se recuerda en la cuenta.
   const [eligioCorto, setEligioCorto] = useState<boolean | null>(null);
   const hayCorto = delDia.length >= 3;
+  // Para la campana: los módulos del día a día (con menú corto); sin él, la API usa donde registra o aprueba.
+  const modulosDelDia = useMemo(() => (hayCorto ? [...new Set(delDia.map((p) => p.code.slice(0, 3)))].sort() : []), [hayCorto, delDia]);
   const menuCorto = hayCorto && (eligioCorto ?? sesion?.me.user.menu_corto ?? true);
   async function cambiarMenu(corto: boolean) {
     setEligioCorto(corto);
@@ -217,7 +219,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <Header open={sidebarOpen || mobileOpen} currentSection={currentSection} crumbs={crumbs} onToggle={toggleSidebar}
-          user={user} onLogout={handleLogout} tenantName={tenantName} screens={searchScreens} ready={Boolean(sesion)} />
+          user={user} onLogout={handleLogout} tenantName={tenantName} screens={searchScreens} ready={Boolean(sesion)} modulosDelDia={modulosDelDia} />
 
         <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 md:p-10">
           {error ? (

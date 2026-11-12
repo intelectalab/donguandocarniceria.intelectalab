@@ -30,3 +30,22 @@ Solo las pantallas que la persona ve en su menú. Un módulo apagado, sin acceso
 
 ## Pruebas
 `SegMiCuentaTest::test_las_pantallas_fijadas_del_menu_quedan_en_la_cuenta`: las estrellas y el menú elegido se guardan y se ven desde otra sesión. Se rechazan códigos inválidos, repetidos, más de 40, un valor de menú que no es sí o no, y una petición vacía.
+
+# Campana · notificaciones importantes (11/11/2026)
+
+Del prototipo nuevo: la campana cuenta solo lo importante para tu puesto.
+
+- **Importante:** lo rojo, y lo ámbar de los módulos de tu día a día. Esos son los módulos de tu menú corto o, si tu puesto no tiene menú corto, los módulos donde tu rol registra o aprueba. Lo informativo nunca es importante.
+- **La campana** muestra cuántas importantes tienes sin leer.
+- **El panel** tiene dos pestañas:
+  - **Importantes:** las sin leer primero, lo rojo antes que lo ámbar, agrupadas por módulo. Si no hay ninguna dice «Nada urgente para ti. Revisa «Todas» si quieres ver el resto.».
+  - **Todas:** como antes, de la más nueva a la más antigua.
+
+  El punto de cada notificación sin leer va en rojo o ámbar según su color.
+- No se ocultó ninguna notificación de «Todas». Algunas personales, como «Celular aprobado», son de módulos que esa persona no tiene, y se perderían.
+
+## API
+`GET /me/notifications/summary?dia=CRM,PED` (códigos de módulo, validados) devuelve además `importantes` (cuántas sin leer) y `latest_importantes`. Sin `dia`, usa los módulos donde el rol registra o aprueba.
+
+## Pruebas
+`CuentaTest::test_la_campana_cuenta_solo_las_importantes_para_el_puesto`.

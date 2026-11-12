@@ -14,12 +14,35 @@ use Illuminate\Support\Facades\DB;
  */
 class NotificationController extends Controller
 {
+    /**
+     * La campana. «Importantes» son las rojas y las ámbar de los módulos del día a día de la persona:
+     * los de su menú corto («dia», códigos de módulo que manda la web) o, sin menú corto, los módulos
+     * donde su rol registra o aprueba. La campana cuenta solo las importantes sin leer.
+     */
     public function summary(Request $request)
     {
+        $d = $request->validate(['dia' => ['nullable', 'string', 'max:200', 'regex:/^[A-Z]{3}(,[A-Z]{3})*$/']]);
+        $importante = $this->importante($request, array_values(array_filter(explode(',', $d['dia'] ?? ''))));
+        $rango = "CASE tone WHEN 'bad' THEN 0 WHEN 'warn' THEN 1 ELSE 2 END";
+
         return response()->json([
             'unread' => $this->mias($request)->whereNull('read_at')->count(),
+            'importantes' => $this->mias($request)->whereNull('read_at')->where($importante)->count(),
             'latest' => $this->mias($request)->orderByDesc('at')->limit(10)->get()->map($this->fila(...)),
+            // Las importantes: sin leer primero, lo rojo antes que lo ámbar, y lo más nuevo primero.
+            'latest_importantes' => $this->mias($request)->where($importante)
+                ->orderByRaw('read_at IS NOT NULL')->orderByRaw($rango)->orderByDesc('at')->limit(10)->get()->map($this->fila(...)),
         ]);
+    }
+
+    /** Condición de «importante» para la persona (ver summary). */
+    private function importante(Request $request, array $dia): \Closure
+    {
+        $a = Access::for($request->user());
+        $modulos = $dia ?: collect($a['enabled_modules'])
+            ->filter(fn ($m) => preg_match('/[EA]/', $a['modules'][$m] ?? $a['modules']['*'] ?? ''))->values()->all();
+
+        return fn ($q) => $q->where('tone', 'bad')->orWhere(fn ($w) => $w->where('tone', 'warn')->whereIn('module', $modulos));
     }
 
     public function index(Request $request)
