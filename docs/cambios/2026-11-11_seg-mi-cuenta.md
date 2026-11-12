@@ -19,3 +19,6 @@ SEG-06 Mi cuenta. Es la misma pantalla que «Mi perfil» del menú de la cuenta,
 
 ## Pruebas
 - `tests/Feature/Modulos/SegMiCuentaTest.php`, 3 pruebas: cualquier persona ve su cuenta (alcance solo con lo asignado), preferencias solo con una de sus marcas y en la bitácora, y probar la clave y el cambio en la bitácora.
+
+## Pantallas fuera del menú
+SEG-01 a SEG-05 (inicio de sesión, verificar y activar el segundo factor, olvidé mi contraseña y nueva contraseña) pasan antes de entrar al sistema y ya tienen su página propia: `/login`, `/forgot-password` y `/reset-password`. No salen en el menú ni en la lista del módulo (`FUERA_DEL_MENU` en `lib/modulos.ts`). Lo que pide la spec para el ingreso y la recuperación ya se cumple ahí (mensaje de error único, respuesta igual exista o no el correo, política al poner la contraseña nueva). El segundo factor queda pendiente: se activará en el ingreso y en Mi cuenta.

@@ -32,10 +32,18 @@ export const grupoDe = (code: string) => GRUPOS.find((g) => g.mods.includes(code
 const SOLO = menu.screenOnly as Record<string, Record<string, string[]>>;
 
 /**
+ * Pantallas de la spec que no son del menú: pasan antes de entrar al sistema y ya tienen su página
+ * propia. Ingreso (/login), segundo factor al ingresar, olvidé mi contraseña (/forgot-password) y
+ * nueva contraseña (/reset-password). Activar el segundo factor queda en el ingreso y en Mi cuenta.
+ */
+const FUERA_DEL_MENU = new Set(["SEG-01", "SEG-02", "SEG-03", "SEG-04", "SEG-05"]);
+
+/**
  * Si una pantalla se le muestra a una persona con uno o más roles: respeta las pantallas restringidas
  * por rol y las que la spec reserva a ciertos roles (gerencia y auditoría ven todas).
  */
 export function pantallaVisible(modulo: string, p: Pantalla, roles: string[]) {
+  if (FUERA_DEL_MENU.has(p.code)) return false;
   return roles.some((rol) => {
     const solo = SOLO[rol]?.[modulo];
     if (solo && !solo.includes(p.code)) return false;
