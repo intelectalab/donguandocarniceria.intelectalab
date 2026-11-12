@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Support\Access;
+use App\Support\PasswordPolicy;
 use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -55,7 +56,9 @@ class MeController extends Controller
                 'empresa' => $empresa ? $tema($empresa) : null,
                 'brands' => $temas->whereNotNull('brand_id')->keyBy('brand_id')->map($tema),
             ],
-            'user' => $user->only(['id', 'name', 'email', 'role', 'default_brand_id', 'ui_theme_mode', 'must_change_password']),
+            // must_change_password: se le pidió cambiarla o venció (RN-SEG-02); la web lo lleva a Mi cuenta.
+            'user' => $user->only(['id', 'name', 'email', 'role', 'default_brand_id', 'ui_theme_mode'])
+                + ['must_change_password' => PasswordPolicy::debeCambiar($user), 'password_vencida' => PasswordPolicy::vencida($user)],
             'tenant' => TenantContext::tenant() + ['logo_url' => TenantController::urlLogo()],
             'roles' => $access['roles'],
             // Sin los permisos de los módulos apagados (RN-PLT-07): la web los oculta igual que la API.

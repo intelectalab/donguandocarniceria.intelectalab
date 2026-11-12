@@ -107,4 +107,22 @@ final class PasswordPolicy
             'locked_until' => null,
         ])->save();
     }
+
+    /**
+     * RN-SEG-02: la contraseña vence a los seg_password_max_age_days días de cambiada (0 = no vence).
+     * Sin fecha de cambio cuenta desde que se creó el usuario.
+     */
+    public static function vencida(User $user): bool
+    {
+        $dias = (int) (Params::get('seg_password_max_age_days') ?? 0);
+        $desde = $user->password_changed_at ?? $user->created_at;
+
+        return $dias > 0 && $desde !== null && $desde->lt(now()->subDays($dias));
+    }
+
+    /** Si debe poner una contraseña nueva antes de usar el sistema: se lo pidieron o la suya venció. */
+    public static function debeCambiar(User $user): bool
+    {
+        return (bool) $user->must_change_password || self::vencida($user);
+    }
 }

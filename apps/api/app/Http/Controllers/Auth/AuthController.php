@@ -8,6 +8,7 @@ use App\Modulos\Seg\Services\Bitacora;
 use App\Modulos\Seg\Services\Sesiones;
 use App\Support\Events;
 use App\Support\Params;
+use App\Support\PasswordPolicy;
 use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -16,9 +17,10 @@ use Illuminate\Validation\ValidationException;
 /**
  * Ingreso con correo y contraseña. La empresa sale del correo (modo general) o del dominio
  * (modo por dominio): TenantContext::forEmail recorre las empresas donde existe ese correo.
- * Bloqueo tras seg_max_failed_logins intentos durante seg_lockout_minutes.
- * Pendiente del módulo SEG: segundo factor (TOTP según la spec o código por correo), registro en
- * access_log y sesiones por dispositivo (user_sessions).
+ * Bloqueo tras seg_max_failed_logins intentos durante seg_lockout_minutes (RN-SEG-04); el aviso de
+ * bloqueo solo se muestra con la contraseña correcta (RN-SEG-19). Cada intento queda en la bitácora
+ * de accesos; la sesión es el token, con su IP y dispositivo, su vencimiento y el máximo por usuario.
+ * Pendiente: el segundo factor (SEG-02 y SEG-03) y el ingreso de la app móvil con dispositivo aprobado.
  */
 class AuthController extends Controller
 {
@@ -43,15 +45,20 @@ class AuthController extends Controller
             if ($user->status === 'LOCKED' && $user->locked_until && $user->locked_until->isPast()) {
                 $user->forceFill(['status' => 'ACTIVE', 'locked_until' => null, 'failed_logins' => 0, 'lock_reason' => null])->save();
             }
+            $correcta = Hash::check($data['password'], $user->password);
             if ($user->status === 'LOCKED' || ($user->locked_until && $user->locked_until->isFuture())) {
-                $motivo = $user->locked_until
-                    ? 'Tu cuenta está bloqueada por intentos fallidos hasta las '.$user->locked_until->format('H:i').'.'
-                    : 'Tu cuenta está bloqueada. Pide el desbloqueo al administrador.';
-                Bitacora::registrar('LOGIN_BLOCKED', ['user' => $user, 'email' => $data['email']], denegado: true);
+                // RN-SEG-19: el bloqueo solo se dice a quien sabe la contraseña; a los demás, el mensaje genérico,
+                // para no revelar que el correo existe. Bloqueada, ni la contraseña correcta entra (RN-SEG-04).
+                if ($correcta) {
+                    $motivo = $user->locked_until
+                        ? 'Tu cuenta está bloqueada por intentos fallidos hasta las '.$user->locked_until->format('H:i').'.'
+                        : 'Tu cuenta está bloqueada. Pide el desbloqueo al administrador.';
+                }
+                Bitacora::registrar('LOGIN_BLOCKED', ['user' => $user, 'email' => $data['email'], 'details' => ['password_ok' => $correcta]], denegado: true);
 
                 return null;
             }
-            if (! Hash::check($data['password'], $user->password)) {
+            if (! $correcta) {
                 $this->registerFailure($user);
 
                 return null;
@@ -73,6 +80,11 @@ class AuthController extends Controller
         }
 
         $user->forceFill(['failed_logins' => 0, 'locked_until' => null, 'last_login' => now()])->save();
+        // RN-SEG-02: una contraseña guardada con otro algoritmo (bcrypt) o con otro costo se vuelve a
+        // guardar con Argon2id. Es la misma contraseña: no cuenta como cambio ni entra al historial.
+        if (Hash::needsRehash($user->password)) {
+            $user->forceFill(['password' => Hash::make($data['password'])])->saveQuietly();
+        }
         TenantContext::setUser($user->id);
 
         // RN-SEG-09: la sesión web dura como máximo seg_session_max_hours, también con «Recordarme»
@@ -87,7 +99,7 @@ class AuthController extends Controller
         return response()->json([
             'token' => $token->plainTextToken,
             'expires_at' => $token->accessToken->expires_at,
-            'must_change_password' => (bool) $user->must_change_password,
+            'must_change_password' => PasswordPolicy::debeCambiar($user),
         ]);
     }
 

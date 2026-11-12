@@ -1,13 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { CheckCircle2, Circle, KeyRound, MonitorSmartphone, ShieldCheck, UserRound, XCircle } from "lucide-react";
 import { Alert, Badge, Button, Checkbox, Cifra, DetailList, Field, Input, Select, toast } from "@/components/ui";
 import { api, erroresDe, mensajeDe } from "@/lib/api";
 import { fecha, fechaHora } from "@/lib/formato";
 import { aplicarModo, type ModoColor } from "@/lib/modoColor";
 import { useSesion } from "@/lib/sesion";
-import { MisSesiones } from "./MisSesiones";
 
 type Cuenta = {
   datos: { name: string; email: string; roles: string; alcance: string; trabajador: string | null; ultimo_ingreso: string | null; idioma: string; empresa: string };
@@ -22,11 +22,12 @@ type Cuenta = {
 const MODOS = [{ value: "LIGHT", label: "Claro" }, { value: "DARK", label: "Oscuro" }, { value: "SYSTEM", label: "El del sistema" }];
 
 /**
- * SEG-06 Mi cuenta: tus datos, contraseña, segundo factor, marca por defecto, modo de color, avisos y
- * tus sesiones. La ve cualquier persona (también desde «Mi perfil»). Todo queda en la bitácora.
+ * SEG-06 Mi cuenta: tus datos, contraseña, segundo factor, marca por defecto, modo de color y avisos.
+ * La cifra «Sesiones abiertas» lleva a Mis sesiones y dispositivos (/perfil/sesiones), como en el
+ * prototipo. La ve cualquier persona (también desde «Mi perfil»). Todo queda en la bitácora.
  */
 export function MiCuenta() {
-  const { recargar } = useSesion();
+  const { me, recargar } = useSesion();
   const [c, setC] = useState<Cuenta | null>(null);
   const [error, setError] = useState("");
 
@@ -40,12 +41,21 @@ export function MiCuenta() {
 
   return (
     <div className="space-y-6">
+      {me.user.must_change_password && (
+        <Alert tone="warn">
+          {me.user.password_vencida
+            ? "Tu contraseña venció. Crea una nueva abajo para seguir usando el sistema."
+            : "Debes crear una contraseña nueva antes de seguir usando el sistema."}
+        </Alert>
+      )}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Cifra titulo="Rol" valor={c ? c.datos.roles : undefined} detalle={s?.exige_2fa ? "Exige segundo factor" : "Sin segundo factor"} icono={UserRound} destacada />
         <Cifra titulo="Segundo factor" valor={s ? (s.twofa_enabled ? "Activo" : "No activo") : undefined} icono={ShieldCheck}
           detalle={s ? (s.twofa_enabled ? `Desde ${fecha(s.mfa_enrolled_at)}` : s.exige_2fa ? "Tu rol lo exige" : "Tu rol no lo exige") : undefined}
           tono={s ? (s.twofa_enabled ? "ok" : s.exige_2fa ? "warn" : undefined) : undefined} />
-        <Cifra titulo="Sesiones abiertas" valor={s ? String(s.sesiones_abiertas) : undefined} detalle={s ? `Máximo ${s.max_sesiones}` : undefined} icono={MonitorSmartphone} />
+        <Link href="/perfil/sesiones" title="Ver mis sesiones y dispositivos" className="block min-w-0 rounded-xl transition hover:-translate-y-px focus-visible:outline-2 focus-visible:outline-primary">
+          <Cifra titulo="Sesiones abiertas" valor={s ? String(s.sesiones_abiertas) : undefined} detalle={s ? `Máximo ${s.max_sesiones} · Ver mis sesiones` : undefined} icono={MonitorSmartphone} />
+        </Link>
         <Cifra titulo="Contraseña cambiada" valor={s ? (s.password_changed_at ? fecha(s.password_changed_at) : "Nunca") : undefined} icono={KeyRound}
           detalle={s ? (s.password_vence_dias ? `Vence a los ${s.password_vence_dias} días` : "No vence") : undefined} />
       </div>
@@ -70,7 +80,7 @@ export function MiCuenta() {
       </div>
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">
-        <CambiarClave regla={s?.regla} onCambio={cargar} />
+        <CambiarClave regla={s?.regla} onCambio={() => { cargar(); recargar(); }} />
         <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card">
           <h2 className="mb-3 text-[14px] font-semibold">Segundo factor</h2>
           {s ? (
@@ -85,10 +95,6 @@ export function MiCuenta() {
           ) : <div className="h-24 animate-pulse rounded bg-surface-2" />}
         </section>
       </div>
-
-      <section className="border-t border-line pt-6">
-        <MisSesiones compacto />
-      </section>
     </div>
   );
 }
