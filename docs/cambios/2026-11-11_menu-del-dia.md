@@ -49,3 +49,10 @@ Del prototipo nuevo: la campana cuenta solo lo importante para tu puesto.
 
 ## Pruebas
 `CuentaTest::test_la_campana_cuenta_solo_las_importantes_para_el_puesto`.
+
+# Notificaciones de rol, leídas por persona (11/11/2026)
+
+- Una notificación dirigida a un rol, como «Vender primero» para las vendedoras, ahora la marca como leída **cada persona por su cuenta**. Antes, la primera persona del rol que la leía la dejaba leída para todas.
+- Tabla `notification_reads` (empresa, notificación, persona, cuándo). RLS por empresa. La app solo inserta, una vez por persona y notificación. Migración `2026_11_11_000500_int_notificaciones_leidas_por_persona`.
+- Las personales siguen usando su `read_at`. Las de rol que ya estaban marcadas como leídas vuelven a quedar sin leer para cada persona, porque no se sabe quién de verdad las leyó.
+- Prueba: `CuentaTest::test_una_notificacion_del_rol_se_lee_por_persona`.
