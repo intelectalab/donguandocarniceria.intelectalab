@@ -45,7 +45,7 @@ final class Bitacora
             'ip' => mb_substr((string) ($r?->ip() ?: '0.0.0.0'), 0, 40),
             'user_agent' => $ua !== '' ? mb_substr($ua, 0, 80) : null,
             'details' => isset($o['details']) ? json_encode($o['details'], JSON_UNESCAPED_UNICODE) : null,
-            'occurred_at' => now(),
+            'occurred_at' => $o['ocurrio'] ?? now(),   // cuándo pasó (p. ej. la hora en que venció una sesión)
             'at' => now(),
             'user_name' => mb_substr((string) ($u?->name ?: 'Desconocido'), 0, 40),
             'role' => $u?->role ? mb_substr((string) $u->role, 0, 80) : null,

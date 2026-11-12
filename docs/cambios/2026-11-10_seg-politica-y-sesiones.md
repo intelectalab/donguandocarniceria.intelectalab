@@ -34,3 +34,10 @@ Sigue a [2026-11-10_seg-roles.md](2026-11-10_seg-roles.md): SEG-14 Política de 
 
 ## Pruebas
 - `tests/Feature/Modulos/SegSesionesTest.php`, 10 pruebas: la política y sus cifras, probar la política (correo, nombre, comunes, largo), la política al cambiar la contraseña, vencimiento por inactividad y duración de 12 horas, máximo de sesiones, sesiones de la empresa con permisos, sesión inactiva que no se lista ni cuenta, historial paginado, sesiones anteriores con su motivo y archivo de solo inserción, y mis sesiones.
+
+## Limpieza de sesiones vencidas (11/11/2026)
+- Comando `seg:vencer-sesiones`, programado **cada hora** en `routes/console.php`. En cada empresa cierra las sesiones ya vencidas por inactividad o por duración, según su política (SEG-14), aunque nadie vuelva a usarlas. Antes se cerraban solo cuando alguien intentaba usarlas.
+- Cada una queda en la bitácora (`SESSION_EXPIRED`) y en las sesiones anteriores con **la hora en que venció**, no la hora en que pasó la limpieza. El archivo toma esa hora de `app.cierre_en` (migración `2026_11_11_000100_seg_hora_real_del_cierre`) y nunca guarda una hora futura.
+- `Sesiones::vencio()` es la única regla de vencimiento: la usan la validación de cada petición y la limpieza.
+- No hay botón «Aplicar vencimientos», porque aquí se aplican solos.
+- Prueba: `SegSesionesTest::test_la_limpieza_cierra_las_vencidas_que_nadie_volvio_a_usar_con_la_hora_en_que_vencieron`.

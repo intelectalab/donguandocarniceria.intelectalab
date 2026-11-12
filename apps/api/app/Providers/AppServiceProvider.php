@@ -22,7 +22,7 @@ class AppServiceProvider extends ServiceProvider
             if (! $valido) {
                 // Vencida por su duración: se archiva como vencida y se borra.
                 if ($token->expires_at?->isPast()) {
-                    Sesiones::cerrando('EXPIRED', 'Venció por duración', fn () => $token->delete());
+                    Sesiones::cerrando('EXPIRED', 'Venció por duración', fn () => $token->delete(), $token->expires_at);
                 }
 
                 return false;

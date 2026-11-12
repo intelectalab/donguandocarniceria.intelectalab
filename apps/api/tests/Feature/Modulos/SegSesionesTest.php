@@ -172,6 +172,33 @@ class SegSesionesTest extends TestCase
         DB::table('user_sessions')->update(['revoke_reason' => 'cambiado']);
     }
 
+    public function test_la_limpieza_cierra_las_vencidas_que_nadie_volvio_a_usar_con_la_hora_en_que_vencieron(): void
+    {
+        $inicio = now()->copy();
+        $olvidada = $this->ingresar(self::DG, self::VENDEDORA);    // cierra el navegador y no vuelve
+        $this->travel(2)->hours();
+        $viva = $this->ingresar(self::DG, self::VENDEDORA);
+
+        $this->artisan('seg:vencer-sesiones')->assertSuccessful();
+
+        $this->contexto();
+        $u = DB::table('users')->where('email', self::VENDEDORA)->first();
+        $this->assertSame(1, DB::table('personal_access_tokens')->where('tokenable_id', $u->id)->count(), 'Solo queda la vigente');
+        $archivada = DB::table('user_sessions')->where('user_id', $u->id)->where('status', 'EXPIRED')->first();
+        $this->assertSame('Venció por inactividad', $archivada->revoke_reason);
+        $vencio = $inicio->copy()->addMinutes(30);
+        $this->assertEqualsWithDelta($vencio->timestamp, Carbon::parse($archivada->revoked_at)->timestamp, 5, 'Con la hora en que venció, no la de la limpieza');
+        $log = DB::table('access_log')->where('event', 'SESSION_EXPIRED')->where('user_id', $u->id)->first();
+        $this->assertNotNull($log);
+        $this->assertEqualsWithDelta($vencio->timestamp, Carbon::parse($log->occurred_at)->timestamp, 5);
+
+        $this->desde(self::DG, $viva)->getJson('/api/v1/me')->assertOk();
+        $this->desde(self::DG, $olvidada)->getJson('/api/v1/me')->assertUnauthorized();
+        $this->artisan('seg:vencer-sesiones')->assertSuccessful();
+        $this->contexto();
+        $this->assertSame(1, DB::table('user_sessions')->where('user_id', $u->id)->where('status', 'EXPIRED')->count(), 'Pasar otra vez no duplica');
+    }
+
     public function test_seg_07_cada_persona_ve_y_cierra_sus_sesiones(): void
     {
         $otra = $this->ingresar(self::DG, self::VENDEDORA);

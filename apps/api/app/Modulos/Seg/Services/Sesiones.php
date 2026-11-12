@@ -6,6 +6,7 @@ use App\Models\PersonalAccessToken;
 use App\Models\User;
 use App\Support\Params;
 use App\Support\RuleError;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -24,15 +25,17 @@ final class Sesiones
     /**
      * Cierra sesiones dejando su estado y motivo para el archivo de sesiones anteriores (el disparador
      * seg_archivar_sesion los lee al borrar cada token). Estado: REVOKED (cerrada) o EXPIRED (vencida).
+     * Con $en, la hora en que terminó de verdad (si fue antes de ahora).
      *   Sesiones::cerrando('REVOKED', 'Usuario desactivado', fn () => $u->tokens()->delete());
      */
-    public static function cerrando(string $estado, string $motivo, \Closure $fn): mixed
+    public static function cerrando(string $estado, string $motivo, \Closure $fn, ?\DateTimeInterface $en = null): mixed
     {
-        DB::select("SELECT set_config('app.cierre_estado', ?, false), set_config('app.cierre_motivo', ?, false)", [$estado, mb_substr($motivo, 0, 255)]);
+        DB::select("SELECT set_config('app.cierre_estado', ?, false), set_config('app.cierre_motivo', ?, false), set_config('app.cierre_en', ?, false)",
+            [$estado, mb_substr($motivo, 0, 255), $en ? $en->format(DATE_ATOM) : '']);
         try {
             return $fn();
         } finally {
-            DB::select("SELECT set_config('app.cierre_estado', '', false), set_config('app.cierre_motivo', '', false)");
+            DB::select("SELECT set_config('app.cierre_estado', '', false), set_config('app.cierre_motivo', '', false), set_config('app.cierre_en', '', false)");
         }
     }
 
@@ -50,18 +53,56 @@ final class Sesiones
      */
     public static function vigente(PersonalAccessToken $t): bool
     {
-        $ultimo = $t->last_used_at ?? $t->created_at;
-        $limite = in_array($t->name, self::MOVILES, true)
-            ? now()->subDays(self::param('seg_mobile_session_days', 7))
-            : now()->subMinutes(self::param('seg_session_idle_minutes', 30));
-        if ($ultimo && $ultimo->lt($limite)) {
-            self::registrar('SESSION_EXPIRED', $t, 'Venció por inactividad');
-            self::cerrando('EXPIRED', 'Venció por inactividad', fn () => $t->delete());
+        $v = self::vencio($t);
+        if ($v) {
+            self::registrar('SESSION_EXPIRED', $t, $v['motivo'], null, $v['en']);
+            self::cerrando('EXPIRED', $v['motivo'], fn () => $t->delete(), $v['en']);
 
             return false;
         }
 
         return true;
+    }
+
+    /**
+     * Si la sesión ya venció (RN-SEG-09): cuándo y por qué. Vence por inactividad (sin uso más del
+     * límite) o por duración (expires_at), lo que llegue primero. Null si sigue vigente.
+     *
+     * @return array{en: Carbon, motivo: string}|null
+     */
+    public static function vencio(object $t): ?array
+    {
+        $ultimo = Carbon::parse($t->last_used_at ?? $t->created_at);
+        $porUso = in_array($t->name, self::MOVILES, true)
+            ? $ultimo->copy()->addDays(self::param('seg_mobile_session_days', 7))
+            : $ultimo->copy()->addMinutes(self::param('seg_session_idle_minutes', 30));
+        $porDuracion = $t->expires_at ? Carbon::parse($t->expires_at) : null;
+        $v = $porDuracion && $porDuracion->lt($porUso)
+            ? ['en' => $porDuracion, 'motivo' => 'Venció por duración']
+            : ['en' => $porUso, 'motivo' => 'Venció por inactividad'];
+
+        return $v['en']->isPast() ? $v : null;
+    }
+
+    /**
+     * Cierra las sesiones ya vencidas de la empresa del contexto, aunque nadie vuelva a usarlas: quedan
+     * en la bitácora y en las sesiones anteriores con la hora en que vencieron (comando seg:vencer-sesiones).
+     */
+    public static function vencerLasVencidas(): int
+    {
+        $n = 0;
+        PersonalAccessToken::query()->orderBy('created_at')->chunkById(500, function ($tokens) use (&$n) {
+            foreach ($tokens as $t) {
+                $v = self::vencio($t);
+                if ($v) {
+                    self::registrar('SESSION_EXPIRED', $t, $v['motivo'], null, $v['en']);
+                    self::cerrando('EXPIRED', $v['motivo'], fn () => $t->delete(), $v['en']);
+                    $n++;
+                }
+            }
+        });
+
+        return $n;
     }
 
     /**
@@ -166,12 +207,12 @@ final class Sesiones
         return is_numeric($v) ? (int) $v : $porDefecto;
     }
 
-    private static function registrar(string $evento, PersonalAccessToken $t, string $detalle, ?User $quien = null): void
+    private static function registrar(string $evento, PersonalAccessToken $t, string $detalle, ?User $quien = null, ?\DateTimeInterface $ocurrio = null): void
     {
         // La bitácora no debe impedir cerrar la sesión (por ejemplo, si aún no hay empresa en el contexto).
         try {
             Bitacora::registrar($evento, ['user' => $quien ?? User::find($t->tokenable_id), 'entity' => 'users', 'entity_id' => $t->tokenable_id,
-                'detail' => $detalle, 'details' => ['ip' => $t->ip, 'device' => $t->device]]);
+                'detail' => $detalle, 'details' => ['ip' => $t->ip, 'device' => $t->device], 'ocurrio' => $ocurrio]);
         } catch (\Throwable) {
         }
     }
