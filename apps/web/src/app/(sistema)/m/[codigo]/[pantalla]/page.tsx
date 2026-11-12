@@ -3,7 +3,7 @@
 import { use } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { moduloPorCodigo, pantallaVisible, rutaPantalla } from "@/lib/modulos";
+import { moduloPorCodigo, pantallasDelMenu, rutaPantalla } from "@/lib/modulos";
 import { useSesion } from "@/lib/sesion";
 
 /**
@@ -16,7 +16,7 @@ export default function FichaPantalla({ params }: PageProps<"/m/[codigo]/[pantal
   const { codigo, pantalla } = use(params);
   const { me } = useSesion();
   const modulo = moduloPorCodigo(codigo);
-  const visibles = modulo ? modulo.screens.filter((p) => pantallaVisible(modulo.code, p, me.roles)) : [];
+  const visibles = modulo ? pantallasDelMenu(modulo.code, me.modules, me.roles, me.permissions) : [];
   const i = visibles.findIndex((p) => p.code === pantalla.toUpperCase());
   const p = visibles[i];
 

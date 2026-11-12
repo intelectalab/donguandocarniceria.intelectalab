@@ -16,3 +16,8 @@ Cifras del prototipo, lista con búsqueda y filtros, el nombre del usuario lleva
 ## Pruebas
 - `tests/Feature/Modulos/SegDispositivosTest.php`, 2 pruebas: lista de celulares con cifras y filtros, y quién la ve (coordinador sí, cajero no).
 - `SegUsuariosTest`: aprobar avisa al dueño.
+
+## El coordinador de delivery desde su menú (11/11/2026)
+- Quien tiene el permiso de aprobar celulares (`seg.device.approve`) pero no el módulo de Seguridad ve en su menú **solo** Seguridad → Dispositivos de la app. El resto del módulo no le sale, ni en el menú, ni en el inicio, ni en la lista del módulo.
+- No se le dio acceso de lectura al módulo: con él, la API le dejaría consultar usuarios, roles y la política. La API sigue igual: Dispositivos pide el permiso, y lo demás de Seguridad responde 403 (`SegDispositivosTest`).
+- En la web: `POR_PERMISO` en `lib/modulos.ts` (pantalla que se abre con un permiso sin el módulo). `menuDe` recibe los permisos de la persona, y las listas genéricas del módulo y de la pantalla usan `pantallasDelMenu`, las mismas pantallas del menú. Con el módulo de Seguridad apagado, el permiso no cuenta y la pantalla no sale.

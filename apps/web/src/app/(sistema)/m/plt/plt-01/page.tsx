@@ -48,7 +48,7 @@ export default function Armazon() {
     return () => { vigente = false; };
   }, []);
 
-  const enMenu = new Set(menuDe(me.modules, me.roles).flatMap((g) => g.modulos.filter((m) => m.enabled).map((m) => m.code)));
+  const enMenu = new Set(menuDe(me.modules, me.roles, me.permissions).flatMap((g) => g.modulos.filter((m) => m.enabled).map((m) => m.code)));
   const acceso = new Map(me.modules.map((m) => [m.code, m]));
   const encendido = new Map((estados ?? []).map((m) => [m.code, m.enabled]));
   const apagados = (estados ?? []).filter((m) => !m.enabled).map((m) => m.code);

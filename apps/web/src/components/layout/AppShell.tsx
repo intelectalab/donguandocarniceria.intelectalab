@@ -105,7 +105,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   // Menú en el orden de sus grupos: solo los módulos que el rol ve; los apagados, con candado.
   const items = useMemo<MenuItem[]>(() => {
     if (!sesion) return [];
-    const modulos = menuDe(sesion.me.modules, sesion.me.roles).flatMap((g) => g.modulos.map((m) => ({
+    const modulos = menuDe(sesion.me.modules, sesion.me.roles, sesion.me.permissions).flatMap((g) => g.modulos.map((m) => ({
       href: `/m/${m.code.toLowerCase()}`, label: m.name, code: m.code, group: g.name, locked: !m.enabled,
       children: m.visibles.map((p) => ({ href: rutaPantalla(m.code, p.code), label: p.name, code: p.code })),
     })));
