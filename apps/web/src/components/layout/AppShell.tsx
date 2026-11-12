@@ -31,6 +31,7 @@ const GROUP_ICONS = {
 
 const CUENTA = [
   { href: "/perfil", label: "Mi perfil" },
+  { href: "/perfil/sesiones", label: "Mis sesiones y dispositivos" },
   { href: "/notificaciones", label: "Notificaciones" },
 ];
 // Páginas fuera del menú y del buscador, solo para el título de la cabecera.
@@ -59,6 +60,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const sidebarOpen = useSyncExternalStore(suscribirSidebar, leerSidebar, () => true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+
+  // Con la contraseña vencida (o si se le pidió cambiarla) solo se usa Mi cuenta hasta crear una
+  // nueva; la API responde 403 a lo demás (RN-SEG-02).
+  const debeCambiarClave = Boolean(sesion?.me.user.must_change_password) && pathname !== "/perfil";
+  useEffect(() => {
+    if (debeCambiarClave) router.replace("/perfil");
+  }, [debeCambiarClave, router]);
 
   function toggleSidebar() {
     // En celular abre el cajón; en escritorio pliega o despliega la barra.
@@ -97,7 +105,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   // Menú en el orden de sus grupos: solo los módulos que el rol ve; los apagados, con candado.
   const items = useMemo<MenuItem[]>(() => {
     if (!sesion) return [];
-    const modulos = menuDe(sesion.me.modules, sesion.me.roles).flatMap((g) => g.modulos.map((m) => ({
+    const modulos = menuDe(sesion.me.modules, sesion.me.roles, sesion.me.permissions).flatMap((g) => g.modulos.map((m) => ({
       href: `/m/${m.code.toLowerCase()}`, label: m.name, code: m.code, group: g.name, locked: !m.enabled,
       children: m.visibles.map((p) => ({ href: rutaPantalla(m.code, p.code), label: p.name, code: p.code })),
     })));
@@ -106,7 +114,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   const currentItem = items.find((it) => (it.href === "/" ? pathname === "/" : pathname === it.href || pathname.startsWith(`${it.href}/`)));
   const currentScreen = currentItem?.children?.find((p) => pathname === p.href || pathname.startsWith(`${p.href}/`));
-  const cuenta = OTRAS.find((c) => pathname.startsWith(c.href));
+  // La dirección más larga que coincide: /perfil/sesiones antes que /perfil.
+  const cuenta = [...OTRAS].sort((a, b) => b.href.length - a.href.length).find((c) => pathname.startsWith(c.href));
   // Título: la pantalla (o el módulo, en su ficha); migas: grupo · módulo.
   const currentSection = currentScreen?.label ?? currentItem?.label ?? cuenta?.label ?? "Inicio";
   const crumbs = currentItem && currentItem.group !== "Inicio"
@@ -181,7 +190,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <Aviso titulo="No se pudo cargar tu sesión" texto={`${error} El servidor no respondió.`}>
               <button onClick={reintentar} className="rounded-[9px] bg-primary px-4 py-2 text-[13px] font-semibold text-primary-ink hover:brightness-110">Reintentar</button>
             </Aviso>
-          ) : !sesion ? (
+          ) : !sesion || debeCambiarClave ? (
             <div className="space-y-3">
               {[1, 2, 3].map((n) => <div key={n} className="h-24 animate-pulse rounded-xl bg-surface-2" />)}
             </div>

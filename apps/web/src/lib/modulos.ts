@@ -32,10 +32,18 @@ export const grupoDe = (code: string) => GRUPOS.find((g) => g.mods.includes(code
 const SOLO = menu.screenOnly as Record<string, Record<string, string[]>>;
 
 /**
+ * Pantallas de la spec que no son del menú: pasan antes de entrar al sistema y ya tienen su página
+ * propia. Ingreso (/login), segundo factor al ingresar, olvidé mi contraseña (/forgot-password) y
+ * nueva contraseña (/reset-password). Activar el segundo factor queda en el ingreso y en Mi cuenta.
+ */
+const FUERA_DEL_MENU = new Set(["SEG-01", "SEG-02", "SEG-03", "SEG-04", "SEG-05"]);
+
+/**
  * Si una pantalla se le muestra a una persona con uno o más roles: respeta las pantallas restringidas
  * por rol y las que la spec reserva a ciertos roles (gerencia y auditoría ven todas).
  */
 export function pantallaVisible(modulo: string, p: Pantalla, roles: string[]) {
+  if (FUERA_DEL_MENU.has(p.code)) return false;
   return roles.some((rol) => {
     const solo = SOLO[rol]?.[modulo];
     if (solo && !solo.includes(p.code)) return false;
@@ -50,19 +58,35 @@ export type ModuloDelMenu = ModuloCatalogo & { enabled: boolean; actions: string
 export type GrupoDelMenu = { name: string; modulos: ModuloDelMenu[] };
 
 /**
- * Menú de la persona: los grupos en su orden; un módulo sale si el rol lo puede ver (letra L o C)
- * y tiene al menos una pantalla visible.
+ * Pantallas que se abren con un permiso aunque el rol no tenga el módulo: solo esa pantalla, sin el
+ * resto del módulo. El coordinador de delivery aprueba celulares en Dispositivos sin ver Seguridad.
+ * La API revisa lo mismo: esas pantallas piden el permiso, no el acceso al módulo.
  */
-export function menuDe(acceso: AccesoModulo[], roles: string[]): GrupoDelMenu[] {
+const POR_PERMISO: Record<string, Record<string, string>> = {
+  SEG: { "SEG-13": "seg.device.approve" },
+};
+
+/**
+ * Menú de la persona: los grupos en su orden; un módulo sale si el rol lo puede ver (letra L o C)
+ * y tiene al menos una pantalla visible. Sin el módulo, solo las pantallas que abre un permiso suyo.
+ */
+export function menuDe(acceso: AccesoModulo[], roles: string[], permisos: string[] = []): GrupoDelMenu[] {
   const porCodigo = new Map(acceso.map((a) => [a.code, a]));
   return GRUPOS.map((g) => ({
     name: g.name,
     modulos: g.mods.flatMap((code) => {
       const a = porCodigo.get(code);
       const m = moduloPorCodigo(code);
-      if (!a || !m || !/[LC]/.test(a.actions)) return [];
-      const visibles = m.screens.filter((p) => pantallaVisible(code, p, roles));
+      if (!a || !m) return [];
+      const solo = POR_PERMISO[code] ?? {};
+      const visibles = /[LC]/.test(a.actions)
+        ? m.screens.filter((p) => pantallaVisible(code, p, roles))
+        : m.screens.filter((p) => !FUERA_DEL_MENU.has(p.code) && solo[p.code] && permisos.includes(solo[p.code]));
       return visibles.length ? [{ ...m, enabled: a.enabled, actions: a.actions, visibles }] : [];
     }),
   })).filter((g) => g.modulos.length > 0);
 }
+
+/** Las pantallas de un módulo que la persona ve en su menú (vacío si el módulo no le sale). */
+export const pantallasDelMenu = (codigo: string, acceso: AccesoModulo[], roles: string[], permisos: string[] = []) =>
+  menuDe(acceso, roles, permisos).flatMap((g) => g.modulos).find((m) => m.code === codigo.toUpperCase())?.visibles ?? [];
