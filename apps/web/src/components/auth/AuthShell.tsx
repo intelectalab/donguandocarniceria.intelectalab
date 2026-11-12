@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { motion, type Variants } from "framer-motion";
-import { ClipboardCheck, Truck, Receipt } from "lucide-react";
+import { MapPin, Scale, ShieldCheck, type LucideIcon } from "lucide-react";
 import { iniciales, legibleConBlanco, type Empresa } from "@/lib/empresa";
 import { Franja } from "@/components/ui/Franja";
 
@@ -27,34 +27,42 @@ export const item: Variants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
 };
 
-const FUNCIONES = [
-  { icon: ClipboardCheck, title: "Pedidos completos", text: "Ninguno se confirma sin dirección con pin" },
-  { icon: Truck, title: "Reparto con costo real", text: "Rutas, cobro contra entrega y entregas" },
-  { icon: Receipt, title: "Comprobantes y caja", text: "SUNAT, cobros y conciliación al día" },
+// Lo que la persona gana, en pocas palabras: los puntos del panel, cada uno con su ícono.
+const PUNTOS: { icono: LucideIcon; texto: string }[] = [
+  { icono: MapPin, texto: "Ningún pedido se confirma sin dirección con pin" },
+  { icono: Scale, texto: "Peso real, lote y vencimiento en cada venta" },
+  { icono: ShieldCheck, texto: "Cada empresa ve solo sus datos" },
 ];
+
+const SUBTITULO = "Ventas, reparto, producción y facturación";
+// Lo que hace el sistema, después del «quién» (el general o el de la empresa).
+const QUE_HACE = "Pedidos de WhatsApp, web y mostrador, despiece con costo real, cadena de frío, reparto y comprobantes electrónicos en un solo lugar.";
 
 const css = (rgb: number[]) => `rgb(${rgb.map(Math.round).join(" ")})`;
 
-/** Logo de la empresa o, sin logo, sus iniciales y su nombre. */
-function LogoEmpresa({ empresa }: { empresa: Empresa }) {
-  const nombre = empresa.trade_name ?? empresa.short;
-  // Solo imágenes de la propia API (o data:/https), nunca otra dirección.
-  if (empresa.logo_url?.startsWith("/api/v1/tenant/logo") || empresa.logo_url?.startsWith("data:image/") || empresa.logo_url?.startsWith("https://")) {
-    // eslint-disable-next-line @next/next/no-img-element -- logo subido por la empresa.
-    return <img src={empresa.logo_url} alt={nombre} className="max-h-14 max-w-[220px] object-contain object-left" />;
+/** Logo de la empresa (solo de la propia API, data: o https) o, sin logo, sus iniciales en el círculo dorado. */
+function Sello({ nombre, logo }: { nombre: string; logo: string | null | undefined }) {
+  if (logo?.startsWith("/api/v1/tenant/logo") || logo?.startsWith("data:image/") || logo?.startsWith("https://")) {
+    return (
+      <span className="grid h-12 max-w-[180px] shrink-0 place-items-center rounded-xl bg-white px-2.5 shadow-[0_0_0_4px_rgba(255,198,118,.2)] lg:h-20 lg:max-w-[260px] lg:rounded-2xl lg:px-3.5">
+        {/* eslint-disable-next-line @next/next/no-img-element -- logo subido por la empresa. */}
+        <img src={logo} alt={nombre} className="max-h-9 max-w-[160px] object-contain lg:max-h-14 lg:max-w-[232px]" />
+      </span>
+    );
   }
   return (
-    <span className="flex items-center gap-2.5">
-      <span className="grid size-11 place-items-center rounded-xl bg-primary text-[15px] font-bold text-primary-ink">{iniciales(nombre)}</span>
-      <strong className="font-display text-[17px] font-semibold text-ink">{nombre}</strong>
+    <span className="grid size-12 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#ffe0a8] to-gold font-display text-[17px] font-extrabold shadow-[0_0_0_4px_rgba(255,198,118,.18),0_10px_30px_rgba(255,198,118,.25)] lg:size-20 lg:text-[28px] lg:shadow-[0_0_0_6px_rgba(255,198,118,.18),0_14px_44px_rgba(255,198,118,.3)]"
+      style={{ color: "var(--franja-base)" }}>
+      {iniciales(nombre)}
     </span>
   );
 }
 
 /**
- * Armazón de las pantallas de ingreso: panel a la izquierda (franja superior en celular) y el
- * formulario a la derecha. Con empresa (dominio por empresa), el panel lleva su nombre y su color;
- * en el ingreso general, la marca de Aycha.
+ * Armazón de las pantallas de ingreso, como el prototipo: a la izquierda el panel de la empresa
+ * (color liso, su sello, su nombre, qué hace el sistema y sus marcas; en celular, una franja arriba
+ * solo con el sello y el nombre) y a la derecha el formulario en una tarjeta. Con dominio por
+ * empresa, el panel lleva su nombre, su logo y su color; en el ingreso general, la marca de Aycha.
  */
 export default function AuthShell({ title, subtitle, children, footer, empresa, pending = false }: {
   title: string;
@@ -66,74 +74,87 @@ export default function AuthShell({ title, subtitle, children, footer, empresa, 
   pending?: boolean;
 }) {
   const acento = legibleConBlanco(empresa?.primary_color ?? "#922242");
-  const panel = `linear-gradient(150deg, ${css(acento)} 0%, ${css(acento.map((v) => v * 0.8))} 45%, ${css(acento.map((v) => v * 0.6))} 100%)`;
+  // Fondo del panel: el color de la empresa en degradado (más claro arriba, profundo abajo) con un brillo
+  // dorado arriba a la derecha y uno rosado abajo a la izquierda.
+  const fondo = [
+    "radial-gradient(900px 520px at 88% -8%, rgba(255,198,118,.24), transparent 62%)",
+    "radial-gradient(760px 620px at -12% 108%, rgba(255,128,160,.16), transparent 60%)",
+    `linear-gradient(158deg, ${css(acento.map((v) => v * 0.95))} 0%, ${css(acento.map((v) => v * 0.72))} 48%, ${css(acento.map((v) => v * 0.5))} 100%)`,
+  ].join(", ");
+  const deEmpresa = empresa?.general === false;
+  const nombre = deEmpresa ? (empresa.trade_name ?? empresa.short ?? empresa.name) : "Aycha";
   const marcas = empresa?.brands ?? [];
+  const frase = deEmpresa
+    ? `${marcas.length > 1 ? `${nombre} y sus ${marcas.length} marcas.` : `Todo ${nombre}, en orden.`} ${QUE_HACE}`
+    : `El sistema para empresas cárnicas: carnicerías, avícolas, distribuidoras y plantas de proceso. ${QUE_HACE}`;
 
   return (
-    <div className="grid min-h-screen w-full grid-rows-[auto_1fr] bg-bg lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:grid-rows-1">
-      <aside
-        className="relative flex flex-col justify-between gap-4 overflow-hidden px-[22px] py-[26px] text-white lg:gap-8 lg:px-12 lg:py-10"
-        style={{
-          background: [
-            "radial-gradient(circle at 80% 15%, rgba(255,198,118,.28), transparent 40%)",
-            "radial-gradient(circle at 10% 90%, rgba(255,255,255,.10), transparent 45%)",
-            "repeating-linear-gradient(135deg, rgba(255,255,255,.04) 0 2px, transparent 2px 22px)",
-            panel,
-          ].join(", "),
-        }}
-      >
-        <Franja className="absolute inset-x-0 top-0 h-2 w-full" />
-        {pending ? <span className="h-5" /> : (
-          <span className="text-[13px] font-semibold tracking-[.08em] text-white/80 uppercase">
-            {empresa?.general === false ? "Acceso de la empresa" : "Plataforma Aycha · Intelectalab"}
-          </span>
-        )}
+    <div className="grid min-h-screen w-full grid-rows-[auto_1fr] bg-bg lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:grid-rows-1">
+      <aside className="relative isolate flex flex-col overflow-hidden px-[22px] pt-7 pb-6 text-white lg:px-[clamp(48px,6vw,104px)] lg:py-12" style={{ background: fondo }}>
+        <Franja className="absolute inset-x-0 top-0 z-10 h-2 w-full" />
+        {/* Trama de puntos suave que se desvanece hacia los bordes, y dos luces difusas para dar profundidad. */}
+        <span aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 opacity-80"
+          style={{
+            backgroundImage: "radial-gradient(rgba(255,255,255,.10) 1px, transparent 1.3px)",
+            backgroundSize: "22px 22px",
+            maskImage: "radial-gradient(ellipse 70% 60% at 35% 45%, #000 15%, transparent 75%)",
+            WebkitMaskImage: "radial-gradient(ellipse 70% 60% at 35% 45%, #000 15%, transparent 75%)",
+          }} />
+        <span aria-hidden="true" className="pointer-events-none absolute -top-32 -right-24 -z-10 hidden size-[440px] rounded-full bg-[rgba(255,198,118,.22)] blur-[110px] lg:block" />
+        <span aria-hidden="true" className="pointer-events-none absolute -bottom-40 left-[10%] -z-10 hidden size-[420px] rounded-full bg-[rgba(255,110,150,.16)] blur-[120px] lg:block" />
 
-        {pending ? <span /> : (
-          <div>
-            <h1 className="max-w-[18ch] text-[24px] leading-[1.12] font-bold tracking-[-0.02em] lg:text-[clamp(28px,3.2vw,40px)]">
-              {empresa?.name ?? "Aycha Comercial"}
-            </h1>
-            <p className="mt-3.5 hidden max-w-[46ch] text-[14.5px] leading-relaxed text-white/90 lg:block">
-              {empresa?.general === false
-                ? "Pedidos de WhatsApp, web y redes, preparación, reparto, comprobantes y caja en un solo lugar."
-                : "Para empresas de carnes y alimentos: pedidos de WhatsApp, web y redes, preparación, reparto, comprobantes y caja en un solo lugar."}
-            </p>
-
-            <div className="mt-6 hidden max-w-[620px] grid-cols-3 gap-3 lg:grid">
-              {FUNCIONES.map(({ icon: Icon, title: t, text }) => (
-                <div key={t} className="rounded-xl border border-white/20 bg-white/[.07] p-3 text-[12px] leading-[1.35]">
-                  <Icon size={20} className="mb-1.5 text-gold" />
-                  <strong className="block text-[12.5px]">{t}</strong>
-                  <span className="text-white/85">{text}</span>
+        {/* En escritorio, el contenido va centrado en el alto del panel y crece con la pantalla. */}
+        <div className="relative flex flex-col gap-4 lg:my-auto lg:max-w-[min(780px,100%)] lg:gap-[clamp(26px,2.4vw,40px)]">
+          {pending ? <span className="h-16 lg:h-20" /> : (
+            <>
+              <div className="flex items-center gap-4 lg:block">
+                <Sello nombre={nombre} logo={deEmpresa ? empresa.logo_url : null} />
+                <div className="min-w-0 lg:mt-7">
+                  <h1 className="font-display text-[26px] leading-none font-bold tracking-[-0.02em] text-white lg:text-[clamp(2.7rem,4.4vw,5.2rem)] lg:drop-shadow-[0_2px_18px_rgba(0,0,0,.18)]">{nombre}</h1>
+                  <p className="mt-2 flex items-center gap-3 text-[11px] font-semibold tracking-[.14em] text-gold uppercase lg:mt-4 lg:text-[clamp(12.5px,0.85vw,16px)]">
+                    <span aria-hidden="true" className="hidden h-px w-10 bg-gold/70 lg:block" />
+                    {SUBTITULO}
+                  </p>
                 </div>
-              ))}
-            </div>
+              </div>
 
-            {marcas.length > 1 && (
-              <ul className="mt-6 hidden flex-wrap gap-2 lg:flex">
-                {marcas.map((b) => (
-                  <li key={b.code} className="flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[12px]">
-                    <span className="size-2.5 rounded-full ring-1 ring-white/60" style={{ background: b.primary_color }} />
-                    {b.name}
+              <p className="hidden max-w-[48ch] text-[clamp(17px,1.3vw,24px)] leading-[1.6] text-white/90 lg:block">{frase}</p>
+
+              <ul className="hidden gap-3 lg:grid xl:grid-cols-3">
+                {PUNTOS.map(({ icono: Icono, texto }) => (
+                  <li key={texto} className="flex items-start gap-3 rounded-2xl border border-white/[.14] bg-white/[.07] p-4 shadow-[0_8px_24px_rgba(0,0,0,.12)] backdrop-blur-sm xl:flex-col">
+                    <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-xl bg-gold/15 text-gold ring-1 ring-gold/30">
+                      <Icono size={18} />
+                    </span>
+                    <span className="text-[clamp(14.5px,0.95vw,17px)] leading-snug text-white/95">{texto}</span>
                   </li>
                 ))}
               </ul>
-            )}
-          </div>
-        )}
 
-        <p className="hidden text-[12px] text-white/70 lg:block">
-          {pending ? " " : `© ${new Date().getFullYear()} · ${empresa?.name ?? "Aycha"}`}
+              {marcas.length > 1 && (
+                <ul className="hidden flex-wrap gap-2 lg:flex" aria-label="Marcas">
+                  {marcas.map((b) => (
+                    <li key={b.code} className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[.07] px-3 py-1 text-[13px]">
+                      <span className="size-2.5 rounded-full ring-1 ring-white/60" style={{ background: b.primary_color }} />
+                      {b.name}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </div>
+
+        <p className="relative hidden pt-6 text-[12.5px] text-white/60 lg:block">
+          Aycha by Intelectalab{deEmpresa && !pending ? ` · ${empresa.name}` : ""} · © {new Date().getFullYear()}
         </p>
       </aside>
 
-      <main className="flex flex-col items-center justify-center gap-[18px] px-6 pt-10 pb-6">
-        <motion.div className="my-auto w-full max-w-[400px]" variants={container} initial="hidden" animate="show">
-          <motion.div variants={item} className="mb-7">
-            {pending || !empresa ? <span className="block h-11" /> : <LogoEmpresa empresa={empresa} />}
-          </motion.div>
-
+      <main className="relative isolate flex flex-col items-center justify-center gap-[18px] px-4 pt-8 pb-6 sm:px-6">
+        <span aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10"
+          style={{ background: "radial-gradient(620px 420px at 50% 42%, var(--primary-soft), transparent 70%)" }} />
+        <motion.div className="my-auto w-full max-w-[440px] rounded-[14px] border border-line bg-surface p-6 shadow-[0_12px_34px_rgba(40,8,18,.10)] sm:p-8"
+          variants={container} initial="hidden" animate="show">
           <motion.div variants={item}>
             <h2 className="text-[24px] font-bold tracking-[-0.01em] text-ink">{title}</h2>
             <p className="mt-1 text-[13px] text-muted">{subtitle}</p>
@@ -148,7 +169,7 @@ export default function AuthShell({ title, subtitle, children, footer, empresa, 
           )}
         </motion.div>
 
-        <p className="text-[12px] text-muted">Aycha by Intelectalab</p>
+        <p className="text-[12px] text-muted lg:hidden">Aycha by Intelectalab</p>
       </main>
     </div>
   );

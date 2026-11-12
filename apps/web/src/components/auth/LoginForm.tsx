@@ -45,12 +45,12 @@ export default function LoginForm() {
   }
 
   return (
-    <AuthShell empresa={empresa} pending={!listo} title="Iniciar sesión" subtitle="Bienvenido(a). Ingrese sus credenciales.">
+    <AuthShell empresa={empresa} pending={!listo} title="Iniciar sesión" subtitle="Hola de nuevo. Ingresa con el correo que te registró tu empresa.">
       <form onSubmit={handleSubmit} noValidate className="grid gap-3.5">
         {errorEmpresa && <div role="alert" className={authError}>{errorEmpresa}</div>}
 
         <motion.div variants={item}>
-          <label htmlFor="email" className={authLabel}>Usuario (correo)</label>
+          <label htmlFor="email" className={authLabel}>Correo</label>
           <div className="relative">
             <input id="email" type="email" required autoComplete="username" placeholder="nombre@empresa.pe"
               value={email} onChange={(e) => setEmail(e.target.value)} className={authInput} />
@@ -78,7 +78,7 @@ export default function LoginForm() {
             </span>
             <span className="text-muted">Recordarme</span>
           </button>
-          <Link href="/forgot-password" className="font-medium text-primary hover:underline">¿Olvidó su contraseña?</Link>
+          <Link href="/forgot-password" className="font-medium text-primary hover:underline">¿Olvidaste tu contraseña?</Link>
         </motion.div>
 
         {error && (
