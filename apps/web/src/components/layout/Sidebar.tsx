@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createPortal } from "react-dom";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentType, type ReactNode } from "react";
-import { Building2, ChevronRight, Layers, Lock, LogOut, UserRound, X } from "lucide-react";
+import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentType, type ReactNode } from "react";
+import { Building2, ChevronRight, Layers, Lock, LogOut, Star, UserRound, X } from "lucide-react";
 import { iniciales } from "@/lib/empresa";
 import { Franja } from "@/components/ui/Franja";
+import type { PantallaDelDia } from "@/lib/menuDia";
 
 type MenuIcon = ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
 
@@ -39,7 +40,18 @@ type SidebarProps = {
   context?: ReactNode;
   /** Abre Plataforma → Módulos desde el aviso de módulo apagado (solo si el rol puede encenderlo). */
   modulesHref?: string | null;
+  /** «Lo de todos los días»: pantallas del puesto y las fijadas con la estrella. */
+  delDia?: PantallaDelDia[];
+  /** Códigos de las pantallas fijadas, y fijar o quitar una (la estrella de cada pantalla del menú). */
+  fijadas?: string[];
+  onFijar?: (code: string) => void;
+  /** Menú corto: solo «Lo de todos los días» en lugar de los grupos (el completo es el de siempre). */
+  menuCorto?: boolean;
+  /** Pasar al menú corto o al completo (sin él, no hay botón: el puesto no tiene menú corto). */
+  onCambiarMenu?: (corto: boolean) => void;
 };
+
+const DIA = "Lo de todos los días";
 
 // Grupos que la persona dejó plegados (true) o desplegados (false). Se recuerda en su navegador;
 // todas las barras abiertas (escritorio, celular, otra pestaña) leen lo mismo.
@@ -111,6 +123,7 @@ function Tooltip({ top, left, children }: { top: number; left: number; children:
 
 export default function Sidebar({
   items, compact = false, loading, onNavigate, onLogout, loggingOut, groupIcons, user, tenantName, tenantLogo, context, modulesHref,
+  delDia = [], fijadas = [], onFijar, menuCorto = false, onCambiarMenu,
 }: SidebarProps) {
   const pathname = usePathname();
   const [tooltip, setTooltip] = useState<{ label: string; top: number; left: number } | null>(null);
@@ -206,19 +219,72 @@ export default function Sidebar({
             {(it.children ?? []).map((p) => {
               const on = pathname === p.href;
               return (
-                <Link key={p.href} href={p.href} role={inFlyout ? "menuitem" : undefined} title={p.code}
-                  onClick={() => { setFlyout(null); onNavigate(); }} aria-current={on ? "page" : undefined}
-                  className={`relative flex items-center gap-2 py-1.5 text-[12.3px] transition-colors ${inFlyout ? "pr-4 pl-7" : "pr-[18px] pl-[64px]"} ${
-                    on ? "bg-[var(--side-active)] font-semibold text-white" : "text-white/70 hover:text-white"
-                  }`}>
-                  {on && <span className="absolute inset-y-0 left-0 w-1 bg-white" />}
-                  <span className={WRAP}>{p.label}</span>
-                </Link>
+                <div key={p.href} className="group/pantalla relative">
+                  <Link href={p.href} role={inFlyout ? "menuitem" : undefined} title={p.code}
+                    onClick={() => { setFlyout(null); onNavigate(); }} aria-current={on ? "page" : undefined}
+                    className={`relative flex items-center gap-2 py-1.5 text-[12.3px] transition-colors ${inFlyout ? "pl-7" : "pl-[64px]"} ${onFijar ? "pr-9" : inFlyout ? "pr-4" : "pr-[18px]"} ${
+                      on ? "bg-[var(--side-active)] font-semibold text-white" : "text-white/70 hover:text-white"
+                    }`}>
+                    {on && <span className="absolute inset-y-0 left-0 w-1 bg-white" />}
+                    <span className={WRAP}>{p.label}</span>
+                  </Link>
+                  {onFijar && <Estrella code={p.code} label={p.label} on={fijadas.includes(p.code)} onFijar={onFijar} />}
+                </div>
               );
             })}
           </div>
         )}
       </div>
+    );
+  }
+
+  /** Una pantalla del menú corto, con su módulo debajo; las fijadas, con su estrella para quitarlas. */
+  function enlaceDelDia(p: PantallaDelDia) {
+    const on = pathname === p.href;
+    return (
+      <div key={p.code} className="group/pantalla relative">
+        <Link href={p.href} title={p.code} onClick={onNavigate} aria-current={on ? "page" : undefined}
+          className={`relative block py-2 pl-[22px] transition-colors ${onFijar ? "pr-9" : "pr-[18px]"} ${
+            on ? "bg-[var(--side-active)] text-white" : "text-white/85 hover:bg-white/[.07] hover:text-white"}`}>
+          {on && <span className="absolute inset-y-0 left-0 w-1 bg-white" />}
+          <span className={`block text-[13.5px] font-medium ${WRAP}`}>{p.label}</span>
+          <small className="block text-[11px] font-normal text-white/55">{p.modulo}</small>
+        </Link>
+        {onFijar && p.fijada && <Estrella code={p.code} label={p.label} on onFijar={onFijar} />}
+      </div>
+    );
+  }
+
+  /**
+   * Menú corto: Inicio, las pantallas del día y el botón para ver todos los módulos. Reemplaza a los
+   * grupos (el menú completo es el de siempre). El buscador de la cabecera sigue encontrando todo.
+   */
+  function menuDelDia() {
+    const inicio = grouped["Inicio"]?.[0];
+    const enInicio = inicio && isActive(inicio.href);
+    const InicioIcon = groupIcons["Inicio"] ?? Layers;
+    return (
+      <>
+        {inicio && (
+          <Link href={inicio.href} onClick={onNavigate} aria-current={enInicio ? "page" : undefined}
+            className={`relative flex w-full items-center gap-3 px-[22px] py-2.5 text-[13.5px] font-medium transition-colors ${enInicio ? "bg-[var(--side-active)] text-white" : "text-white/85 hover:bg-white/[.07] hover:text-white"}`}>
+            {enInicio && <span className="absolute inset-y-0 left-0 w-1 bg-white" />}
+            <InicioIcon size={18} strokeWidth={2} className="shrink-0 opacity-90" />
+            <span className={WRAP}>Inicio</span>
+          </Link>
+        )}
+        <div className="px-[22px] pt-3 pb-1 text-[10.5px] font-semibold tracking-[0.1em] text-white/55 uppercase">{DIA}</div>
+        {delDia.map((p) => enlaceDelDia(p))}
+        {onCambiarMenu && (
+          <button type="button" onClick={() => onCambiarMenu(false)}
+            className="mx-3.5 mt-3 block w-[calc(100%-28px)] cursor-pointer rounded-lg border border-dashed border-white/25 px-3 py-1.5 text-left text-[12px] text-white/70 transition-colors hover:border-white/50 hover:text-white">
+            Ver todos los módulos →
+          </button>
+        )}
+        <p className="px-[22px] pt-2 pb-1 text-[11px] leading-snug text-white/50">
+          Fija más pantallas con la estrella ☆ del menú completo. El buscador de arriba encuentra todo.
+        </p>
+      </>
     );
   }
 
@@ -274,13 +340,13 @@ export default function Sidebar({
           setFlyout(null);
         }}
       >
-        {loading ? (
+        {!loading && menuCorto && !compact ? menuDelDia() : loading ? (
           /* Esqueleto de carga: evita el parpadeo y los saltos visuales */
           <div className={`space-y-3 pt-2 ${compact ? "" : "px-[22px]"}`}>
             {[1, 2, 3, 4].map((n) => <div key={n} className="h-8 w-full animate-pulse rounded-lg bg-white/15" />)}
           </div>
         ) : (
-          Object.entries(grouped).map(([group, groupItems]) => {
+          Object.entries(grouped).map(([group, groupItems]) => <Fragment key={group}>{(() => {
             const GroupIcon = groupIcons[group] ?? Layers;
             const hasActive = groupItems.some((it) => isActive(it.href));
             // Un solo enlace en el grupo (Inicio): sin plegar.
@@ -343,7 +409,12 @@ export default function Sidebar({
                 {!collapsed && <div className="bg-black/[0.14] py-1">{groupItems.map((it) => itemLink(it, false))}</div>}
               </div>
             );
-          })
+          })()}{group === "Inicio" && !compact && onCambiarMenu && (
+            <button type="button" onClick={() => onCambiarMenu(true)}
+              className="mx-3.5 mt-1 mb-1.5 block w-[calc(100%-28px)] cursor-pointer rounded-lg border border-dashed border-white/25 px-3 py-1.5 text-left text-[12px] text-white/70 transition-colors hover:border-white/50 hover:text-white">
+              ← Ver solo lo de todos los días
+            </button>
+          )}</Fragment>)
         )}
 
         {!loading && items.length === 0 && <p className="px-[22px] py-2 text-sm text-white/70">No hay módulos disponibles.</p>}
@@ -430,5 +501,18 @@ function HoverTip({ children }: { children: ReactNode }) {
       <span className="absolute top-1/2 right-full -translate-y-1/2 border-[5px] border-transparent" style={{ borderRightColor: "var(--tooltip)" }} />
       {children}
     </span>
+  );
+}
+
+/** Estrella para fijar una pantalla en «Lo de todos los días»: se ve al pasar el mouse, o siempre si está fijada. */
+function Estrella({ code, label, on, onFijar }: { code: string; label: string; on: boolean; onFijar: (code: string) => void }) {
+  const texto = on ? `Quitar «${label}» de lo de todos los días` : `Fijar «${label}» en lo de todos los días`;
+  return (
+    <button type="button" title={on ? "Quitar de mi menú" : "Fijar en mi menú"} aria-label={texto} aria-pressed={on}
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onFijar(code); }}
+      className={`absolute top-1/2 right-3 grid size-6 -translate-y-1/2 cursor-pointer place-items-center rounded-md transition-opacity hover:bg-white/10 focus-visible:opacity-100 ${
+        on ? "text-gold opacity-100" : "text-white/60 opacity-0 group-hover/pantalla:opacity-100"}`}>
+      <Star size={13} fill={on ? "currentColor" : "none"} />
+    </button>
   );
 }

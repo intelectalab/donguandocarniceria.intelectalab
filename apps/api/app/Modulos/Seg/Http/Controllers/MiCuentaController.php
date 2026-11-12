@@ -11,6 +11,7 @@ use App\Support\PasswordPolicy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
  * SEG-06 Mi cuenta: cada persona, lo suyo (sin permiso especial ni acceso al módulo SEG). Datos,
@@ -82,6 +83,31 @@ class MiCuentaController extends Controller
             'details' => array_intersect_key($d, array_flip(['default_brand_id', 'ui_theme_mode', 'avisos_correo', 'avisos_push', 'resumen_diario']))]);
 
         return $this->show($request);
+    }
+
+    /**
+     * La barra lateral de cada persona: las pantallas fijadas con la estrella en «Lo de todos los días»
+     * (la lista completa: solo códigos de pantalla y sin repetir) y si ve el menú corto o el completo.
+     * Qué se muestra lo decide el menú: una pantalla que el rol no ve no sale.
+     */
+    public function menu(Request $request)
+    {
+        // Llega una de las dos cosas o ambas; una lista vacía de estrellas vale (quita todas).
+        if (! $request->exists('favs') && ! $request->exists('corto')) {
+            throw ValidationException::withMessages(['favs' => ['Envía las pantallas fijadas o el menú elegido.']]);
+        }
+        $d = $request->validate([
+            'favs' => ['sometimes', 'present', 'array', 'max:40'],
+            'favs.*' => ['string', 'distinct', 'regex:/^[A-Z]{3}-\d{2}$/'],
+            'corto' => ['sometimes', 'boolean'],
+        ], ['favs.max' => 'Puedes fijar hasta 40 pantallas.']);
+        $u = $request->user();
+        $u->forceFill(array_filter([
+            'menu_favs' => array_key_exists('favs', $d) ? array_values($d['favs']) : null,
+            'menu_corto' => array_key_exists('corto', $d) ? (bool) $d['corto'] : null,
+        ], fn ($v) => $v !== null))->save();
+
+        return response()->json(['menu_favs' => $u->menu_favs, 'menu_corto' => $u->menu_corto]);
     }
 
     /** Prueba la contraseña nueva contra la política, sin guardarla (para el cambio de contraseña). */

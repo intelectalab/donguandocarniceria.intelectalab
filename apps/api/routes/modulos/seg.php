@@ -51,6 +51,7 @@ Route::prefix('seg')->group(function () {
     Route::get('/mi-cuenta', [MiCuentaController::class, 'show']);
     Route::put('/mi-cuenta/preferencias', [MiCuentaController::class, 'preferencias'])->middleware('throttle:30,1');
     Route::post('/mi-cuenta/probar-clave', [MiCuentaController::class, 'probarClave'])->middleware('throttle:30,1');
+    Route::put('/mi-cuenta/menu', [MiCuentaController::class, 'menu'])->middleware('throttle:60,1');  // estrellas del menú
 
     // SEG-07 Mis sesiones y dispositivos: cada persona las suyas, sin permiso especial ni acceso al módulo.
     Route::get('/mis-sesiones', [SesionController::class, 'mias']);

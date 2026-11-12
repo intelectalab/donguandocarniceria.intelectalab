@@ -5,25 +5,31 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bell, CheckCheck } from "lucide-react";
 import { api } from "@/lib/api";
+import { moduloPorCodigo } from "@/lib/modulos";
 import { haceCuanto, marcarLeida, marcarTodas, onNotificacionesCambio, type Notificacion, type ResumenNotificaciones } from "@/lib/notificaciones";
 
 // Cada cuánto se mira si hay avisos nuevos (solo con la pestaña a la vista).
 const POLL_MS = 60_000;
 
+type Vista = "importantes" | "todas";
+
 /**
- * Campana de la cabecera: contador de no leídas ("9+" desde diez) y las más recientes en un
- * panel. Un clic marca la notificación como leída y abre lo que la originó.
+ * Campana de la cabecera. Cuenta solo las **importantes** sin leer ("9+" desde diez): las rojas y las
+ * ámbar de los módulos de tu día a día. El panel separa «Importantes» (lo rojo primero, por módulo) y
+ * «Todas» (de la más nueva a la más antigua). Un clic marca la notificación como leída y abre lo que la originó.
  */
-export default function NotificationBell({ className }: { className: string }) {
+export default function NotificationBell({ className, modulosDelDia = [] }: { className: string; modulosDelDia?: string[] }) {
   const router = useRouter();
   const [resumen, setResumen] = useState<ResumenNotificaciones | null>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [vista, setVista] = useState<Vista>("importantes");
   const ref = useRef<HTMLDivElement>(null);
+  const dia = modulosDelDia.join(",");
 
   const load = useCallback(() => {
-    api<ResumenNotificaciones>("/v1/me/notifications/summary").then(setResumen).catch(() => undefined);
-  }, []);
+    api<ResumenNotificaciones>(`/v1/me/notifications/summary${dia ? `?dia=${encodeURIComponent(dia)}` : ""}`).then(setResumen).catch(() => undefined);
+  }, [dia]);
 
   useEffect(() => {
     load();
@@ -64,16 +70,26 @@ export default function NotificationBell({ className }: { className: string }) {
   }
 
   const unread = resumen?.unread ?? 0;
-  const latest = resumen?.latest ?? [];
+  const importantes = resumen?.importantes ?? 0;
+  const latest = (vista === "importantes" ? resumen?.latest_importantes : resumen?.latest) ?? [];
+  // En «Importantes», agrupadas por módulo (en el orden en que llegan: lo rojo primero).
+  const grupos = vista === "importantes"
+    ? latest.reduce<{ modulo: string; items: Notificacion[] }[]>((acc, n) => {
+      const modulo = n.module ? moduloPorCodigo(n.module)?.name ?? n.module : "General";
+      const g = acc.find((x) => x.modulo === modulo);
+      if (g) g.items.push(n); else acc.push({ modulo, items: [n] });
+      return acc;
+    }, [])
+    : [{ modulo: "", items: latest }];
 
   return (
     <div className="relative" ref={ref}>
       <button type="button" className={className} onClick={() => setOpen((v) => !v)} aria-haspopup="true" aria-expanded={open}
-        aria-label={unread ? `Notificaciones: ${unread} sin leer` : "Notificaciones"} title="Notificaciones">
+        aria-label={importantes ? `Notificaciones: ${importantes} importantes sin leer` : "Notificaciones"} title="Notificaciones">
         <Bell size={20} />
-        {unread > 0 && (
+        {importantes > 0 && (
           <span className="absolute top-1 right-1 grid h-[17px] min-w-[17px] place-items-center rounded-full bg-bad px-1 text-[10px] leading-none font-semibold text-white ring-2 ring-surface">
-            {unread > 9 ? "9+" : unread}
+            {importantes > 9 ? "9+" : importantes}
           </span>
         )}
       </button>
@@ -91,15 +107,29 @@ export default function NotificationBell({ className }: { className: string }) {
             </button>
           </div>
 
+          <div role="tablist" aria-label="Qué notificaciones ver" className="flex gap-1 border-b border-line px-3.5 py-2">
+            {([["importantes", "Importantes", importantes], ["todas", "Todas", unread]] as const).map(([k, label, n]) => (
+              <button key={k} type="button" role="tab" aria-selected={vista === k} onClick={() => setVista(k)}
+                className={`cursor-pointer rounded-full px-3 py-1 text-[12.5px] font-medium transition-colors ${vista === k ? "bg-primary text-primary-ink" : "text-muted hover:bg-surface-2 hover:text-ink"}`}>
+                {label}{n > 0 ? ` (${n})` : ""}
+              </button>
+            ))}
+          </div>
+
           {latest.length === 0 ? (
-            <p className="px-4 py-8 text-center text-[13px] text-muted">{resumen ? "No tienes notificaciones." : "Cargando…"}</p>
+            <p className="px-4 py-8 text-center text-[13px] text-muted">
+              {!resumen ? "Cargando…" : vista === "importantes" ? "Nada urgente para ti. Revisa «Todas» si quieres ver el resto." : "No tienes notificaciones."}
+            </p>
           ) : (
             <ul className="max-h-[min(420px,60vh)] overflow-y-auto">
-              {latest.map((n) => (
+              {grupos.map((g) => g.items.map((n, i) => (
                 <li key={n.id}>
+                  {g.modulo && i === 0 && (
+                    <div className="border-b border-line bg-surface-2 px-3.5 py-1.5 text-[11px] font-semibold tracking-wide text-muted uppercase">{g.modulo} ({g.items.length})</div>
+                  )}
                   <button type="button" onClick={() => openItem(n)}
                     className={`flex w-full cursor-pointer gap-2.5 border-b border-line px-3.5 py-3 text-left transition-colors last:border-b-0 hover:bg-surface-2 ${n.read ? "" : "bg-primary-soft/50"}`}>
-                    <span aria-hidden="true" className={`mt-[6px] size-2 shrink-0 rounded-full ${n.read ? "bg-transparent" : "bg-primary"}`} />
+                    <span aria-hidden="true" className={`mt-[6px] size-2 shrink-0 rounded-full ${n.read ? "bg-transparent" : n.tone === "bad" ? "bg-bad" : n.tone === "warn" ? "bg-warn" : "bg-primary"}`} />
                     <span className="min-w-0 flex-1">
                       <strong className={`block text-[13px] leading-snug text-ink ${n.read ? "font-medium" : "font-semibold"}`}>{n.title}</strong>
                       <span className="block text-[12.5px] leading-snug text-muted [overflow-wrap:anywhere]">{n.body}</span>
@@ -107,7 +137,7 @@ export default function NotificationBell({ className }: { className: string }) {
                     </span>
                   </button>
                 </li>
-              ))}
+              )))}
             </ul>
           )}
 

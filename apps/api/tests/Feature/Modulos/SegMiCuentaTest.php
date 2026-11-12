@@ -62,4 +62,26 @@ class SegMiCuentaTest extends TestCase
         $this->contexto();
         $this->assertTrue(DB::table('access_log')->where('event', 'PASSWORD_CHANGED')->exists());
     }
+
+    public function test_las_pantallas_fijadas_del_menu_quedan_en_la_cuenta(): void
+    {
+        $api = $this->como(self::VENDEDORA);
+        $this->assertSame([], $api->getJson('/api/v1/me')->assertOk()->json('user.menu_favs'));
+        $api->putJson('/api/v1/seg/mi-cuenta/menu', ['favs' => ['ALM-02', 'CAJ-03']])->assertOk()->assertJsonPath('menu_favs', ['ALM-02', 'CAJ-03']);
+        // En otro equipo (otra sesión) las mismas.
+        $this->assertSame(['ALM-02', 'CAJ-03'], $this->como(self::VENDEDORA)->getJson('/api/v1/me')->json('user.menu_favs'));
+
+        $api->putJson('/api/v1/seg/mi-cuenta/menu', ['favs' => ['<script>']])->assertUnprocessable();
+        $api->putJson('/api/v1/seg/mi-cuenta/menu', ['favs' => ['ALM-02', 'ALM-02']])->assertUnprocessable();
+        $api->putJson('/api/v1/seg/mi-cuenta/menu', ['favs' => array_map(fn ($i) => sprintf('PED-%02d', $i), range(1, 41))])->assertUnprocessable();
+        $api->putJson('/api/v1/seg/mi-cuenta/menu', ['favs' => []])->assertOk()->assertJsonPath('menu_favs', []);
+
+        // Menú corto o completo: sin elegir es null (la web decide por el puesto); se recuerda sin tocar las estrellas.
+        $this->assertNull($api->getJson('/api/v1/me')->json('user.menu_corto'));
+        $api->putJson('/api/v1/seg/mi-cuenta/menu', ['favs' => ['ALM-02']])->assertOk();
+        $api->putJson('/api/v1/seg/mi-cuenta/menu', ['corto' => false])->assertOk()->assertJsonPath('menu_corto', false)->assertJsonPath('menu_favs', ['ALM-02']);
+        $this->assertFalse($this->como(self::VENDEDORA)->getJson('/api/v1/me')->json('user.menu_corto'));
+        $api->putJson('/api/v1/seg/mi-cuenta/menu', ['corto' => 'quizas'])->assertUnprocessable();
+        $api->putJson('/api/v1/seg/mi-cuenta/menu', [])->assertUnprocessable();
+    }
 }

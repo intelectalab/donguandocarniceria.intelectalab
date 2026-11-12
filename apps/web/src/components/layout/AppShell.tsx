@@ -7,10 +7,11 @@ import { BookOpen, Cloud, Coins, Factory, Gauge, Home, Lock, Megaphone, ShieldCh
 import Header from "./Header";
 import Sidebar, { type MenuItem } from "./Sidebar";
 import ContextSelectors from "./ContextSelectors";
-import { UiHost } from "@/components/ui";
-import { api, apiImagen } from "@/lib/api";
+import { UiHost, toast } from "@/components/ui";
+import { api, apiImagen, mensajeDe } from "@/lib/api";
 import { clearToken } from "@/lib/auth";
 import { MODULOS, menuDe, rutaPantalla } from "@/lib/modulos";
+import { pantallasDelDia } from "@/lib/menuDia";
 import { useEstadoSesion } from "@/lib/sesion";
 import { aplicarTema, cssDeTema } from "@/lib/temaMarca";
 
@@ -103,14 +104,48 @@ export default function AppShell({ children }: { children: ReactNode }) {
   }, [temas, marcaActual]);
 
   // Menú en el orden de sus grupos: solo los módulos que el rol ve; los apagados, con candado.
+  const menu = useMemo(() => (sesion ? menuDe(sesion.me.modules, sesion.me.roles, sesion.me.permissions) : []), [sesion]);
   const items = useMemo<MenuItem[]>(() => {
     if (!sesion) return [];
-    const modulos = menuDe(sesion.me.modules, sesion.me.roles, sesion.me.permissions).flatMap((g) => g.modulos.map((m) => ({
+    const modulos = menu.flatMap((g) => g.modulos.map((m) => ({
       href: `/m/${m.code.toLowerCase()}`, label: m.name, code: m.code, group: g.name, locked: !m.enabled,
       children: m.visibles.map((p) => ({ href: rutaPantalla(m.code, p.code), label: p.name, code: p.code })),
     })));
     return [{ href: "/", label: "Inicio", group: "Inicio" }, ...modulos];
-  }, [sesion]);
+  }, [sesion, menu]);
+
+  // «Lo de todos los días»: las pantallas del puesto y las fijadas con la estrella (se guardan en la
+  // cuenta; mientras responde la API se ve el cambio y, si falla, vuelve a lo guardado).
+  const [fijadas, setFijadas] = useState<string[] | null>(null);
+  const guardadas = sesion?.me.user.menu_favs;
+  const misFijadas = useMemo(() => fijadas ?? guardadas ?? [], [fijadas, guardadas]);
+  const delDia = useMemo(() => (sesion ? pantallasDelDia(menu, sesion.me.roles, misFijadas) : []), [sesion, menu, misFijadas]);
+  async function fijar(code: string) {
+    const nuevas = misFijadas.includes(code) ? misFijadas.filter((c) => c !== code) : [...misFijadas, code];
+    setFijadas(nuevas);
+    try {
+      const r = await api<{ menu_favs: string[] }>("/v1/seg/mi-cuenta/menu", { method: "PUT", body: { favs: nuevas } });
+      setFijadas(r.menu_favs);
+    } catch (e) {
+      setFijadas(null);
+      toast.error(mensajeDe(e));
+    }
+  }
+  // Menú corto (solo «Lo de todos los días») o completo. Sin elegir, el corto si el puesto tiene al menos
+  // 3 pantallas del día; con menos, siempre el completo. Se recuerda en la cuenta.
+  const [eligioCorto, setEligioCorto] = useState<boolean | null>(null);
+  const hayCorto = delDia.length >= 3;
+  // Para la campana: los módulos del día a día (con menú corto); sin él, la API usa donde registra o aprueba.
+  const modulosDelDia = useMemo(() => (hayCorto ? [...new Set(delDia.map((p) => p.code.slice(0, 3)))].sort() : []), [hayCorto, delDia]);
+  const menuCorto = hayCorto && (eligioCorto ?? sesion?.me.user.menu_corto ?? true);
+  async function cambiarMenu(corto: boolean) {
+    setEligioCorto(corto);
+    try {
+      await api("/v1/seg/mi-cuenta/menu", { method: "PUT", body: { corto } });
+    } catch (e) {
+      toast.error(mensajeDe(e));
+    }
+  }
 
   const currentItem = items.find((it) => (it.href === "/" ? pathname === "/" : pathname === it.href || pathname.startsWith(`${it.href}/`)));
   const currentScreen = currentItem?.children?.find((p) => pathname === p.href || pathname.startsWith(`${p.href}/`));
@@ -166,6 +201,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const sidebar = (compact: boolean) => (
     <Sidebar items={items} compact={compact} loading={cargando} onNavigate={() => setMobileOpen(false)} onLogout={handleLogout}
       loggingOut={loggingOut} groupIcons={GROUP_ICONS} user={user} tenantName={tenantName} tenantLogo={tenantLogo} modulesHref={modulesHref}
+      delDia={delDia} fijadas={misFijadas} onFijar={fijar} menuCorto={menuCorto} onCambiarMenu={hayCorto ? cambiarMenu : undefined}
       context={sesion ? <ContextSelectors variant="sidebar" /> : undefined} />
   );
 
@@ -183,7 +219,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <Header open={sidebarOpen || mobileOpen} currentSection={currentSection} crumbs={crumbs} onToggle={toggleSidebar}
-          user={user} onLogout={handleLogout} tenantName={tenantName} screens={searchScreens} ready={Boolean(sesion)} />
+          user={user} onLogout={handleLogout} tenantName={tenantName} screens={searchScreens} ready={Boolean(sesion)} modulosDelDia={modulosDelDia} />
 
         <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 md:p-10">
           {error ? (
