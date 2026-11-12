@@ -49,7 +49,7 @@ export default function ResetPasswordForm() {
   }
 
   return (
-    <AuthShell empresa={empresa} pending={!listo} title="Crear nueva contraseña" subtitle="Ingrese el código recibido y su nueva contraseña.">
+    <AuthShell empresa={empresa} pending={!listo} title="Crear nueva contraseña" subtitle="Escribe el código que te llegó al correo y tu nueva contraseña.">
       <form onSubmit={handleSubmit} noValidate className="grid gap-3.5">
         <motion.p variants={item} className="rounded-[9px] bg-info-soft px-3 py-2.5 text-[12.5px] text-info">
           Si el correo existe, enviamos un código de 6 caracteres.
