@@ -4,10 +4,10 @@ import { TOKEN_COOKIE } from "@/lib/auth";
 
 // Solo decide a dónde llevar a cada quien según tenga o no sesión: los permisos reales
 // los valida la API en cada petición.
-//  - «/» es la página pública de Aycha (landing): se ve con o sin sesión, como en erp-saas.
+//  - «/» es la página pública de GestionCarnica (landing): se ve con o sin sesión, como en erp-saas.
 //  - El inicio del sistema es «/inicio».
 const PUBLICAS = ["/login", "/forgot-password", "/reset-password"];
-// Páginas públicas de Aycha (landing): se ven con o sin sesión; con dos dominios, en el de la página.
+// Páginas públicas de GestionCarnica (landing): se ven con o sin sesión; con dos dominios, en el de la página.
 const PAGINAS = ["/", "/precios"];
 const INICIO = "/inicio";
 

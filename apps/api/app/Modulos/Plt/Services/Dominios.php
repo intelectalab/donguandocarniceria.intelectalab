@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * Dominios de acceso de la empresa (PLT-13, RN-PLT-19). tenant_hostnames es global (sin RLS): el
  * ingreso la consulta antes de saber la empresa. Por eso aquí TODA consulta filtra por la empresa
- * de la sesión, y una empresa solo agrega dominios propios: los de Aycha (*.aycha.pe) los asigna
+ * de la sesión, y una empresa solo agrega dominios propios: los de GestionCarnica (*.aycha.pe) los asigna
  * Intelectalab. Un dominio nuevo queda «pendiente de DNS» hasta que su registro TXT pruebe que es
  * de la empresa. Publicarlo en el servidor (Nginx y certificado) lo hace Intelectalab.
  */

@@ -79,7 +79,7 @@ export default function Header({ open, currentSection, crumbs = [], onToggle, us
       <div className="mr-auto min-w-0">
         <nav aria-label="Ruta" className="flex items-center gap-[5px] overflow-hidden text-[11.5px] whitespace-nowrap text-muted">
           <Home size={13} className="shrink-0" />
-          <span className="truncate">{tenantName ?? "Aycha"}</span>
+          <span className="truncate">{tenantName ?? "GestionCarnica"}</span>
           {/* La clave es la posición: un grupo y su módulo pueden llamarse igual («Plataforma»). */}
           {crumbs.map((c, i) => (
             <span key={i} className="flex min-w-0 items-center gap-[5px]">

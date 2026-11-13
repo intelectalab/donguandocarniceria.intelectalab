@@ -266,10 +266,10 @@ final class Usuarios
         ]);
         $horas = self::INVITACION_HORAS;
         Mail::raw(
-            "Hola {$u->name}:\n\n{$quien->name} te invitó a Aycha. Entra a «Olvidé mi contraseña», elige «Ya tengo un código» "
+            "Hola {$u->name}:\n\n{$quien->name} te invitó a GestionCarnica. Entra a «Olvidé mi contraseña», elige «Ya tengo un código» "
             ."y usa el código {$codigo} con tu correo {$u->email} para crear tu contraseña.\n"
             ."El código vence en {$horas} horas. Si no esperabas esta invitación, ignora este correo.",
-            fn ($m) => $m->to($u->email)->subject('Invitación a Aycha')
+            fn ($m) => $m->to($u->email)->subject('Invitación a GestionCarnica')
         );
         Bitacora::registrar('USER_INVITED', ['user' => $quien, 'entity' => 'users', 'entity_id' => $u->id, 'detail' => "Invitó a {$u->email}"]);
     }

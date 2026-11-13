@@ -101,7 +101,7 @@ function Pie({ conSesion }: { conSesion: boolean }) {
       </div>
       <div className="border-t border-white/10">
         <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-3 px-4 py-5 text-[13px] text-[#e9e1da]/60 sm:px-6">
-          <span>© {new Date().getFullYear()} Aycha · Intelectalab</span>
+          <span>© {new Date().getFullYear()} GestionCarnica · Intelectalab</span>
           {conAnalitica && <button type="button" onClick={abrirPreferencias} className="cursor-pointer hover:text-white">Preferencias de cookies</button>}
         </div>
       </div>

@@ -20,7 +20,7 @@ export function mensajeDe(err: unknown, porDefecto: string) {
 
 /**
  * Ingreso. Como en erp-saas, en el ingreso general lleva «Volver al inicio» (la página pública) y
- * «Ver planes»; con el dominio de una empresa no, porque son de la página de Aycha.
+ * «Ver planes»; con el dominio de una empresa no, porque son de la página de GestionCarnica.
  */
 export default function LoginForm({ inicioUrl = "/", planesUrl = "/#precios" }: { inicioUrl?: string; planesUrl?: string }) {
   const router = useRouter();

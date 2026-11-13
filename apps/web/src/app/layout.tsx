@@ -8,7 +8,7 @@ const sourceSans = Source_Sans_3({ variable: "--font-source-sans", subsets: ["la
 const jetbrains = JetBrains_Mono({ variable: "--font-jetbrains", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Aycha · Comercial",
+  title: "GestionCarnica · Comercial",
   description: "Pedidos, reparto, producción y comprobantes en un solo lugar",
 };
 

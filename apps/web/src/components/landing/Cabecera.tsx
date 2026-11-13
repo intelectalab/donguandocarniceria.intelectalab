@@ -30,11 +30,21 @@ function Blog({ movil = false }: { movil?: boolean }) {
   );
 }
 
+/** El logo de GestionCarnica, el mismo del ícono de la pestaña: la «G» dorada sobre el cuadro vino. */
+export function LogoMarca({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 64 64" aria-hidden="true" className={`shrink-0 ${className}`}>
+      <rect width="64" height="64" rx="14" fill="#6E1423" />
+      <path d="M41.5 23.5A11 11 0 1 0 43 33H32" fill="none" stroke="#D4A72C" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function Logo() {
   return (
-    <span className="flex items-center gap-2.5">
-      <span className="grid size-9 place-items-center rounded-[10px] bg-primary font-display text-[15px] font-extrabold text-primary-ink">A</span>
-      <strong className="font-display text-[20px] font-bold tracking-[-0.01em]">Aycha</strong>
+    <span className="flex min-w-0 items-center gap-2 sm:gap-2.5">
+      <LogoMarca className="size-8 sm:size-9" />
+      <strong className="truncate font-display text-[16px] font-bold tracking-[-0.01em] sm:text-[20px]">GestionCarnica</strong>
     </span>
   );
 }
@@ -65,8 +75,8 @@ export function Cabecera({ conSesion, actual, onProbar }: { conSesion: boolean; 
     <header className="sticky top-0 z-40 bg-surface/95 shadow-[0_1px_0_var(--line),0_8px_24px_rgba(40,8,18,.06)] backdrop-blur-md">
       {/* Línea fina vino y dorado: separa la cabecera del resto de la página. */}
       <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-[2px] bg-gradient-to-r from-primary via-[#c0536e] to-gold opacity-70" />
-      <div className="mx-auto grid h-20 max-w-[1200px] grid-cols-[auto_1fr_auto] items-center gap-6 px-4 sm:px-6">
-        <Link href="/" aria-label="Aycha, página de inicio"><Logo /></Link>
+      <div className="mx-auto grid h-20 max-w-[1200px] grid-cols-[minmax(0,auto)_1fr_auto] items-center gap-3 px-4 sm:gap-6 sm:px-6">
+        <Link href="/" aria-label="GestionCarnica, página de inicio" className="min-w-0"><Logo /></Link>
 
         <nav className="hidden items-center justify-center gap-1 lg:flex" aria-label="Secciones">
           <div ref={caja} className="relative">
@@ -93,10 +103,10 @@ export function Cabecera({ conSesion, actual, onProbar }: { conSesion: boolean; 
           <Link href="/#preguntas" className="rounded-lg px-3 py-2 text-[15px] font-medium text-ink/85 transition-colors hover:bg-surface-2 hover:text-ink">Preguntas</Link>
         </nav>
 
-        <div className="col-start-3 flex items-center gap-2 sm:gap-3">
+        <div className="col-start-3 flex items-center gap-1 sm:gap-3">
           <Link href={ingresar} className="hidden rounded-[10px] px-3 py-2 text-[15px] font-medium text-ink hover:bg-surface-2 sm:block">{conSesion ? "Ir a mi sistema" : "Ingresar"}</Link>
           <button type="button" onClick={onProbar}
-            className="cursor-pointer rounded-xl bg-primary px-4 py-2.5 text-[14.5px] font-semibold text-primary-ink shadow-[0_8px_20px_rgba(110,20,35,.22)] transition-[filter] hover:brightness-110 sm:px-6 sm:py-3 sm:text-[15px]">
+            className="cursor-pointer whitespace-nowrap rounded-xl bg-primary px-3 py-2.5 text-[13.5px] font-semibold text-primary-ink shadow-[0_8px_20px_rgba(110,20,35,.22)] transition-[filter] hover:brightness-110 sm:px-6 sm:py-3 sm:text-[15px]">
             Pruébalo gratis
           </button>
           <button type="button" onClick={() => setMovil((v) => !v)} aria-expanded={movil} aria-label={movil ? "Cerrar menú" : "Abrir menú"}

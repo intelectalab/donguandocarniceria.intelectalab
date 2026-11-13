@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Route;
 | y protege cada una con 'modulo:PED,C' o 'permiso:ped.discount.approve'.
 */
 
-// Página pública de Aycha (landing): sin empresa ni sesión. Solo el catálogo de planes y pedidos de demo,
+// Página pública de GestionCarnica (landing): sin empresa ni sesión. Solo el catálogo de planes y pedidos de demo,
 // con límite por IP (los pedidos, además, con trampa contra robots y solo inserción en la base).
 Route::prefix('v1/publico')->group(function () {
     Route::get('/planes', [PublicoController::class, 'planes'])->middleware('throttle:60,1');

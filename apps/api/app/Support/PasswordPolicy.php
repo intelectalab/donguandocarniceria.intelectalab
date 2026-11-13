@@ -20,7 +20,7 @@ final class PasswordPolicy
         'password', 'password1', 'password123', 'passw0rd', 'qwerty', 'qwerty123', 'qwertyuiop', 'abc123', 'abcd1234', 'asdfgh',
         'iloveyou', 'admin', 'admin123', 'administrador', 'contrasena', 'contrasena1', 'contrasena123', 'clave', 'clave123',
         'peru', 'peru123', 'peru2026', 'lima', 'lima123', 'lima2026', 'bienvenido', 'bienvenido1', 'teamo', 'teamo123',
-        'carniceria', 'carniceria1', 'carniceria2026', 'cambiame', 'cambiame1', 'temporal', 'temporal1', 'aycha', 'aycha123', 'aycha2026',
+        'carniceria', 'carniceria1', 'carniceria2026', 'cambiame', 'cambiame1', 'temporal', 'temporal1', 'aycha', 'aycha123', 'aycha2026', 'gestioncarnica', 'gestioncarnica1', 'gestioncarnica123', 'gestioncarnica2026',
     ];
 
     public static function min(): int

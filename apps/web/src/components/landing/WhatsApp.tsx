@@ -1,9 +1,9 @@
-// WhatsApp de ventas de Aycha en la página pública. El número sale de NEXT_PUBLIC_WHATSAPP_VENTAS (solo
+// WhatsApp de ventas de GestionCarnica en la página pública. El número sale de NEXT_PUBLIC_WHATSAPP_VENTAS (solo
 // dígitos, con el código del país: 51987654321); sin él, los botones no se muestran. El enlace abre
 // WhatsApp (wa.me) con un mensaje listo, en otra pestaña y sin pasarle datos de esta página.
 
 const NUMERO = (process.env.NEXT_PUBLIC_WHATSAPP_VENTAS ?? "").replace(/\D/g, "");
-const MENSAJE = "Hola, quiero ver una demo de Aycha";
+const MENSAJE = "Hola, quiero ver una demo de GestionCarnica";
 
 /** Enlace a WhatsApp, o null si el número no está configurado o no es válido. */
 export const enlaceWhatsApp = /^\d{8,15}$/.test(NUMERO) ? `https://wa.me/${NUMERO}?text=${encodeURIComponent(MENSAJE)}` : null;

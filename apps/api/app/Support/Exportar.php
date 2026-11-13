@@ -45,9 +45,9 @@ final class Exportar
         $this->libro = new Spreadsheet;
         $this->libro->removeSheetByIndex(0);
         $this->colores = self::colores();
-        $cliente = TenantContext::tenant()['name'] ?? 'Aycha';
-        $this->libro->getProperties()->setCreator("{$quien->name} · Aycha")->setCompany($cliente)->setTitle($titulo)
-            ->setSubject($titulo)->setDescription("Exportado desde Aycha por {$quien->name}");
+        $cliente = TenantContext::tenant()['name'] ?? 'GestionCarnica';
+        $this->libro->getProperties()->setCreator("{$quien->name} · GestionCarnica")->setCompany($cliente)->setTitle($titulo)
+            ->setSubject($titulo)->setDescription("Exportado desde GestionCarnica por {$quien->name}");
         $this->libro->getDefaultStyle()->getFont()->setName('Calibri')->setSize(10);
     }
 
@@ -73,7 +73,7 @@ final class Exportar
 
         // Banda con el cliente (y su logo) en el color de la marca.
         $h->mergeCells("A1:{$ultima}1");
-        self::poner($h, 'A1', TenantContext::tenant()['name'] ?? 'Aycha');
+        self::poner($h, 'A1', TenantContext::tenant()['name'] ?? 'GestionCarnica');
         $h->getStyle("A1:{$ultima}1")->applyFromArray([
             'font' => ['bold' => true, 'size' => 15, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $oscuro]],
@@ -251,7 +251,7 @@ final class Exportar
 
     /* ------------------------------------------------------------------ apoyo */
 
-    /** Colores del tema de la empresa (PLT-06), o los de Aycha. Solo #RRGGBB. */
+    /** Colores del tema de la empresa (PLT-06), o los de GestionCarnica. Solo #RRGGBB. */
     private static function colores(): array
     {
         $base = ['primary' => '922242', 'primary_dark' => '6D102B', 'accent' => 'B9781A'];

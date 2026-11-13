@@ -5,7 +5,7 @@ import { api } from "./api";
 
 /**
  * Empresa de la pantalla de ingreso (pública). En el ingreso general (general: true) todavía no
- * hay empresa y sale la marca de Aycha; con dominio por empresa, la de esa empresa.
+ * hay empresa y sale la marca de GestionCarnica; con dominio por empresa, la de esa empresa.
  */
 export type Empresa = {
   general: boolean;
