@@ -130,7 +130,7 @@ export function FormDemo({ planes, plan, onPlan, conIntereses = false }: { plane
       )}
       <label className="flex items-start gap-2.5 text-[12.5px] leading-snug text-muted">
         <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 size-4 shrink-0 accent-[var(--primary)]" />
-        Acepto que Aycha me escriba por WhatsApp o correo sobre esta solicitud.
+        Acepto que GestionCarnica me escriba por WhatsApp o correo sobre esta solicitud.
       </label>
       {err("consent")}
       {/* Trampa para robots: fuera de la vista y del teclado. */}

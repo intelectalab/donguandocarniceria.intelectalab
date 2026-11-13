@@ -14,7 +14,7 @@ import { BotonWhatsApp } from "./WhatsApp";
 import { Planes } from "./Planes";
 import { VistaBandeja, VistaBoleta, VistaCamara, VistaConsignacion, VistaMostrador, VistaRentabilidad, VistaRepartidor, VistaTablero } from "./Vistas";
 
-// Textos de la página pública del prototipo nuevo, con el nombre de Aycha.
+// Textos de la página pública del prototipo nuevo, con el nombre de GestionCarnica.
 
 const PROBLEMAS: { icono: LucideIcon; titulo: string; texto: string; costo: string }[] = [
   { icono: MessageCircleWarning, titulo: "Pedidos perdidos en el chat", texto: "Audios de WhatsApp sin anotar, pedidos duplicados y clientes molestos esperando respuesta mientras atiendes el mostrador a toda prisa.", costo: "Ventas que se pierden" },
@@ -82,7 +82,7 @@ const PASOS: { titulo: string; texto: string; icono: LucideIcon; nota: string }[
 ];
 
 const PREGUNTAS = [
-  { p: "¿Aycha emite boletas y facturas electrónicas?", r: "Sí. Emites boletas, facturas y notas de crédito desde el mostrador o desde el pedido, con el peso real. Los comprobantes se envían a SUNAT a través de un operador de servicios electrónicos (OSE) autorizado." },
+  { p: "¿GestionCarnica emite boletas y facturas electrónicas?", r: "Sí. Emites boletas, facturas y notas de crédito desde el mostrador o desde el pedido, con el peso real. Los comprobantes se envían a SUNAT a través de un operador de servicios electrónicos (OSE) autorizado." },
   { p: "¿Funciona con mi balanza?", r: "Puedes digitar el peso, conectar una balanza compatible a la computadora o leer la etiqueta con código de barras que imprimen las balanzas etiquetadoras. Antes de contratar te ayudamos a probar tu modelo." },
   { p: "¿Tengo que instalar algo?", r: "No. Funciona en el navegador de tu computadora, tablet o celular. Solo necesitas internet." },
   { p: "¿Qué pasa si se cae el internet?", r: "La app del repartidor sigue funcionando sin conexión y sube lo registrado cuando vuelve la señal. En el resto del sistema, lo que no se pudo guardar se reintenta solo y te avisa en pantalla." },
@@ -113,7 +113,7 @@ function Encabezado({ antetitulo, titulo, texto }: { antetitulo: string; titulo:
 }
 
 /**
- * Página pública de Aycha, con la distribución y los textos de la página del prototipo: portada con el
+ * Página pública de GestionCarnica, con la distribución y los textos de la página del prototipo: portada con el
  * tablero del día, el costo del desorden, los módulos con su vista, lo que cambia, los 3 pasos, los planes
  * (de la API), las preguntas y el pedido de demo. «Pruébalo gratis» abre el pedido de demo hasta que
  * exista el registro de empresas.

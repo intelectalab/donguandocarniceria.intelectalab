@@ -6,7 +6,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-/** La página pública de Aycha: planes desde la API y pedidos de demo (sin sesión ni empresa). */
+/** La página pública de GestionCarnica: planes desde la API y pedidos de demo (sin sesión ni empresa). */
 class PublicoTest extends TestCase
 {
     private function pedido(array $cambios = []): array

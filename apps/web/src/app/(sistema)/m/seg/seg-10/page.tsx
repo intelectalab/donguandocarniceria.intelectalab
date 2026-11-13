@@ -80,7 +80,7 @@ export default function Roles() {
       {error && <Alert tone="bad">{error}</Alert>}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Cifra titulo="Roles del sistema" valor={res ? numero(res.sistema) : undefined} detalle="Vienen con Aycha" icono={ShieldCheck} destacada />
+        <Cifra titulo="Roles del sistema" valor={res ? numero(res.sistema) : undefined} detalle="Vienen con GestionCarnica" icono={ShieldCheck} destacada />
         <Cifra titulo="Roles propios" valor={res ? numero(res.propios) : undefined} detalle="Creados por la empresa" icono={UserCog} />
         <Cifra titulo="Exigen segundo factor" valor={res ? numero(res.exigen_2fa) : undefined} detalle="Gerencia, finanzas, auditoría…" icono={KeyRound} />
         <Cifra titulo="Alcance asignado" valor={res ? numero(res.asignado) : undefined} detalle="Ven solo sus marcas o locales" icono={Layers} />

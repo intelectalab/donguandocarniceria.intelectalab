@@ -297,12 +297,12 @@ export default function Sidebar({
           <img src={tenantLogo} alt={tenantName ?? "Logo"} className="size-9 shrink-0 rounded-lg bg-white object-contain p-0.5" />
         ) : (
           <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-gold font-display text-[13px] font-extrabold" style={{ color: "var(--franja-base)" }}>
-            {iniciales(tenantName ?? "Aycha")}
+            {iniciales(tenantName ?? "GestionCarnica")}
           </span>
         )}
         {!compact && (
           <span className="min-w-0">
-            <strong className="block truncate font-display text-[15px] leading-tight">{tenantName ?? "Aycha"}</strong>
+            <strong className="block truncate font-display text-[15px] leading-tight">{tenantName ?? "GestionCarnica"}</strong>
             <small className="block text-[11px] text-white/60">Comercial</small>
           </span>
         )}
@@ -487,7 +487,7 @@ export default function Sidebar({
         {!compact && (
           <div className="mx-3.5 mt-2 flex items-center justify-center gap-1.5 rounded-lg bg-black/[0.16] px-2.5 py-1.5 text-[10.5px] text-white/70">
             <span>Powered by</span>
-            <strong className="font-semibold tracking-wide text-white/90">Aycha · Intelectalab</strong>
+            <strong className="font-semibold tracking-wide text-white/90">GestionCarnica · Intelectalab</strong>
           </div>
         )}
       </div>

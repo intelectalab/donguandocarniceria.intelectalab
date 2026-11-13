@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 /**
- * La página pública de Aycha (landing): sin sesión y sin empresa. Solo lee el catálogo de planes y guarda
+ * La página pública de GestionCarnica (landing): sin sesión y sin empresa. Solo lee el catálogo de planes y guarda
  * pedidos de demo (la app no puede leer los pedidos: los ve la plataforma). Límite por IP en las rutas.
  */
 class PublicoController extends Controller

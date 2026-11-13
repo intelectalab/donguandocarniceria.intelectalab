@@ -51,6 +51,6 @@ class ResolveTenant
 
     private function bloqueada(): Response
     {
-        return response()->json(['message' => 'Esta empresa no está activa. Comunícate con Aycha.', 'code' => 'TENANT_BLOCKED'], 403);
+        return response()->json(['message' => 'Esta empresa no está activa. Comunícate con GestionCarnica.', 'code' => 'TENANT_BLOCKED'], 403);
     }
 }

@@ -5,6 +5,7 @@ import { motion, type Variants } from "framer-motion";
 import { ArrowLeft, MapPin, Scale, ShieldCheck, type LucideIcon } from "lucide-react";
 import { iniciales, legibleConBlanco, type Empresa } from "@/lib/empresa";
 import { Franja } from "@/components/ui/Franja";
+import { LogoMarca } from "@/components/landing/Cabecera";
 
 /** Estilos de formulario compartidos por las pantallas de ingreso (como erp-saas). */
 export const authLabel = "mb-1.5 block text-[12.5px] font-medium text-muted";
@@ -62,7 +63,7 @@ function Sello({ nombre, logo }: { nombre: string; logo: string | null | undefin
  * Armazón de las pantallas de ingreso, como el prototipo: a la izquierda el panel de la empresa
  * (color liso, su sello, su nombre, qué hace el sistema y sus marcas; en celular, una franja arriba
  * solo con el sello y el nombre) y a la derecha el formulario en una tarjeta. Con dominio por
- * empresa, el panel lleva su nombre, su logo y su color; en el ingreso general, la marca de Aycha.
+ * empresa, el panel lleva su nombre, su logo y su color; en el ingreso general, la marca de GestionCarnica.
  */
 export default function AuthShell({ title, subtitle, children, footer, empresa, pending = false, volver }: {
   title: string;
@@ -84,7 +85,7 @@ export default function AuthShell({ title, subtitle, children, footer, empresa, 
     `linear-gradient(158deg, ${css(acento.map((v) => v * 0.95))} 0%, ${css(acento.map((v) => v * 0.72))} 48%, ${css(acento.map((v) => v * 0.5))} 100%)`,
   ].join(", ");
   const deEmpresa = empresa?.general === false;
-  const nombre = deEmpresa ? (empresa.trade_name ?? empresa.short ?? empresa.name) : "Aycha";
+  const nombre = deEmpresa ? (empresa.trade_name ?? empresa.short ?? empresa.name) : "GestionCarnica";
   const marcas = empresa?.brands ?? [];
   const frase = deEmpresa
     ? `${marcas.length > 1 ? `${nombre} y sus ${marcas.length} marcas.` : `Todo ${nombre}, en orden.`} ${QUE_HACE}`
@@ -110,7 +111,8 @@ export default function AuthShell({ title, subtitle, children, footer, empresa, 
           {pending ? <span className="h-16 lg:h-20" /> : (
             <>
               <div className="flex items-center gap-4 lg:block">
-                <Sello nombre={nombre} logo={deEmpresa ? empresa.logo_url : null} />
+                {deEmpresa ? <Sello nombre={nombre} logo={empresa.logo_url} />
+                  : <LogoMarca className="size-12 rounded-[14px] shadow-[0_0_0_4px_rgba(255,198,118,.2)] lg:size-20 lg:rounded-[22px]" />}
                 <div className="min-w-0 lg:mt-7">
                   <h1 className="font-display text-[26px] leading-none font-bold tracking-[-0.02em] text-white lg:text-[clamp(2.7rem,4.4vw,5.2rem)] lg:drop-shadow-[0_2px_18px_rgba(0,0,0,.18)]">{nombre}</h1>
                   <p className="mt-2 flex items-center gap-3 text-[11px] font-semibold tracking-[.14em] text-gold uppercase lg:mt-4 lg:text-[clamp(12.5px,0.85vw,16px)]">
@@ -148,7 +150,7 @@ export default function AuthShell({ title, subtitle, children, footer, empresa, 
         </div>
 
         <p className="relative hidden pt-6 text-[12.5px] text-white/60 lg:block">
-          Aycha by Intelectalab{deEmpresa && !pending ? ` · ${empresa.name}` : ""} · © {new Date().getFullYear()}
+          GestionCarnica by Intelectalab{deEmpresa && !pending ? ` · ${empresa.name}` : ""} · © {new Date().getFullYear()}
         </p>
       </aside>
 
@@ -178,7 +180,7 @@ export default function AuthShell({ title, subtitle, children, footer, empresa, 
           )}
         </motion.div>
 
-        <p className="text-[12px] text-muted lg:hidden">Aycha by Intelectalab</p>
+        <p className="text-[12px] text-muted lg:hidden">GestionCarnica by Intelectalab</p>
       </main>
     </div>
   );

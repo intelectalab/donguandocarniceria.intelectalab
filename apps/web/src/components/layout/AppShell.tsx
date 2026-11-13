@@ -171,7 +171,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const tenantLogo = urlLogo && logo?.url === urlLogo ? logo.src : null;
 
   useEffect(() => {
-    document.title = `${currentSection} · ${tenantName ?? "Aycha"}`;
+    document.title = `${currentSection} · ${tenantName ?? "GestionCarnica"}`;
   }, [currentSection, tenantName]);
 
   // Un módulo o una pantalla abiertos por su dirección sin acceso del rol, o un módulo apagado,
