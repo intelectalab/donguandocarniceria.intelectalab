@@ -237,3 +237,63 @@ Las rutas de escritura exigen el módulo con la acción (`modulo:ALM,C` o `,E`) 
 - **PED:** llamará a `reservar` al confirmar (si `reservaAlConfirmar`), a `liberar` al cancelar y a `devolver` si el pedido ya había salido. Hoy `stock_reservations.order_id` y `order_line_id` tienen FK a `sales_orders` y `sales_order_lines`: las líneas son genéricas en la firma, pero deben existir en esas tablas.
 - **FAC:** implementa `EmisorGuiaRemision`.
 - **CAL (fase 2):** la liberación de lotes pasa al permiso de CALIDAD.
+
+---
+
+## REC · Recetas y formulación
+
+Dueño: REC. Estado: **implementado** (12/11/2026). Lo usarán PRO (orden de producción, PRO-05), CAL (ficha técnica y registro sanitario) y CAT.
+
+**REC es el único que escribe** `recipes`, `recipe_versions`, `recipe_ingredients`, `recipe_steps`, `recipe_control_points` y `food_additives`. Los demás leen o llaman a `RecetasService` (`App\Modulos\Rec\Services`). REC solo **lee** `stock_balances` (costo promedio vigente); no mueve stock.
+
+### `RecetasService::vigente(string $recipeId): ?object`
+La versión `APPROVED` de la receta (RN-REC-01: hay una sola), o `null`. PRO la toma al crear la orden.
+
+### `RecetasService::escalar(string $versionId, mixed $kgDeseados): array`
+RN-REC-08. `factor = kg deseados / kg base de salida`; cada ingrediente = kg base × factor, redondeado a 3 decimales. Respuesta:
+```php
+[
+  'version_id' => 'uuid', 'recipe_id' => 'uuid', 'version' => 2, 'base_output_kg' => '10.000', 'target_kg' => '25.000', 'factor' => '2.500000',
+  'lines' => [ ['seq' => 1, 'variant_id' => 'uuid', 'sku' => 'MP-CER-REC', 'name' => '…', 'base_kg' => '7.2000', 'kg' => '18.000',
+                'tolerance_pct' => '2.00', 'tolerance_kg' => '0.360', 'is_additive' => false] ],
+  'packaging' => [ ['variant_id' => 'uuid', 'per' => 'UNIT|KG', 'qty' => '…'] ],   // por kg: qty × kg deseados
+  'total_kg' => '25.843',
+]
+```
+No valida el estado: quien llama decide (PRO usa solo la vigente). En la API: `GET /api/v1/rec/versiones/{id}/escalado?kg=25`, que también ve el operario (D-REC-02).
+
+### `RecetasService::costo(string $versionId, array $costos = []): array`
+RN-REC-09. `Σ (kg × costo promedio vigente) / kg base`. El costo promedio sale de los saldos de ALM con stock (`Σ qty × avg_cost / Σ qty`); sin stock, el `std_cost` de la variante. `$costos` (`[variant_id => costo]`) fija algunos costos para simular. Respuesta: `['rows' => [...], 'total' => '153.70', 'per_kg' => '15.3700']`.
+
+### Otras lecturas
+`rendimiento($versionId)` (RN-REC-11, % a 2 decimales), `totalKg($versionId)`, `alergenos($versionId)` (RN-REC-07), `validar($versionId)` (las validaciones de aprobación: `[{code, level: ok|warn|error, msg}]`).
+
+### Escrituras (las usan las pantallas de REC)
+`crearReceta`, `editarReceta`, `nuevaVersion`, `guardarVersion`, `borrarBorrador`, `enviar`, `devolver`, `aprobar`, `guardarIngrediente`, `guardarPaso`, `moverPaso`, `guardarPunto`, `quitar`, `guardarAditivo`, `recalcularCostos`. Cada una abre su `DB::transaction`.
+
+**Reglas que valida:** RN-REC-01 a RN-REC-12. RN-REC-01 y RN-REC-03 también están en la base: índice único parcial de una sola versión `APPROVED` (y una sola en curso) por receta, y un disparador que rechaza cambiar o borrar ingredientes, pasos y puntos de control de una versión aprobada o retirada, y cambiar su contenido (solo se permite retirarla y guardar el recálculo del costo). El disparador responde `RN-REC-03: …` y el servicio lo convierte en `RuleError`.
+
+### Eventos que emite REC
+| Evento | Cuándo | Datos |
+|---|---|---|
+| `recipe_version.submitted` | Enviar a revisión | `recipe_id`, `version` |
+| `recipe_version.approved` | Aprobar | `recipe_id`, `version`, `previous_version_id`, `allergens` |
+| `recipe.cost_variation` | Recalcular costos con al menos un aviso | `versions`, `alerts` |
+
+Avisos (`notifications`): a CALIDAD al enviar a revisión, al autor al devolverla y a JEFE_PRODUCCION cuando el costo varía más de `rec_cost_alert_pct`.
+
+### Permisos y alcance de REC
+| Acción | Exige |
+|---|---|
+| Ver recetas, versiones, ingredientes, pasos, puntos, aditivos y ficha | módulo REC (L) y además `rec.version.edit`, `rec.version.approve` o `rec.cost.view` (o ser AUDITOR). Sin eso responde 403 `D-REC-02`: el operario ve solo el escalado |
+| Crear y editar recetas y versiones en borrador | `rec.version.edit` |
+| Aprobar | `rec.version.approve` y no ser el autor (RN-REC-02) |
+| Devolver a borrador | `rec.version.edit` o `rec.version.approve`, con comentario |
+| Catálogo de aditivos | `rec.version.approve` o `rec.version.edit` |
+| Ver costos (REC-09 y los campos de costo) | `rec.cost.view`; sin él, los campos van vacíos |
+
+**Alcance por marca:** las listas y fichas se filtran por las marcas del usuario (`user_scopes`); escribir en una receta de otra marca se rechaza.
+
+### Pendientes del contrato
+- **PRO:** tomará `vigente()` y `escalar()` en PRO-05 y registrará las lecturas de los puntos de control (KPI-REC-03).
+- **CAL:** el registro sanitario de la ficha técnica hoy se lee de `sanitary_registrations` o del producto.
