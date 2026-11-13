@@ -18,10 +18,15 @@ export function mensajeDe(err: unknown, porDefecto: string) {
   return porDefecto;
 }
 
-export default function LoginForm() {
+/**
+ * Ingreso. Como en erp-saas, en el ingreso general lleva «Volver al inicio» (la página pública) y
+ * «Ver planes»; con el dominio de una empresa no, porque son de la página de Aycha.
+ */
+export default function LoginForm({ inicioUrl = "/", planesUrl = "/#precios" }: { inicioUrl?: string; planesUrl?: string }) {
   const router = useRouter();
   const volver = useSearchParams().get("volver");
   const { empresa, error: errorEmpresa, listo } = useEmpresa();
+  const deEmpresa = empresa?.general === false;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -36,8 +41,9 @@ export default function LoginForm() {
     try {
       const data = await api<LoginResponse>("/v1/auth/login", { method: "POST", body: { email, password, remember } });
       setToken(data.token, remember);
-      // Pendiente de SEG: segundo factor (decidir TOTP o código por correo) y cambio obligatorio de contraseña.
-      router.push(volver?.startsWith("/") ? volver : "/");
+      // Pendiente de SEG: el segundo factor. La contraseña vencida la maneja el armazón (lleva a Mi cuenta).
+      // «volver» solo puede ser una dirección de este sitio: «//otro.com» o «/\otro.com» llevarían a otro sitio.
+      router.push(volver && /^\/(?![/\\])/.test(volver) ? volver : "/inicio");
     } catch (err) {
       setError(mensajeDe(err, "Ocurrió un error. Intenta de nuevo."));
       setLoading(false);
@@ -45,7 +51,9 @@ export default function LoginForm() {
   }
 
   return (
-    <AuthShell empresa={empresa} pending={!listo} title="Iniciar sesión" subtitle="Hola de nuevo. Ingresa con el correo que te registró tu empresa.">
+    <AuthShell empresa={empresa} pending={!listo} title="Iniciar sesión" subtitle="Hola de nuevo. Ingresa con el correo que te registró tu empresa."
+      volver={deEmpresa || !listo ? undefined : { href: inicioUrl, label: "Volver al inicio" }}
+      footer={deEmpresa || !listo ? undefined : <>¿Aún no tienes cuenta? <a href={planesUrl} className="font-medium text-primary hover:underline">Ver planes</a></>}>
       <form onSubmit={handleSubmit} noValidate className="grid gap-3.5">
         {errorEmpresa && <div role="alert" className={authError}>{errorEmpresa}</div>}
 

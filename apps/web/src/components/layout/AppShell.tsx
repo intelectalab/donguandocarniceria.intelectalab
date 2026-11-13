@@ -111,7 +111,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       href: `/m/${m.code.toLowerCase()}`, label: m.name, code: m.code, group: g.name, locked: !m.enabled,
       children: m.visibles.map((p) => ({ href: rutaPantalla(m.code, p.code), label: p.name, code: p.code })),
     })));
-    return [{ href: "/", label: "Inicio", group: "Inicio" }, ...modulos];
+    return [{ href: "/inicio", label: "Inicio", group: "Inicio" }, ...modulos];
   }, [sesion, menu]);
 
   // «Lo de todos los días»: las pantallas del puesto y las fijadas con la estrella (se guardan en la
@@ -147,7 +147,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
     }
   }
 
-  const currentItem = items.find((it) => (it.href === "/" ? pathname === "/" : pathname === it.href || pathname.startsWith(`${it.href}/`)));
+  const currentItem = items.find((it) => pathname === it.href || pathname.startsWith(`${it.href}/`));
   const currentScreen = currentItem?.children?.find((p) => pathname === p.href || pathname.startsWith(`${p.href}/`));
   // La dirección más larga que coincide: /perfil/sesiones antes que /perfil.
   const cuenta = [...OTRAS].sort((a, b) => b.href.length - a.href.length).find((c) => pathname.startsWith(c.href));
@@ -235,7 +235,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
               texto={denegado === "apagado"
                 ? "RN-PLT-07: este módulo está apagado en tu empresa. El administrador del sistema puede encenderlo en Plataforma → Módulos."
                 : "Tu rol no tiene permiso para abrir esta pantalla. Si la necesitas, pídeselo al administrador de tu empresa."}>
-              <Link href="/" className="rounded-[9px] border border-line bg-surface px-4 py-2 text-[13px] font-medium hover:bg-surface-2">Ir al inicio</Link>
+              <Link href="/inicio" className="rounded-[9px] border border-line bg-surface px-4 py-2 text-[13px] font-medium hover:bg-surface-2">Ir al inicio</Link>
             </Aviso>
           ) : children}
         </main>

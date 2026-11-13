@@ -25,7 +25,7 @@ export default function FichaModulo({ params }: PageProps<"/m/[codigo]">) {
     return (
       <div className="space-y-2">
         <h1 className="text-xl font-bold">Sin acceso</h1>
-        <p className="text-sm text-muted">Tu rol no tiene acceso a este módulo. <Link href="/" className="text-primary underline">Volver al inicio</Link></p>
+        <p className="text-sm text-muted">Tu rol no tiene acceso a este módulo. <Link href="/inicio" className="text-primary underline">Volver al inicio</Link></p>
       </div>
     );
   }
