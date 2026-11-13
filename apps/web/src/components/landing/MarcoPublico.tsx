@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
 import { X } from "lucide-react";
 import { getToken } from "@/lib/auth";
@@ -37,6 +37,14 @@ export function MarcoPublico({ actual, children }: { actual: "inicio" | "precios
   const conSesion = useSyncExternalStore(sinSuscripcion, () => Boolean(getToken()), () => false);
   const [plan, setPlan] = useState("");
   const [modal, setModal] = useState(false);
+
+  // Desplazamiento suave al ir a una sección (menú, «Ver planes»…), solo en las páginas públicas y no para
+  // quien pidió menos movimiento en su sistema. Al salir se deja como estaba (el sistema no lo usa).
+  useEffect(() => {
+    const html = document.documentElement;
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) html.style.scrollBehavior = "smooth";
+    return () => { html.style.scrollBehavior = ""; };
+  }, []);
 
   function pedirDemo(codigo?: string) {
     if (codigo) setPlan(codigo);

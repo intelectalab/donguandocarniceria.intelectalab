@@ -180,8 +180,8 @@ function ContenidoLanding() {
         <Encabezado antetitulo="Módulos creados para la carne" titulo="Todo lo que pasa en tu camal, mostrador y ruta bajo control" texto="Hecho para el día a día de carnicerías, avícolas, granjas de cuy y distribuidoras de carne." />
         <div className="mt-16 space-y-20 lg:space-y-24">
           {MODULOS.map(({ icono: Icono, antetitulo, titulo, texto, puntos, vista }, i) => (
-            <div key={titulo} id={FUNCIONES[i]?.id} className="grid scroll-mt-28 items-center gap-10 lg:grid-cols-2 lg:gap-16">
-              <div className={i % 2 ? "lg:order-2" : ""}>
+            <div key={titulo} id={FUNCIONES[i]?.id} className="grid scroll-mt-28 items-center gap-10 lg:grid-cols-12 lg:gap-12">
+              <div className={`lg:col-span-5 ${i % 2 ? "lg:order-2" : ""}`}>
                 <Antetitulo><Icono size={13} /> {antetitulo}</Antetitulo>
                 <h3 className="mt-4 font-display text-[clamp(1.6rem,2.6vw,2.1rem)] leading-[1.15] font-bold tracking-[-0.015em]">{titulo}</h3>
                 <p className="mt-3 text-[16px] leading-relaxed text-muted">{texto}</p>
@@ -192,7 +192,8 @@ function ContenidoLanding() {
                   Pruébalo gratis <ArrowRight size={16} />
                 </button>
               </div>
-              <div className={i % 2 ? "lg:order-1" : ""}>{vista}</div>
+              {/* Como en el prototipo: el ejemplo ocupa 7 de 12 columnas, dentro de un marco beige. */}
+              <div className={`rounded-[18px] bg-[#F7F2EA] p-4 shadow-sm sm:p-6 lg:col-span-7 ${i % 2 ? "lg:order-1" : ""}`}>{vista}</div>
             </div>
           ))}
         </div>
