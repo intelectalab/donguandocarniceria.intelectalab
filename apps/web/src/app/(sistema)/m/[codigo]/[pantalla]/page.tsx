@@ -21,7 +21,7 @@ export default function FichaPantalla({ params }: PageProps<"/m/[codigo]/[pantal
   const p = visibles[i];
 
   if (!modulo || !p) {
-    return <p className="text-sm text-muted">No existe esa pantalla. <Link href="/" className="text-primary underline">Volver al inicio</Link></p>;
+    return <p className="text-sm text-muted">No existe esa pantalla. <Link href="/inicio" className="text-primary underline">Volver al inicio</Link></p>;
   }
 
   const anterior = visibles[i - 1];

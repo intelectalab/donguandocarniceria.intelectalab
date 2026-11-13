@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { motion, type Variants } from "framer-motion";
-import { MapPin, Scale, ShieldCheck, type LucideIcon } from "lucide-react";
+import { ArrowLeft, MapPin, Scale, ShieldCheck, type LucideIcon } from "lucide-react";
 import { iniciales, legibleConBlanco, type Empresa } from "@/lib/empresa";
 import { Franja } from "@/components/ui/Franja";
 
@@ -64,11 +64,13 @@ function Sello({ nombre, logo }: { nombre: string; logo: string | null | undefin
  * solo con el sello y el nombre) y a la derecha el formulario en una tarjeta. Con dominio por
  * empresa, el panel lleva su nombre, su logo y su color; en el ingreso general, la marca de Aycha.
  */
-export default function AuthShell({ title, subtitle, children, footer, empresa, pending = false }: {
+export default function AuthShell({ title, subtitle, children, footer, empresa, pending = false, volver }: {
   title: string;
   subtitle: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
+  /** Enlace arriba del formulario, como en erp-saas («Volver al inicio»: la página pública). */
+  volver?: { href: string; label: string };
   empresa: Empresa | null;
   /** Mientras se consulta la empresa: panel sin textos, para no mostrar otra marca un instante. */
   pending?: boolean;
@@ -155,6 +157,13 @@ export default function AuthShell({ title, subtitle, children, footer, empresa, 
           style={{ background: "radial-gradient(620px 420px at 50% 42%, var(--primary-soft), transparent 70%)" }} />
         <motion.div className="my-auto w-full max-w-[440px] rounded-[14px] border border-line bg-surface p-6 shadow-[0_12px_34px_rgba(40,8,18,.10)] sm:p-8"
           variants={container} initial="hidden" animate="show">
+          {volver && (
+            <motion.a variants={item} href={volver.href}
+              className="mb-5 inline-flex items-center gap-1.5 text-[12.5px] font-medium text-muted transition-colors hover:text-primary">
+              <ArrowLeft size={15} aria-hidden="true" />
+              {volver.label}
+            </motion.a>
+          )}
           <motion.div variants={item}>
             <h2 className="text-[24px] font-bold tracking-[-0.01em] text-ink">{title}</h2>
             <p className="mt-1 text-[13px] text-muted">{subtitle}</p>

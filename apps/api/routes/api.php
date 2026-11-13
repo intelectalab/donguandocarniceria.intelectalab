@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\MeController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PublicoController;
 use App\Http\Controllers\TenantController;
 use Illuminate\Support\Facades\Route;
 
@@ -16,6 +17,14 @@ use Illuminate\Support\Facades\Route;
 | Cada módulo agrega sus rutas en routes/modulos/<codigo>.php (se cargan solas, abajo; ver _ejemplo.php)
 | y protege cada una con 'modulo:PED,C' o 'permiso:ped.discount.approve'.
 */
+
+// Página pública de Aycha (landing): sin empresa ni sesión. Solo el catálogo de planes y pedidos de demo,
+// con límite por IP (los pedidos, además, con trampa contra robots y solo inserción en la base).
+Route::prefix('v1/publico')->group(function () {
+    Route::get('/planes', [PublicoController::class, 'planes'])->middleware('throttle:60,1');
+    Route::post('/demo', [PublicoController::class, 'demo'])->middleware('throttle:5,1');
+});
+
 Route::prefix('v1')->middleware('tenant')->group(function () {
     Route::get('/tenant', TenantController::class);
     Route::get('/tenant/logo', [TenantController::class, 'logo'])->middleware('throttle:60,1');
