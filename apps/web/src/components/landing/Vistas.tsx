@@ -19,24 +19,24 @@ function Chip({ tono, children }: { tono: "ok" | "warn" | "bad" | "info" | "neut
 export function VistaTablero() {
   const quieto = useReducedMotion();
   return (
-    <div aria-hidden="true" className={`${marco} p-5`}>
+    <div aria-hidden="true" className={`${marco} p-3.5 sm:p-5`}>
       <div className="flex items-center gap-2 border-b border-line pb-3">
         <span className="size-2.5 rounded-full bg-[#e5534b]" /><span className="size-2.5 rounded-full bg-[#e3b341]" /><span className="size-2.5 rounded-full bg-[#3fb950]" />
-        <span className="ml-2 text-[12px] font-medium text-muted">Tablero del día · Local principal</span>
+        <span className="ml-2 min-w-0 truncate text-[12px] font-medium text-muted">Tablero del día · Local principal</span>
         <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-ok-soft px-2 py-0.5 text-[11px] font-semibold text-ok"><Latido /> En línea</span>
       </div>
-      <div className="mt-4 grid grid-cols-3 gap-3">
+      <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
         {([["Ventas de hoy", <Cifra key="v" valor={8420.5} decimales={2} prefijo="S/ " />, "+14% vs. ayer", "text-ok"],
           ["Pedidos en ruta", <Cifra key="p" valor={18} sufijo=" pedidos" duracion={1} />, "4 motos activas", "text-muted"],
           ["Kilos despachados", <Cifra key="k" valor={642.8} decimales={2} sufijo=" kg" />, "Merma: 0.8% OK", "text-ok"]] as const).map(([t, v, d, c]) => (
-          <div key={t} className="rounded-xl bg-surface-2 p-3">
-            <span className="text-[11px] text-muted">{t}</span>
-            <strong className="mt-0.5 block font-display text-[16px] text-primary">{v}</strong>
-            <span className={`text-[10.5px] ${c}`}>{d}</span>
+          <div key={t} className="min-w-0 rounded-xl bg-surface-2 p-2 sm:p-3">
+            <span className="block truncate text-[10px] text-muted sm:text-[11px]">{t}</span>
+            <strong className="mt-0.5 block truncate font-display text-[13px] text-primary sm:text-[16px]">{v}</strong>
+            <span className={`block truncate text-[9.5px] sm:text-[10.5px] ${c}`}>{d}</span>
           </div>
         ))}
       </div>
-      <div className="mt-3 grid grid-cols-[1.3fr_1fr] gap-3">
+      <div className="mt-3 grid gap-3 sm:grid-cols-[1.3fr_1fr] [&>*]:min-w-0">
         <div className="rounded-xl border border-line p-3">
           <div className="flex items-center justify-between text-[11px] font-semibold tracking-wide text-muted uppercase"><span className="flex items-center gap-1.5"><Latido color="#922242" /> Despachos en vivo</span><span className="text-primary">14:28 hrs</span></div>
           {[["YP", "Restaurante El Asador", "14.2 kg Lomo fino · S/ 546.00", "Pagado Yape", "ok"], [<Bike key="b" size={13} />, "Sra. Patricia Mendoza", "3 Pollos brasa + 2 kg Chuleta", "En moto #3", "warn"], [<Scissors key="s" size={13} />, "Parrillas Los Leños", "8 Cuyes beneficiados vaciado", "Listo corte", "bad"]].map(([ico, n, d, e, t], i) => (
@@ -51,7 +51,7 @@ export function VistaTablero() {
         </div>
         <div className="flex flex-col rounded-xl border border-line p-3">
           <div className="flex items-center justify-between text-[11px] font-semibold tracking-wide text-muted uppercase"><span>Ruta Lima Sur</span><span className="text-ok">GPS activo</span></div>
-          <div className="relative mt-2 flex-1 rounded-lg bg-[repeating-linear-gradient(45deg,var(--surface-2)_0_8px,var(--bg)_8px_16px)]">
+          <div className="relative mt-2 min-h-[120px] flex-1 rounded-lg bg-[repeating-linear-gradient(45deg,var(--surface-2)_0_8px,var(--bg)_8px_16px)]">
             <span className="absolute top-2 left-2 rounded bg-surface px-1.5 text-[10px] shadow">Surquillo</span>
             <span className="absolute top-2 right-2 rounded bg-surface px-1.5 text-[10px] shadow">San Borja</span>
             <span className="absolute right-2 bottom-2 rounded bg-surface px-1.5 text-[10px] shadow">Miraflores</span>
@@ -68,10 +68,10 @@ export function VistaTablero() {
           <div className="mt-1"><Barra porcentaje={78} color="var(--ok)" className="h-1.5 !bg-surface-2" /></div>
         </div>
       </div>
-      <div className="mt-3 flex items-center gap-3 rounded-xl bg-[#171210] px-4 py-3 font-mono text-white">
+      <div className="mt-3 flex items-center gap-3 rounded-xl bg-[#171210] px-3 py-3 font-mono text-white sm:px-4">
         <span className="grid size-8 place-items-center rounded-lg bg-ok/80"><Scale size={16} /></span>
-        <span className="flex-1"><span className="block text-[10.5px] text-white/60">Mostrador 1 · venta por kilo</span><strong className="text-[13px] text-[#9be9a8]">Panceta de cerdo salmuera</strong></span>
-        <span className="text-right"><strong className="block text-[18px]"><Cifra valor={2.45} decimales={3} sufijo=" kg" duracion={1.8} separador={false} /></strong><span className="text-[10.5px] text-[#9be9a8]">S/ 24.50/kg = S/ 60.03</span></span>
+        <span className="min-w-0 flex-1"><span className="block truncate text-[10.5px] text-white/60">Mostrador 1 · venta por kilo</span><strong className="block truncate text-[12px] text-[#9be9a8] sm:text-[13px]">Panceta de cerdo salmuera</strong></span>
+        <span className="shrink-0 text-right"><strong className="block text-[16px] sm:text-[18px]"><Cifra valor={2.45} decimales={3} sufijo=" kg" duracion={1.8} separador={false} /></strong><span className="text-[10.5px] text-[#9be9a8]">S/ 24.50/kg = S/ 60.03</span></span>
       </div>
     </div>
   );
@@ -86,7 +86,7 @@ function Tarjeta({ titulo, icono, etiqueta, children, pie, angosta = false }: {
 }) {
   return (
     <div aria-hidden="true" className={`overflow-hidden rounded-xl bg-white p-5 text-[#1D1A16] shadow-md ${angosta ? "mx-auto w-full max-w-md rounded-2xl shadow-lg" : ""}`}>
-      <div className="-mx-5 -mt-5 mb-4 flex items-center justify-between gap-3 bg-[#FAF2EB] px-5 pt-3.5 pb-3">
+      <div className="-mx-5 -mt-5 mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 bg-[#FAF2EB] px-5 pt-3.5 pb-3">
         <span className="flex items-center gap-2 text-[15.5px] font-bold">{icono}{titulo}</span>
         {etiqueta}
       </div>

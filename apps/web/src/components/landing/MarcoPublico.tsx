@@ -54,7 +54,7 @@ export function MarcoPublico({ actual, children }: { actual: "inicio" | "precios
 
   return (
     <Contexto.Provider value={{ planes, pruebaDias: pruebaDias ?? 14, cargando, conSesion, plan, setPlan, pedirDemo }}>
-      <div className="min-h-screen bg-bg text-ink">
+      <div className="min-h-screen overflow-x-clip bg-bg text-ink">
         <Cabecera conSesion={conSesion} actual={actual} onProbar={() => pedirDemo()} />
         {children}
         <Pie conSesion={conSesion} />

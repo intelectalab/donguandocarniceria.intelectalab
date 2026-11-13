@@ -135,10 +135,10 @@ function ContenidoLanding() {
   return (
     <>
       {/* Portada */}
-      <section className="mx-auto grid max-w-[1200px] items-center gap-12 px-4 pt-12 pb-20 sm:px-6 lg:grid-cols-[1fr_1.05fr] lg:pt-16">
+      <section className="mx-auto grid max-w-[1200px] items-center gap-12 px-4 pt-12 pb-20 sm:px-6 lg:grid-cols-[1fr_1.05fr] lg:pt-16 [&>*]:min-w-0">
         <div>
           <Aparece><Antetitulo><span className="size-1.5 rounded-full bg-primary" /> Software para el negocio de la carne</Antetitulo></Aparece>
-          <Aparece retraso={0.08}><h1 className="mt-5 font-display text-[clamp(2.3rem,4.6vw,3.6rem)] leading-[1.06] font-bold tracking-[-0.025em]">
+          <Aparece retraso={0.08}><h1 className="mt-5 font-display text-[clamp(2.1rem,7vw,3.6rem)] leading-[1.06] font-bold tracking-[-0.025em] [overflow-wrap:anywhere]">
             Vende, reparte y factura tu carne <span className="text-primary">desde un solo lugar</span>
           </h1></Aparece>
           <Aparece retraso={0.16}><p className="mt-5 max-w-[52ch] text-[17px] leading-relaxed text-muted">
@@ -181,7 +181,7 @@ function ContenidoLanding() {
         <Encabezado antetitulo="Módulos creados para la carne" titulo="Todo lo que pasa en tu camal, mostrador y ruta bajo control" texto="Hecho para el día a día de carnicerías, avícolas, granjas de cuy y distribuidoras de carne." />
         <div className="mt-16 space-y-20 lg:space-y-24">
           {MODULOS.map(({ icono: Icono, antetitulo, titulo, texto, puntos, vista }, i) => (
-            <div key={titulo} id={FUNCIONES[i]?.id} className="grid scroll-mt-28 items-center gap-10 lg:grid-cols-12 lg:gap-12">
+            <div key={titulo} id={FUNCIONES[i]?.id} className="grid scroll-mt-28 items-center gap-10 lg:grid-cols-12 lg:gap-12 [&>*]:min-w-0">
               <Aparece desde={i % 2 ? "derecha" : "izquierda"} className={`lg:col-span-5 ${i % 2 ? "lg:order-2" : ""}`}>
                 <Antetitulo><Icono size={13} /> {antetitulo}</Antetitulo>
                 <h3 className="mt-4 font-display text-[clamp(1.6rem,2.6vw,2.1rem)] leading-[1.15] font-bold tracking-[-0.015em]">{titulo}</h3>
