@@ -9,6 +9,7 @@ import {
 import { FUNCIONES } from "./Cabecera";
 import { FormDemo } from "./FormDemo";
 import { MarcoPublico, useMarco } from "./MarcoPublico";
+import { Aparece } from "./Movimiento";
 import { BotonWhatsApp } from "./WhatsApp";
 import { Planes } from "./Planes";
 import { VistaBandeja, VistaBoleta, VistaCamara, VistaConsignacion, VistaMostrador, VistaRentabilidad, VistaRepartidor, VistaTablero } from "./Vistas";
@@ -103,11 +104,11 @@ function Antetitulo({ children, claro = false }: { children: ReactNode; claro?: 
 
 function Encabezado({ antetitulo, titulo, texto }: { antetitulo: string; titulo: string; texto?: string }) {
   return (
-    <div className="mx-auto max-w-[760px] text-center">
+    <Aparece className="mx-auto max-w-[760px] text-center">
       <Antetitulo>{antetitulo}</Antetitulo>
       <h2 className="mt-4 font-display text-[clamp(1.9rem,3.4vw,2.7rem)] leading-[1.12] font-bold tracking-[-0.02em]">{titulo}</h2>
       {texto && <p className="mt-3 text-[16px] leading-relaxed text-muted">{texto}</p>}
-    </div>
+    </Aparece>
   );
 }
 
@@ -136,26 +137,26 @@ function ContenidoLanding() {
       {/* Portada */}
       <section className="mx-auto grid max-w-[1200px] items-center gap-12 px-4 pt-12 pb-20 sm:px-6 lg:grid-cols-[1fr_1.05fr] lg:pt-16">
         <div>
-          <Antetitulo><span className="size-1.5 rounded-full bg-primary" /> Software para el negocio de la carne</Antetitulo>
-          <h1 className="mt-5 font-display text-[clamp(2.3rem,4.6vw,3.6rem)] leading-[1.06] font-bold tracking-[-0.025em]">
+          <Aparece><Antetitulo><span className="size-1.5 rounded-full bg-primary" /> Software para el negocio de la carne</Antetitulo></Aparece>
+          <Aparece retraso={0.08}><h1 className="mt-5 font-display text-[clamp(2.3rem,4.6vw,3.6rem)] leading-[1.06] font-bold tracking-[-0.025em]">
             Vende, reparte y factura tu carne <span className="text-primary">desde un solo lugar</span>
-          </h1>
-          <p className="mt-5 max-w-[52ch] text-[17px] leading-relaxed text-muted">
+          </h1></Aparece>
+          <Aparece retraso={0.16}><p className="mt-5 max-w-[52ch] text-[17px] leading-relaxed text-muted">
             Pedidos por WhatsApp, peso variable en el mostrador, rutas de reparto, lotes con vencimiento y boletas SUNAT. Sin instalar nada en tu computadora.
-          </p>
-          <ul className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-[14px] font-medium">
+          </p></Aparece>
+          <Aparece retraso={0.24}><ul className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-[14px] font-medium">
             {[`${dias} días gratis sin tarjeta`, "Tus datos de ejemplo listos", "Soporte por WhatsApp"].map((t) => (
               <li key={t} className="flex items-center gap-1.5"><CheckCircle2 size={17} className="text-ok" />{t}</li>
             ))}
-          </ul>
-          <div className="mt-8 flex flex-wrap gap-3">
+          </ul></Aparece>
+          <Aparece retraso={0.32} className="mt-8 flex flex-wrap gap-3">
             {botonPrueba("Pruébalo gratis", true)}
             <button type="button" onClick={() => pedirDemo()} className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-line bg-surface px-6 py-3.5 text-[15.5px] font-semibold shadow-card transition-colors hover:bg-surface-2">
               <CalendarDays size={18} className="text-primary" /> Agenda una demo
             </button>
-          </div>
+          </Aparece>
         </div>
-        <VistaTablero />
+        <Aparece desde="derecha" retraso={0.2}><VistaTablero /></Aparece>
       </section>
 
       {/* El costo del desorden */}
@@ -163,13 +164,13 @@ function ContenidoLanding() {
         <div className="mx-auto max-w-[1200px] px-4 py-20 sm:px-6">
           <Encabezado antetitulo="El costo del desorden" titulo="¿Te suena familiar?" texto="El cuaderno de apuntes manchado, los mensajes de WhatsApp que se traspapelan y las cuentas que nunca cuadran al final del día." />
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {PROBLEMAS.map(({ icono: Icono, titulo, texto, costo }) => (
-              <article key={titulo} className="flex flex-col rounded-2xl border border-line bg-surface p-6 shadow-card">
+            {PROBLEMAS.map(({ icono: Icono, titulo, texto, costo }, i) => (
+              <Aparece key={titulo} retraso={i * 0.09} className="h-full"><article className="flex h-full flex-col rounded-2xl border border-line bg-surface p-6 shadow-card transition-[transform,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(40,8,18,.10)]">
                 <span aria-hidden="true" className="grid size-11 place-items-center rounded-xl bg-bad-soft text-bad"><Icono size={21} /></span>
                 <h3 className="mt-4 text-[16.5px] leading-snug font-semibold">{titulo}</h3>
                 <p className="mt-2 flex-1 text-[14px] leading-relaxed text-muted">{texto}</p>
                 <span className="mt-5 border-t border-line pt-3 text-[12.5px] font-semibold text-bad">{costo}</span>
-              </article>
+              </article></Aparece>
             ))}
           </div>
         </div>
@@ -181,7 +182,7 @@ function ContenidoLanding() {
         <div className="mt-16 space-y-20 lg:space-y-24">
           {MODULOS.map(({ icono: Icono, antetitulo, titulo, texto, puntos, vista }, i) => (
             <div key={titulo} id={FUNCIONES[i]?.id} className="grid scroll-mt-28 items-center gap-10 lg:grid-cols-12 lg:gap-12">
-              <div className={`lg:col-span-5 ${i % 2 ? "lg:order-2" : ""}`}>
+              <Aparece desde={i % 2 ? "derecha" : "izquierda"} className={`lg:col-span-5 ${i % 2 ? "lg:order-2" : ""}`}>
                 <Antetitulo><Icono size={13} /> {antetitulo}</Antetitulo>
                 <h3 className="mt-4 font-display text-[clamp(1.6rem,2.6vw,2.1rem)] leading-[1.15] font-bold tracking-[-0.015em]">{titulo}</h3>
                 <p className="mt-3 text-[16px] leading-relaxed text-muted">{texto}</p>
@@ -191,9 +192,9 @@ function ContenidoLanding() {
                 <button type="button" onClick={() => pedirDemo()} className="mt-6 inline-flex cursor-pointer items-center gap-1.5 text-[14.5px] font-semibold text-primary hover:underline">
                   Pruébalo gratis <ArrowRight size={16} />
                 </button>
-              </div>
+              </Aparece>
               {/* Como en el prototipo: el ejemplo ocupa 7 de 12 columnas, dentro de un marco beige. */}
-              <div className={`rounded-[18px] bg-[#F7F2EA] p-4 shadow-sm sm:p-6 lg:col-span-7 ${i % 2 ? "lg:order-1" : ""}`}>{vista}</div>
+              <Aparece desde={i % 2 ? "izquierda" : "derecha"} retraso={0.1} className={`rounded-[18px] bg-[#F7F2EA] p-4 shadow-sm transition-transform duration-500 hover:-translate-y-1 sm:p-6 lg:col-span-7 ${i % 2 ? "lg:order-1" : ""}`}>{vista}</Aparece>
             </div>
           ))}
         </div>
@@ -204,13 +205,13 @@ function ContenidoLanding() {
         <div className="mx-auto max-w-[1200px] px-4 py-20 sm:px-6">
           <Encabezado antetitulo="Lo que cambia" titulo="Lo que cambia desde la primera semana" />
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {CAMBIOS.map(({ icono: Icono, antetitulo, titulo, texto }) => (
-              <article key={titulo} className="rounded-2xl border border-line bg-surface p-6 shadow-card">
+            {CAMBIOS.map(({ icono: Icono, antetitulo, titulo, texto }, i) => (
+              <Aparece key={titulo} retraso={i * 0.09} className="h-full"><article className="h-full rounded-2xl border border-line bg-surface p-6 shadow-card transition-[transform,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(40,8,18,.10)]">
                 <span aria-hidden="true" className="grid size-11 place-items-center rounded-xl bg-primary-soft text-primary"><Icono size={21} /></span>
                 <p className="mt-4 text-[12px] font-semibold tracking-[.08em] text-primary uppercase">{antetitulo}</p>
                 <h3 className="mt-1 text-[16.5px] font-semibold">{titulo}</h3>
                 <p className="mt-1.5 text-[14px] leading-relaxed text-muted">{texto}</p>
-              </article>
+              </article></Aparece>
             ))}
           </div>
         </div>
@@ -221,12 +222,12 @@ function ContenidoLanding() {
         <Encabezado antetitulo="Rápido y práctico" titulo="Empieza en 3 pasos sencillos" texto="Sin comprar servidores caros ni esperar semanas de instalación técnica." />
         <ol className="mt-12 grid gap-5 md:grid-cols-3">
           {PASOS.map(({ titulo, texto, icono: Icono, nota }, i) => (
-            <li key={titulo} className="flex flex-col rounded-2xl border border-line bg-surface p-7 shadow-card">
+            <li key={titulo} className="h-full"><Aparece retraso={i * 0.12} className="flex h-full flex-col rounded-2xl border border-line bg-surface p-7 shadow-card">
               <span className="font-display text-[46px] leading-none font-bold text-primary/20">{String(i + 1).padStart(2, "0")}</span>
               <h3 className="mt-3 text-[17px] font-semibold">{titulo}</h3>
               <p className="mt-2 flex-1 text-[14.5px] leading-relaxed text-muted">{texto}</p>
               <span className="mt-5 inline-flex items-center gap-1.5 self-start rounded-full bg-ok-soft px-3 py-1 text-[12.5px] font-semibold text-ok"><Icono size={14} />{nota}</span>
-            </li>
+            </Aparece></li>
           ))}
         </ol>
       </section>

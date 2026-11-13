@@ -1,7 +1,11 @@
+"use client";
+
 // Ejemplos visuales de la página pública (ilustrativos, con datos de ejemplo), como en la página del
 // prototipo: el tablero del día y una vista por cada módulo. No leen datos reales.
 import { Beef, Bike, Check, Drumstick, Ham, MapPin, Navigation, Phone, Receipt, Refrigerator, Sandwich, Scale, Scissors, Store } from "lucide-react";
 import type { ReactNode } from "react";
+import { motion, useReducedMotion } from "framer-motion";
+import { Barra, Cifra, Latido } from "./Movimiento";
 
 const marco = "rounded-2xl border border-line bg-surface p-4 shadow-[0_20px_50px_rgba(40,8,18,.10)]";
 const chip = (tono: "ok" | "warn" | "bad" | "info" | "neutro") =>
@@ -13,15 +17,18 @@ function Chip({ tono, children }: { tono: "ok" | "warn" | "bad" | "info" | "neut
 
 /** Portada: el tablero del día de un local. */
 export function VistaTablero() {
+  const quieto = useReducedMotion();
   return (
     <div aria-hidden="true" className={`${marco} p-5`}>
       <div className="flex items-center gap-2 border-b border-line pb-3">
         <span className="size-2.5 rounded-full bg-[#e5534b]" /><span className="size-2.5 rounded-full bg-[#e3b341]" /><span className="size-2.5 rounded-full bg-[#3fb950]" />
         <span className="ml-2 text-[12px] font-medium text-muted">Tablero del día · Local principal</span>
-        <span className="ml-auto"><Chip tono="ok">En línea</Chip></span>
+        <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-ok-soft px-2 py-0.5 text-[11px] font-semibold text-ok"><Latido /> En línea</span>
       </div>
       <div className="mt-4 grid grid-cols-3 gap-3">
-        {[["Ventas de hoy", "S/ 8,420.50", "+14% vs. ayer", "text-ok"], ["Pedidos en ruta", "18 pedidos", "4 motos activas", "text-muted"], ["Kilos despachados", "642.80 kg", "Merma: 0.8% OK", "text-ok"]].map(([t, v, d, c]) => (
+        {([["Ventas de hoy", <Cifra key="v" valor={8420.5} decimales={2} prefijo="S/ " />, "+14% vs. ayer", "text-ok"],
+          ["Pedidos en ruta", <Cifra key="p" valor={18} sufijo=" pedidos" duracion={1} />, "4 motos activas", "text-muted"],
+          ["Kilos despachados", <Cifra key="k" valor={642.8} decimales={2} sufijo=" kg" />, "Merma: 0.8% OK", "text-ok"]] as const).map(([t, v, d, c]) => (
           <div key={t} className="rounded-xl bg-surface-2 p-3">
             <span className="text-[11px] text-muted">{t}</span>
             <strong className="mt-0.5 block font-display text-[16px] text-primary">{v}</strong>
@@ -31,13 +38,15 @@ export function VistaTablero() {
       </div>
       <div className="mt-3 grid grid-cols-[1.3fr_1fr] gap-3">
         <div className="rounded-xl border border-line p-3">
-          <div className="flex items-center justify-between text-[11px] font-semibold tracking-wide text-muted uppercase"><span>Despachos en vivo</span><span className="text-primary">14:28 hrs</span></div>
+          <div className="flex items-center justify-between text-[11px] font-semibold tracking-wide text-muted uppercase"><span className="flex items-center gap-1.5"><Latido color="#922242" /> Despachos en vivo</span><span className="text-primary">14:28 hrs</span></div>
           {[["YP", "Restaurante El Asador", "14.2 kg Lomo fino · S/ 546.00", "Pagado Yape", "ok"], [<Bike key="b" size={13} />, "Sra. Patricia Mendoza", "3 Pollos brasa + 2 kg Chuleta", "En moto #3", "warn"], [<Scissors key="s" size={13} />, "Parrillas Los Leños", "8 Cuyes beneficiados vaciado", "Listo corte", "bad"]].map(([ico, n, d, e, t], i) => (
-            <div key={i} className="mt-2 flex items-center gap-2 rounded-lg bg-surface-2 px-2 py-1.5">
+            <motion.div key={i} className="mt-2 flex items-center gap-2 rounded-lg bg-surface-2 px-2 py-1.5"
+              initial={quieto ? false : { opacity: 0, x: -14 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.5 + i * 0.25, ease: [0.22, 1, 0.36, 1] }}>
               <span className="grid size-7 shrink-0 place-items-center rounded-md bg-primary-soft text-[10px] font-bold text-primary">{ico}</span>
               <span className="min-w-0 flex-1"><strong className="block truncate text-[11.5px]">{n}</strong><span className="block truncate text-[10.5px] text-muted">{d}</span></span>
               <Chip tono={t as "ok" | "warn" | "bad"}>{e}</Chip>
-            </div>
+            </motion.div>
           ))}
         </div>
         <div className="flex flex-col rounded-xl border border-line p-3">
@@ -46,16 +55,23 @@ export function VistaTablero() {
             <span className="absolute top-2 left-2 rounded bg-surface px-1.5 text-[10px] shadow">Surquillo</span>
             <span className="absolute top-2 right-2 rounded bg-surface px-1.5 text-[10px] shadow">San Borja</span>
             <span className="absolute right-2 bottom-2 rounded bg-surface px-1.5 text-[10px] shadow">Miraflores</span>
-            <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-md bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-ink">Moto #2 a 4 min</span>
+            <svg aria-hidden="true" viewBox="0 0 100 60" preserveAspectRatio="none" className="absolute inset-0 size-full">
+              <path d="M8 46 C 30 40, 34 22, 55 26 S 82 18, 92 10" fill="none" stroke="#922242" strokeOpacity=".35" strokeWidth="1.4" strokeDasharray="3 3" />
+            </svg>
+            <motion.span className="absolute top-1/2 left-1/2 rounded-md bg-primary px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap text-primary-ink shadow"
+              style={{ translateX: "-50%", translateY: "-50%" }}
+              animate={quieto ? undefined : { x: [-18, 14, -18], y: [6, -6, 6] }} transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}>
+              Moto #2 a 4 min
+            </motion.span>
           </div>
           <div className="mt-2 flex justify-between text-[10.5px]"><span className="text-muted">Entrega 14 de 18</span><span className="font-semibold text-ok">78% completado</span></div>
-          <div className="mt-1 h-1.5 rounded-full bg-surface-2"><div className="h-full w-[78%] rounded-full bg-ok" /></div>
+          <div className="mt-1"><Barra porcentaje={78} color="var(--ok)" className="h-1.5 !bg-surface-2" /></div>
         </div>
       </div>
       <div className="mt-3 flex items-center gap-3 rounded-xl bg-[#171210] px-4 py-3 font-mono text-white">
         <span className="grid size-8 place-items-center rounded-lg bg-ok/80"><Scale size={16} /></span>
         <span className="flex-1"><span className="block text-[10.5px] text-white/60">Mostrador 1 · venta por kilo</span><strong className="text-[13px] text-[#9be9a8]">Panceta de cerdo salmuera</strong></span>
-        <span className="text-right"><strong className="block text-[18px]">2.450 kg</strong><span className="text-[10.5px] text-[#9be9a8]">S/ 24.50/kg = S/ 60.03</span></span>
+        <span className="text-right"><strong className="block text-[18px]"><Cifra valor={2.45} decimales={3} sufijo=" kg" duracion={1.8} separador={false} /></strong><span className="text-[10.5px] text-[#9be9a8]">S/ 24.50/kg = S/ 60.03</span></span>
       </div>
     </div>
   );
@@ -265,7 +281,7 @@ export function VistaRentabilidad() {
         {filas.map(([t, v, w, color]) => (
           <div key={t}>
             <div className="mb-1 flex justify-between gap-2 text-xs font-bold"><span>{t}</span><span className="whitespace-nowrap text-[#2E7D4F]">{v}</span></div>
-            <div className="h-3 w-full overflow-hidden rounded-full bg-[#E0D9D2]"><div className="h-full rounded-full" style={{ width: `${w}%`, background: color }} /></div>
+            <Barra porcentaje={w} color={color} />
           </div>
         ))}
       </div>
