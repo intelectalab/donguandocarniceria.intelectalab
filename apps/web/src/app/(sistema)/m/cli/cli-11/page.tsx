@@ -1,8 +1,8 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeftRight, GitMerge } from "lucide-react";
 import { Alert, Badge, Button, DataTable, DetailList, Field, PageHeader, Textarea, toast, type Column } from "@/components/ui";
 import { api, erroresDe, mensajeDe } from "@/lib/api";
@@ -16,8 +16,13 @@ import { CANALES, TIPOS_CLIENTE, celular, etiqueta, type Fusion, type LadoFusion
  * comprobantes, direcciones, saldo, consentimientos) y pide el motivo. No se deshace (RN-CLI-08).
  * ?a=&b= el par; sin par abre el primero pendiente.
  */
-export default function FusionDeClientes({ searchParams }: PageProps<"/m/cli/cli-11">) {
-  const params = use(searchParams);
+export default function FusionDeClientes() {
+  return <Suspense><Pantalla /></Suspense>;
+}
+
+// Lee ?id= y los demás datos de la dirección en el navegador: la página se compila sin ellos.
+function Pantalla() {
+  const params = Object.fromEntries(useSearchParams());
   const a = typeof params.a === "string" ? params.a : "";
   const b = typeof params.b === "string" ? params.b : "";
   const router = useRouter();

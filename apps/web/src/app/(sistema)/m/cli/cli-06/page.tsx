@@ -1,8 +1,8 @@
 "use client";
 
-import { use, useEffect, useState, type FormEvent } from "react";
+import { Suspense, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Crosshair, Link2, Save, Search } from "lucide-react";
 import { Alert, Badge, Button, Checkbox, Field, Input, MapPicker, PageHeader, Select, Textarea, toast, type LatLng } from "@/components/ui";
 import { api, erroresDe, mensajeDe } from "@/lib/api";
@@ -16,8 +16,13 @@ type Cliente = { id: string; nombre: string; phone: string | null; merged_into_i
 type Carga = { clave: string; cliente: Cliente; direccion: Direccion | null; otras: Direccion[]; distritos: string[] };
 
 /** CLI-06 Mapa de la dirección: pin en el mapa (o búsqueda por texto, GPS, coordenadas), referencia obligatoria y quién recibe. ?cliente= y ?direccion= para editar. */
-export default function MapaDeLaDireccion({ searchParams }: PageProps<"/m/cli/cli-06">) {
-  const params = use(searchParams);
+export default function MapaDeLaDireccion() {
+  return <Suspense><Pantalla /></Suspense>;
+}
+
+// Lee ?id= y los demás datos de la dirección en el navegador: la página se compila sin ellos.
+function Pantalla() {
+  const params = Object.fromEntries(useSearchParams());
   const clienteId = typeof params.cliente === "string" ? params.cliente : "";
   const direccionId = typeof params.direccion === "string" ? params.direccion : "";
   const clave = `${clienteId}|${direccionId}`;

@@ -1,8 +1,8 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { CircleCheck, CircleOff, Copy, Pencil, Plus } from "lucide-react";
 import { Alert, Badge, Button, DataTable, DetailList, PageHeader, Select, StatusBadge, Tabs, confirmAction, toast, type Column, type Tone } from "@/components/ui";
 import { api, mensajeDe } from "@/lib/api";
@@ -21,8 +21,13 @@ const ACCIONES: Record<string, string> = { I: "Creado", U: "Modificado", D: "Bor
 type Pestana = "variantes" | "precios" | "componentes" | "historial";
 
 /** CAT-02 Ficha del producto: datos, registro sanitario, variantes, precios por lista e historial. ?id= el producto; ?nuevo=1 abre el alta. */
-export default function FichaDelProducto({ searchParams }: PageProps<"/m/cat/cat-02">) {
-  const params = use(searchParams);
+export default function FichaDelProducto() {
+  return <Suspense><Pantalla /></Suspense>;
+}
+
+// Lee los datos de la dirección (?id=…) en el navegador: la página se compila sin ellos.
+function Pantalla() {
+  const params = Object.fromEntries(useSearchParams());
   const id = typeof params.id === "string" ? params.id : "";
   const router = useRouter();
   const { can } = useSesion();

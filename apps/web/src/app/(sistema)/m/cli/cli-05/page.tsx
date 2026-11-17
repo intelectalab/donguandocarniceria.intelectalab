@@ -1,8 +1,8 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Link2, MapPin, MapPinOff, Navigation, Plus } from "lucide-react";
 import { Alert, Badge, Button, Cifra, DataTable, PageHeader, type Column } from "@/components/ui";
 import { api, mensajeDe } from "@/lib/api";
@@ -20,8 +20,13 @@ type Revision = {
 type DeCliente = { cliente: { id: string; nombre: string; phone: string | null; merged_into_id: string | null; status: string }; direcciones: Direccion[] };
 
 /** CLI-05 Direcciones: las del cliente (?cliente=) con zona, predeterminada y último uso, y las de toda la base que falta confirmar. */
-export default function Direcciones({ searchParams }: PageProps<"/m/cli/cli-05">) {
-  const params = use(searchParams);
+export default function Direcciones() {
+  return <Suspense><Pantalla /></Suspense>;
+}
+
+// Lee ?id= y los demás datos de la dirección en el navegador: la página se compila sin ellos.
+function Pantalla() {
+  const params = Object.fromEntries(useSearchParams());
   const clienteId = typeof params.cliente === "string" ? params.cliente : "";
   const router = useRouter();
   const { can } = useSesion();

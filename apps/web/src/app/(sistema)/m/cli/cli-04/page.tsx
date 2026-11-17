@@ -1,8 +1,8 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FileCheck, Search } from "lucide-react";
 import { Alert, Badge, Button, Checkbox, DetailList, Field, Input, PageHeader, Select, Textarea, toast } from "@/components/ui";
 import { api, erroresDe, mensajeDe } from "@/lib/api";
@@ -18,8 +18,13 @@ type Pendientes = {
 };
 
 /** CLI-04 Validar documento: consulta el DNI (RENIEC) o RUC (SUNAT), muestra la respuesta y la guarda con fuente y fecha (RN-CLI-12). ?id= el cliente. */
-export default function ValidarDocumento({ searchParams }: PageProps<"/m/cli/cli-04">) {
-  const params = use(searchParams);
+export default function ValidarDocumento() {
+  return <Suspense><Pantalla /></Suspense>;
+}
+
+// Lee ?id= y los demás datos de la dirección en el navegador: la página se compila sin ellos.
+function Pantalla() {
+  const params = Object.fromEntries(useSearchParams());
   const id = typeof params.id === "string" ? params.id : "";
   const router = useRouter();
   const { can } = useSesion();
