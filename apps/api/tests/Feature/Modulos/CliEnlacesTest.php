@@ -45,8 +45,12 @@ class CliEnlacesTest extends TestCase
             'reference' => 'Torre empresarial, dejar en portería', 'lat' => -12.11, 'lng' => -76.99])->assertCreated()->assertJsonPath('zona.name', 'Surco B (Chacarilla – Primavera)');
         // De un solo uso.
         $this->getJson("/api/v1/publico/ubicacion/{$token}")->assertUnprocessable()->assertJsonPath('code', 'RN-CLI-05');
+        // Enviarlo otra vez no deja una segunda dirección.
+        $this->postJson("/api/v1/publico/ubicacion/{$token}", ['address_line' => 'Jr. Otro 123', 'district' => 'Santiago de Surco',
+            'reference' => 'Segundo envío del mismo enlace', 'lat' => -12.11, 'lng' => -76.99])->assertUnprocessable()->assertJsonPath('code', 'RN-CLI-05');
 
         $dirs = $this->gerente()->getJson("/api/v1/cli/clientes/{$id}/direcciones")->json('direcciones');
+        $this->assertCount(1, $dirs);
         $this->assertSame('LINK', $dirs[0]['pin_source']);
         $enlaces = $this->gerente()->getJson("/api/v1/cli/enlaces?customer_id={$id}")->assertOk()->json('data');
         $this->assertSame('USED', $enlaces[0]['estado']);

@@ -88,13 +88,19 @@ final class Enlaces
         ['link' => $l, 'cliente' => $c] = self::abrir($token);
 
         return DB::transaction(function () use ($l, $c, $v) {
+            // Se toma el enlace antes de guardar: si el cliente envía dos veces a la vez, la segunda
+            // espera a la primera, ya no lo encuentra pendiente y no deja una segunda dirección.
+            $tomado = DB::table('customer_location_links')->where('id', $l->id)->where('status', 'PENDING')
+                ->where('expires_at', '>', now())->update(['status' => 'USED', 'used_at' => now(), 'updated_at' => now()]);
+            if ($tomado !== 1) {
+                RuleError::fail('RN-CLI-05', 'Este enlace ya se usó o fue anulado: es de un solo uso. Pide uno nuevo a quien te atiende.');
+            }
             $r = Direcciones::guardar($c, [
                 'label' => 'Enviada por el cliente', 'pin_source' => ! empty($v['gps']) ? 'GPS' : 'LINK', 'geocode_confidence' => 1,
                 'address_line' => $v['address_line'] ?? '', 'reference' => $v['reference'] ?? '', 'district' => $v['district'] ?? '',
                 'lat' => $v['lat'] ?? null, 'lng' => $v['lng'] ?? null, 'contact_name' => $v['contact_name'] ?? null,
             ]);
-            DB::table('customer_location_links')->where('id', $l->id)
-                ->update(['status' => 'USED', 'used_at' => now(), 'address_id' => $r['direccion']->id, 'updated_at' => now()]);
+            DB::table('customer_location_links')->where('id', $l->id)->update(['address_id' => $r['direccion']->id]);
             Events::emit('customer.location_received', 'customers', $c->id, ['link_id' => $l->id, 'address_id' => $r['direccion']->id, 'zone' => $r['zona']['code'] ?? null]);
             // Aviso a su vendedora (o a todas, si no tiene una asignada).
             DB::table('notifications')->insert([

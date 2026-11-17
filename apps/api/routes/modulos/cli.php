@@ -17,7 +17,7 @@ Route::prefix('cli')->group(function () {
     // CLI-01 Clientes
     Route::get('/clientes', [ClienteController::class, 'index'])->middleware('modulo:CLI');
     Route::get('/clientes/resumen', [ClienteController::class, 'resumen'])->middleware('modulo:CLI');
-    Route::get('/clientes/exportar', [ClienteController::class, 'exportar'])->middleware(['modulo:CLI', 'permiso:cli.customer.export']);
+    Route::get('/clientes/exportar', [ClienteController::class, 'exportar'])->middleware(['modulo:CLI', 'permiso:cli.customer.export', 'throttle:10,1']);
 
     // CLI-03 Alta rápida
     Route::get('/clientes/celular', [ClienteController::class, 'celular'])->middleware('modulo:CLI');
@@ -73,6 +73,6 @@ Route::prefix('cli')->group(function () {
     Route::get('/fusiones', [DuplicadoController::class, 'fusiones'])->middleware('modulo:CLI');
 
     // CLI-12 Importar clientes
-    Route::post('/importar/revisar', [ImportacionController::class, 'revisar'])->middleware(['modulo:CLI,C', $manage]);
-    Route::post('/importar', [ImportacionController::class, 'importar'])->middleware(['modulo:CLI,C', $manage]);
+    Route::post('/importar/revisar', [ImportacionController::class, 'revisar'])->middleware(['modulo:CLI,C', $manage, 'throttle:20,1']);
+    Route::post('/importar', [ImportacionController::class, 'importar'])->middleware(['modulo:CLI,C', $manage, 'throttle:10,1']);
 });

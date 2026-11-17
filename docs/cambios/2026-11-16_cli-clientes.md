@@ -39,3 +39,9 @@ Después de `git pull`: `php artisan migrate --database=pgsql_owner`.
 
 ## Pendiente
 - Proveedores reales de RENIEC/SUNAT y de mapas (hoy son adaptadores de prueba).
+
+## Revisión de seguridad antes de subir (16/11/2026)
+- **Enlace de ubicación de un solo uso también con dos envíos a la vez:** al guardar, el enlace se toma primero con una sola actualización condicionada (pendiente y sin vencer). Si el cliente envía dos veces al mismo tiempo, la segunda espera, ya no lo encuentra pendiente y no deja una segunda dirección. Si la dirección no pasa las reglas, todo se deshace y el enlace sigue sirviendo. Prueba en `CliEnlacesTest`.
+- **Límite de pedidos:** exportar clientes (10 por minuto), revisar la importación (20) e importar (10).
+- Revisado y sin cambios: el token es aleatorio de 32 caracteres y se guarda solo su hash; vence; la ruta pública tiene límite por IP; la empresa sale del enlace (RLS); al abrirlo se muestra solo el primer nombre; la validación manual del documento pide su permiso; la exportación usa el Excel con diseño y queda en la bitácora.
+- Pendiente: la exportación de clientes trae datos personales y debería pasar por la aprobación de AUD cuando exista.
