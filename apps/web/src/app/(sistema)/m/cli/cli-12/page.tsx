@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, type ChangeEvent } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FileUp, ListChecks, Upload } from "lucide-react";
-import { Alert, Badge, Button, Cifra, DataTable, Field, PageHeader, Select, Textarea, toast, type Column } from "@/components/ui";
+import { ListChecks, Upload } from "lucide-react";
+import { Alert, ArchivoImportar, Badge, Button, Cifra, DataTable, Field, PageHeader, Select, Textarea, toast, type Column } from "@/components/ui";
 import { api, mensajeDe } from "@/lib/api";
 import { numero } from "@/lib/formato";
 import { useSesion } from "@/lib/sesion";
@@ -29,14 +29,6 @@ export default function ImportarClientes() {
   const [ocupado, setOcupado] = useState<"" | "revisar" | "importar">("");
 
   const r = rev?.texto === texto ? rev.r : null;
-
-  async function leerArchivo(e: ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    e.target.value = "";
-    if (!f) return;
-    if (/\.xlsx?$/i.test(f.name)) { toast.error("Guarda el Excel como CSV (Archivo › Guardar como › CSV) o copia las celdas y pégalas aquí."); return; }
-    setTexto(await f.text());
-  }
 
   async function revisar() {
     setOcupado("revisar");
@@ -99,15 +91,15 @@ export default function ImportarClientes() {
       <PageHeader description="Trae clientes de la agenda de WhatsApp o de la web. Primero se revisa todo y nada se guarda hasta que confirmes. Las direcciones se piden después con el enlace de ubicación." />
 
       <section className="grid gap-4 rounded-xl border border-line bg-surface p-4 shadow-card lg:grid-cols-[minmax(0,1fr)_260px]">
-        <Field label="Clientes (una fila por cliente)" hint="Columnas: nombre; celular; correo; documento; distrito. Separadas por «;», coma o tabulación (pegado desde Excel).">
+        <Field label="Clientes (una fila por cliente)" hint="Descarga el modelo en Excel, llénalo y súbelo, o sube un CSV. También puedes pegar las filas: nombre; celular; correo; documento; distrito.">
           <Textarea rows={8} value={texto} onChange={(e) => setTexto(e.target.value)} placeholder={EJEMPLO} className="font-mono text-[12.5px]" />
         </Field>
         <div className="flex flex-col gap-3">
           <Field label="De dónde vienen"><Select value={origen} onChange={(e) => setOrigen(e.target.value)} options={ORIGENES} /></Field>
-          <label className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-[9px] border border-line bg-surface px-3.5 text-[13.5px] font-semibold hover:bg-surface-2">
-            <FileUp size={16} aria-hidden="true" /> Subir archivo CSV
-            <input type="file" accept=".csv,.txt,text/csv,text/plain" className="sr-only" onChange={leerArchivo} />
-          </label>
+          <div className="[&>div]:flex-col [&>div>*]:w-full">
+            <ArchivoImportar plantilla="/v1/cli/importar/plantilla" archivo="/v1/cli/importar/archivo" nombre="plantilla-clientes.xlsx"
+              disabled={!can("cli.customer.manage")} onTexto={setTexto} />
+          </div>
           <Button onClick={() => setTexto(EJEMPLO)} variant="ghost">Ver un ejemplo</Button>
           <Button variant="primary" icon={ListChecks} loading={ocupado === "revisar"} disabled={!texto.trim() || !can("cli.customer.manage")} onClick={revisar} className="mt-auto">Revisar</Button>
         </div>

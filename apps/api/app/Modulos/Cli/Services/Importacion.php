@@ -19,6 +19,15 @@ final class Importacion
 
     public const ORIGENES = ['WHATSAPP', 'WEB', 'OTHER'];
 
+    /** Columnas del CSV y de la plantilla Excel (App\Support\Importar). */
+    public const COLUMNAS = [
+        ['clave' => 'nombre', 'titulo' => 'Nombre', 'ancho' => 32, 'otros' => ['nombre_completo', 'cliente', 'razon_social']],
+        ['clave' => 'celular', 'titulo' => 'Celular', 'ancho' => 18, 'otros' => ['telefono', 'whatsapp']],
+        ['clave' => 'correo', 'titulo' => 'Correo', 'ancho' => 28, 'otros' => ['email']],
+        ['clave' => 'documento', 'titulo' => 'Documento (DNI o RUC)', 'ancho' => 22, 'otros' => ['dni', 'ruc', 'nro_documento']],
+        ['clave' => 'distrito', 'titulo' => 'Distrito', 'ancho' => 22],
+    ];
+
     /** @return array<int, array> */
     public static function revisar(string $texto): array
     {

@@ -16,6 +16,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // La API no tiene página de ingreso: sin sesión responde 401, aunque no pidan JSON (antes daba 500).
+        $middleware->redirectGuestsTo(fn () => null);
         $middleware->alias([
             'tenant' => \App\Http\Middleware\ResolveTenant::class,
             'usuario' => \App\Http\Middleware\SetUserContext::class,
