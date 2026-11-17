@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modulos\Mae\Services\TipoCambio\FuenteTipoCambio;
 use App\Modulos\Mae\Services\TiposDeCambio;
 use App\Support\Access;
+use App\Support\Listado;
 use App\Support\Params;
 use App\Support\RuleError;
 use Illuminate\Http\Request;
@@ -62,9 +63,32 @@ class TipoCambioController extends Controller
             'meses_desde' => $primero ? substr($primero, 0, 7) : $mes,
             'fuente' => app(FuenteTipoCambio::class)->nombre(),
             'parametros' => ['dias_respaldo' => (int) (Params::get('mae_fx_max_fallback_days') ?? 7), 'hora_carga' => (string) (Params::get('mae_fx_load_time') ?? '09:00')],
-            'manuales' => DB::table('exchange_rates')->where('currency', $moneda)->where(fn ($q) => $q->whereNotNull('edit_reason')->orWhere('loaded_via', 'MANUAL'))
-                ->orderByDesc('date')->limit(20)->get(['id', 'date', 'buy', 'sell', 'loaded_via', 'loaded_by', 'edited_by', 'edit_reason']),
         ]);
+    }
+
+    /**
+     * Cargas manuales y correcciones, paginadas (crecen todos los meses). Filtros: tipo (MANUAL o CORREGIDO),
+     * rango de fechas y moneda; busca en quién cargó o corrigió y en el motivo.
+     */
+    public function registros(Request $request)
+    {
+        $this->puedeVer($request);
+        $f = $request->validate([
+            'tipo' => ['nullable', 'in:MANUAL,CORREGIDO'], 'desde' => ['nullable', 'date_format:Y-m-d'],
+            'hasta' => ['nullable', 'date_format:Y-m-d'], 'moneda' => ['nullable', 'regex:/^[A-Z]{3}$/'],
+        ]);
+        $q = DB::table('exchange_rates')->where('currency', $f['moneda'] ?? 'USD')
+            ->where(fn ($w) => match ($f['tipo'] ?? null) {
+                'MANUAL' => $w->where('loaded_via', 'MANUAL'),
+                'CORREGIDO' => $w->whereNotNull('edit_reason'),
+                default => $w->whereNotNull('edit_reason')->orWhere('loaded_via', 'MANUAL'),
+            })
+            ->when($f['desde'] ?? null, fn ($w, $v) => $w->where('date', '>=', $v))
+            ->when($f['hasta'] ?? null, fn ($w, $v) => $w->where('date', '<=', $v))
+            ->select(['id', 'date', 'buy', 'sell', 'loaded_via', 'loaded_by', 'edited_by', 'edit_reason', 'updated_at']);
+
+        return response()->json(Listado::de($q, $request, buscar: ['loaded_by', 'edited_by', 'edit_reason'],
+            ordenar: ['date', 'buy', 'sell', 'loaded_via'], porDefecto: '-date'));
     }
 
     public function store(Request $request)

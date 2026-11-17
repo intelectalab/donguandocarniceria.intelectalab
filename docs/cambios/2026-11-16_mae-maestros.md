@@ -1,6 +1,6 @@
 # 16/11/2026 · MAE Maestros comunes: base, servicios y primeras tandas de pantallas
 
-Se avanza por tandas: **tanda 1** MAE-01, 02 y 10 (trabajadores) y **tanda 2** MAE-03 y 04 (medios de pago y comisiones). Siguen MAE-05 (tipo de cambio), MAE-06 y 07 (unidades y catálogos SUNAT) y MAE-08 y 09 (ubigeo y entidades financieras). La API de todas ya está hecha y probada.
+Se avanza por tandas: **tanda 1** MAE-01, 02 y 10 (trabajadores), **tanda 2** MAE-03 y 04 (medios de pago y comisiones) y **tanda 3** MAE-05 (tipo de cambio). Siguen MAE-06 y 07 (unidades y catálogos SUNAT) y MAE-08 y 09 (ubigeo y entidades financieras). La API de todas ya está hecha y probada.
 
 ## Base de datos
 Migración `2026_11_16_000200_mae_restricciones_y_reglas.php` (después de `git pull`: `php artisan migrate --database=pgsql_owner`):
@@ -26,10 +26,11 @@ Migración `2026_11_16_000200_mae_restricciones_y_reglas.php` (después de `git 
 
 ## Pantallas
 - **MAE-01 Trabajadores:** cifras, filtros por local, cargo y estado, usuario vinculado de cada uno. El sueldo nunca se muestra.
-- **MAE-02 Ficha del trabajador:** datos y antigüedad; usuario vinculado con rol, marcas y locales; «Editar», «Vincular usuario» (trae el actual y no ofrece usuarios de Intelectalab ni de clientes B2B) y «Dar de baja» con fecha y motivo. **Historia** al pie: alta, cambios, baja y vínculos, con antes y después, en hora de Lima, desde la última alta; solo con `aud.record_history.view`, sin sueldo y con documento, celular y correo enmascarados sin `aud.export.personal_data`.
+- **MAE-02 Ficha del trabajador:** datos y antigüedad; usuario vinculado con rol, marcas, locales (sin asignados = todos, como lo aplica Access) y segundo factor; «Editar», «Vincular usuario» (trae el actual y no ofrece usuarios de Intelectalab ni de clientes B2B) y «Dar de baja» con fecha y motivo. **Historia** al pie: alta, cambios, baja y vínculos, con antes y después, en hora de Lima, desde la última alta; solo con `aud.record_history.view`, sin sueldo y con documento, celular y correo enmascarados sin `aud.export.personal_data`.
 - **MAE-10 Importar trabajadores:** modelo en Excel, subir Excel o CSV, o pegar; validación fila por fila y se graban solo las válidas.
 - **MAE-03 Medios de pago:** los 7 medios, configurar y activar o desactivar con motivo, «Validar un cobro».
-- **MAE-04 Comisiones:** simulador «cobro de S/ 100,00 el día X», comisión efectiva del mes por medio, historial por vigencia y «Nueva comisión».
+- **MAE-04 Comisiones:** simulador «cobro de S/ 100,00 el día X», comisión efectiva del mes por medio, historial por vigencia (por medio y la más nueva primero; columnas ordenables) y «Nueva comisión».
+- **MAE-05 Tipo de cambio:** cifras de lo aplicable hoy y de la cobertura del mes; calendario con compra y venta por día, origen, días hábiles sin carga en rojo con la venta que se usa (RN-MAE-07), feriados y corregidos; detalle del día con «Cargar de SUNAT», «Registrar a mano» o «Corregir» con motivo (RN-MAE-08); consulta «¿qué tipo de cambio usa un documento?»; cargas manuales y correcciones paginadas (`GET /v1/mae/tipo-cambio/registros`, con búsqueda, tipo y rango de fechas). La contadora la ve en su menú por `mae.exchange_rate.edit` (`POR_PERMISO` en `lib/modulos.ts`).
 
 ## Importar desde Excel (también en CLI-12)
 `App\Support\Importar` y el componente `ArchivoImportar`, como en erp-saas: plantilla `.xlsx` con los colores de la empresa, instrucciones, ejemplos, filas en formato texto y listas desplegables; acepta `.xlsx`, `.xls` o `.csv` de hasta 2 MB, reconoce las columnas por su título en cualquier orden, salta las filas «#» y convierte las fechas de Excel. Lee solo las filas que se pueden importar y no calcula fórmulas. Rutas `GET …/importar/plantilla` y `POST …/importar/archivo` en MAE y CLI, con su permiso y límite por minuto.
@@ -42,6 +43,5 @@ Migración `2026_11_16_000200_mae_restricciones_y_reglas.php` (después de `git 
 `tests/Feature/Modulos/MaeTest.php` (14: CA-MAE-01 a 06, RN-MAE-01 y 13, ficha e historia, importación con CSV y con Excel, tipo de cambio, carga automática, permisos y aislamiento) y una nueva en `CliImportacionTest`. Suite completa: 273 correctas.
 
 ## Pendiente
-- Pantallas MAE-05 a 09.
+- Pantallas MAE-06 a 09.
 - Contrato de los servicios de MAE en `docs/contratos.md`.
-- En la web, `POR_PERMISO` de MAE-05 (`mae.exchange_rate.edit`) cuando exista la pantalla.

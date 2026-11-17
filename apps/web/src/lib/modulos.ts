@@ -64,6 +64,7 @@ export type GrupoDelMenu = { name: string; modulos: ModuloDelMenu[] };
  */
 const POR_PERMISO: Record<string, Record<string, string>> = {
   SEG: { "SEG-13": "seg.device.approve" },
+  MAE: { "MAE-05": "mae.exchange_rate.edit" }, // la contadora carga el tipo de cambio sin el resto de MAE
 };
 
 /**

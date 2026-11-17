@@ -12,7 +12,7 @@ import { TrabajadorForm } from "@/modulos/mae/TrabajadorForm";
 import { ESTADOS_TRABAJADOR, ESTADOS_USUARIO, NOMBRE_DOC, dias, hoyLima, useDatos, type ResumenTrabajadores, type Trabajador } from "@/modulos/mae/tipos";
 
 type UsuarioFicha = {
-  id: string; name: string; email: string; status: string; role: string; rol_nombre: string; marcas: string[] | null; locales: string[] | null;
+  id: string; name: string; email: string; status: string; role: string; rol_nombre: string; marcas: string[] | null; locales: string[] | null; segundo_factor: boolean;
   last_login: string | null; deactivated_reason: string | null; sesiones: number;
 };
 type Cambio = { campo: string; antes: string | null; despues: string };
@@ -120,6 +120,7 @@ function Ficha({ id }: { id: string }) {
                     { label: "Rol", value: u.rol_nombre },
                     { label: "Marcas", value: alcance(u.marcas, "Todas") },
                     { label: "Locales", value: alcance(u.locales, "Todos") },
+                    { label: "Segundo factor", value: u.segundo_factor ? "Activo" : "No" },
                     { label: "Último ingreso", value: u.last_login ? fechaHora(u.last_login) : "Nunca" },
                     ...(u === vigente ? [{ label: "Sesiones abiertas", value: numero(u.sesiones) }] : []),
                     ...(u.deactivated_reason ? [{ label: "Desactivado", value: u.deactivated_reason }] : []),
@@ -170,8 +171,7 @@ function Baja({ trabajador, usuario, motivos, onClose, onHecho }: {
 
 /** Marcas o locales del alcance del usuario; null = su rol ve todos. */
 function alcance(lista: string[] | null, todas: "Todas" | "Todos") {
-  if (lista === null) return todas;
-  return lista.length ? lista.join(", ") : todas === "Todas" ? "Ninguna" : "Ninguno";
+  return lista?.length ? lista.join(", ") : todas;
 }
 
 /**

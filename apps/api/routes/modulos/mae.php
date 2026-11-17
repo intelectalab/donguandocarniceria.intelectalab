@@ -37,6 +37,7 @@ Route::prefix('mae')->group(function () {
 
     // MAE-05 Tipo de cambio: con el módulo MAE o con el permiso (la contadora lo tiene sin el resto de MAE).
     Route::get('/tipo-cambio', [TipoCambioController::class, 'index']);       // revisa el módulo MAE o mae.exchange_rate.edit
+    Route::get('/tipo-cambio/registros', [TipoCambioController::class, 'registros']); // ídem
     Route::get('/tipo-cambio/para', [TipoCambioController::class, 'para']);   // ídem
     Route::post('/tipo-cambio', [TipoCambioController::class, 'store'])->middleware('permiso:mae.exchange_rate.edit');
     Route::post('/tipo-cambio/cargar', [TipoCambioController::class, 'cargar'])->middleware(['permiso:mae.exchange_rate.edit', 'throttle:10,1']);

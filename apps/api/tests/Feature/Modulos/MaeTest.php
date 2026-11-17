@@ -161,6 +161,8 @@ class MaeTest extends TestCase
         // Administración ve la historia, pero sin datos personales (RN-AUD-07); la vendedora tiene marcas asignadas.
         $f = $this->admin()->getJson("/api/v1/mae/trabajadores/{$e->id}")->assertOk();
         $this->assertNotEmpty($f->json('usuarios.0.marcas'));
+        $this->assertNull($f->json('usuarios.0.locales')); // sin locales asignados ve todos (así lo aplica Access)
+        $this->assertIsBool($f->json('usuarios.0.segundo_factor'));
         $this->assertSame('Vendedora', $f->json('usuarios.0.rol_nombre'));
         $cambio = $f->json('historia.0');
         $this->assertSame('cambio', $cambio['tipo']);
@@ -257,6 +259,15 @@ class MaeTest extends TestCase
     public function test_tipo_de_cambio_correccion_con_motivo_y_permiso(): void
     {
         $this->como('fquispe@donguando.pe')->postJson('/api/v1/mae/tipo-cambio', ['date' => '2026-11-13', 'buy' => 3.37, 'sell' => 3.38])->assertForbidden();
+        // La contadora abre MAE-05 por su permiso, aunque no tenga el resto de MAE.
+        $this->como('mcardenas@donguando.pe')->getJson('/api/v1/mae/tipo-cambio?mes=2026-10')->assertOk()->assertJsonCount(31, 'dias');
+        // Cargas manuales y correcciones: paginadas, la más reciente primero, con filtros.
+        $r = $this->como('mcardenas@donguando.pe')->getJson('/api/v1/mae/tipo-cambio/registros?per_page=2')->assertOk();
+        $this->assertSame(3, $r->json('total'));
+        $this->assertSame(2, $r->json('last_page'));
+        $this->assertSame('2026-10-02', $r->json('data.0.date'));
+        $this->como('mcardenas@donguando.pe')->getJson('/api/v1/mae/tipo-cambio/registros?tipo=CORREGIDO')->assertOk()->assertJsonPath('total', 1);
+        $this->como('mcardenas@donguando.pe')->getJson('/api/v1/mae/tipo-cambio/registros?desde=2026-09-20&hasta=2026-09-30')->assertOk()->assertJsonPath('data.0.date', '2026-09-22');
         $this->como('mcardenas@donguando.pe')->postJson('/api/v1/mae/tipo-cambio', ['date' => '2026-11-13', 'buy' => 3.37, 'sell' => 3.38])->assertCreated();
         $this->como('mcardenas@donguando.pe')->postJson('/api/v1/mae/tipo-cambio', ['date' => '2026-11-13', 'buy' => 3.39, 'sell' => 3.38])
             ->assertUnprocessable()->assertJsonPath('code', 'RN-MAE-06');

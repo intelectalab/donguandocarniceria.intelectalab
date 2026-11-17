@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Alert, Badge, Button, Checkbox, DataTable, DetailList, Field, Input, PageHeader, Select, Textarea, toast, type Column, type Tone } from "@/components/ui";
 import { api, mensajeDe } from "@/lib/api";
 import { fecha, numero, soles } from "@/lib/formato";
@@ -18,6 +18,35 @@ type Datos = { comisiones: Comision[]; efectiva: Efectiva[]; medios: MedioCorto[
 type Simulacion = { pct: number; fijo: number; comision: number; igv: number; neto: number; fila: { valid_from: string; valid_to: string | null; igv_included: boolean } | null };
 
 const VIGENCIA: Record<Comision["vigencia"], [string, Tone]> = { VIGENTE: ["Vigente", "ok"], PROGRAMADA: ["Programada", "info"], HISTORICA: ["Histórica", "neutral"] };
+const ORDEN_VIGENCIA = { VIGENTE: 0, PROGRAMADA: 1, HISTORICA: 2 };
+
+/**
+ * Orden de la tabla. Sin columna elegida: por medio (en el orden de MAE-03) y, dentro de cada uno, la más nueva primero,
+ * para que la vigente quede arriba. Con columna: por esa columna y después igual que sin columna.
+ */
+function ordenar(filas: Comision[], medios: MedioCorto[], sort: string): Comision[] {
+  const posicion = new Map(medios.map((m, i) => [m.id, i]));
+  const porDefecto = (a: Comision, b: Comision) => (posicion.get(a.payment_method_id) ?? 99) - (posicion.get(b.payment_method_id) ?? 99) || b.valid_from.localeCompare(a.valid_from);
+  const campo = sort.replace(/^-/, "");
+  const valor = (f: Comision): number | string => {
+    switch (campo) {
+      case "medio": return posicion.get(f.payment_method_id) ?? 99;
+      case "valid_from": return f.valid_from;
+      case "valid_to": return f.valid_to ?? "9999-12-31";
+      case "fee_pct": return Number(f.fee_pct);
+      case "fee_fixed": return Number(f.fee_fixed);
+      case "igv_included": return f.igv_included ? 0 : 1;
+      case "vigencia": return ORDEN_VIGENCIA[f.vigencia];
+      default: return 0;
+    }
+  };
+  const signo = sort.startsWith("-") ? -1 : 1;
+  return [...filas].sort((a, b) => {
+    const [x, y] = [valor(a), valor(b)];
+    const c = typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y));
+    return c * signo || porDefecto(a, b);
+  });
+}
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "setiembre", "octubre", "noviembre", "diciembre"];
 
 /**
@@ -29,17 +58,19 @@ export default function Comisiones() {
   const [medio, setMedio] = useState("");
   const { datos, error, recargar } = useDatos<Datos>(`/v1/mae/comisiones${medio ? `?payment_method_id=${medio}` : ""}`);
   const [nueva, setNueva] = useState(false);
+  const [orden, setOrden] = useState("");
+  const filas = useMemo(() => (datos ? ordenar(datos.comisiones, datos.medios, orden) : []), [datos, orden]);
   const gestiona = can("mae.payment_method.manage") && puede("MAE", "C");
   const mes = MESES[Number(hoyLima().slice(5, 7)) - 1];
 
   const columnas: Column<Comision>[] = [
-    { key: "medio", header: "Medio", cardTitle: true, render: (f) => <span className="font-semibold">{f.medio}</span> },
-    { key: "valid_from", header: "Desde", render: (f) => fecha(f.valid_from) },
-    { key: "valid_to", header: "Hasta", render: (f) => (f.valid_to ? fecha(f.valid_to) : "Sin fin") },
-    { key: "fee_pct", header: "%", align: "right", render: (f) => pct(Number(f.fee_pct)) },
-    { key: "fee_fixed", header: "Fijo", align: "right", render: (f) => soles(Number(f.fee_fixed)) },
-    { key: "igv_included", header: "IGV", hideOnMobile: true, render: (f) => (f.igv_included ? "Incluido" : "Más IGV") },
-    { key: "vigencia", header: "Vigencia hoy", render: (f) => <Badge tone={VIGENCIA[f.vigencia][1]}>{VIGENCIA[f.vigencia][0]}</Badge> },
+    { key: "medio", header: "Medio", cardTitle: true, sortable: true, render: (f) => <span className="font-semibold">{f.medio}</span> },
+    { key: "valid_from", header: "Desde", sortable: true, render: (f) => fecha(f.valid_from) },
+    { key: "valid_to", header: "Hasta", sortable: true, render: (f) => (f.valid_to ? fecha(f.valid_to) : "Sin fin") },
+    { key: "fee_pct", header: "%", align: "right", sortable: true, render: (f) => pct(Number(f.fee_pct)) },
+    { key: "fee_fixed", header: "Fijo", align: "right", sortable: true, render: (f) => soles(Number(f.fee_fixed)) },
+    { key: "igv_included", header: "IGV", hideOnMobile: true, sortable: true, render: (f) => (f.igv_included ? "Incluido" : "Más IGV") },
+    { key: "vigencia", header: "Vigencia hoy", sortable: true, render: (f) => <Badge tone={VIGENCIA[f.vigencia][1]}>{VIGENCIA[f.vigencia][0]}</Badge> },
     { key: "note", header: "Nota", hideOnMobile: true, render: (f) => f.note ?? "—" },
   ];
   const columnasEfectiva: Column<Efectiva>[] = [
@@ -70,7 +101,7 @@ export default function Comisiones() {
         </section>
       </div>
 
-      <DataTable columns={columnas} rows={datos?.comisiones ?? []} loading={!datos && !error} empty="Sin comisiones registradas para ese medio."
+      <DataTable columns={columnas} rows={filas} loading={!datos && !error} empty="Sin comisiones registradas para ese medio." sort={orden} onSortChange={setOrden}
         toolbar={
           <div className="w-full sm:w-[220px]">
             <Select aria-label="Medio" value={medio} onChange={(e) => setMedio(e.target.value)} placeholder="Medio: todos" className="!min-h-9 h-9 py-1.5 text-[13px]"

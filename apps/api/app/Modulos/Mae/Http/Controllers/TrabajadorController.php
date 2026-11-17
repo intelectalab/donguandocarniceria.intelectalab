@@ -80,7 +80,7 @@ class TrabajadorController extends Controller
     {
         $e = $this->consulta($request)->where('e.id', $id)->first() ?? abort(404);
         $usuarios = User::where('employee_id', $id)->orderByRaw("CASE WHEN status = 'INACTIVE' THEN 1 ELSE 0 END")
-            ->get(['id', 'name', 'email', 'status', 'role', 'last_login', 'deactivated_reason', 'deactivated_at'])
+            ->get(['id', 'name', 'email', 'status', 'role', 'last_login', 'deactivated_reason', 'deactivated_at', 'twofa_enabled'])
             ->map(fn ($u) => $u->toArray() + $this->alcanceDe($u) + ['sesiones' => DB::table('personal_access_tokens')->where('tokenable_type', User::class)
                 ->where('tokenable_id', $u->id)->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))->count()]);
         $verHistoria = Access::can($request->user(), 'aud.record_history.view');
@@ -91,16 +91,20 @@ class TrabajadorController extends Controller
         ]);
     }
 
-    /** Rol y alcance del usuario: marcas y locales asignados, o «todas» si su rol ve todo (RN-SEG-13). */
+    /**
+     * Rol, alcance y segundo factor del usuario. Marcas y locales: los asignados, o null (= todos) si su rol ve todo o si no
+     * tiene ninguno de ese tipo asignado, porque así lo aplica Access (sin locales asignados no se filtra por local).
+     */
     private function alcanceDe(User $u): array
     {
         $rol = DB::table('user_roles as ur')->join('roles as r', 'r.id', '=', 'ur.role_id')->where('ur.user_id', $u->id)
             ->orderBy('r.code')->first(['r.name', 'r.scope_mode']);
         $total = ! $rol || $rol->scope_mode !== 'ASSIGNED';
-        $nombres = fn (string $tabla, string $columna) => $total ? null : DB::table('user_scopes as us')
-            ->join("{$tabla} as t", 't.id', '=', "us.{$columna}")->where('us.user_id', $u->id)->orderBy('t.name')->pluck('t.name')->all();
+        $nombres = fn (string $tabla, string $columna) => $total ? null : (DB::table('user_scopes as us')
+            ->join("{$tabla} as t", 't.id', '=', "us.{$columna}")->where('us.user_id', $u->id)->orderBy('t.name')->pluck('t.name')->all() ?: null);
 
-        return ['rol_nombre' => $rol->name ?? $u->role, 'marcas' => $nombres('brands', 'brand_id'), 'locales' => $nombres('establishments', 'establishment_id')];
+        return ['rol_nombre' => $rol->name ?? $u->role, 'marcas' => $nombres('brands', 'brand_id'), 'locales' => $nombres('establishments', 'establishment_id'),
+            'segundo_factor' => (bool) $u->twofa_enabled];
     }
 
     private const CAMPOS_HISTORIA = [
