@@ -1,8 +1,8 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Copy, Link2, MessageCircle, XCircle } from "lucide-react";
 import { Alert, Button, DataTable, PageHeader, Select, StatusBadge, Tabs, confirmAction, toast, type Column } from "@/components/ui";
 import { api, mensajeDe } from "@/lib/api";
@@ -19,8 +19,13 @@ type Vista = "" | "PENDING" | "USED" | "EXPIRED" | "CANCELLED";
  * CLI-07 Enlace de ubicación: un enlace de un solo uso que la vendedora manda por WhatsApp; el
  * cliente lo abre sin cuenta, marca su pin y la dirección queda guardada (RN-CLI-05). ?cliente=.
  */
-export default function EnlaceDeUbicacion({ searchParams }: PageProps<"/m/cli/cli-07">) {
-  const params = use(searchParams);
+export default function EnlaceDeUbicacion() {
+  return <Suspense><Pantalla /></Suspense>;
+}
+
+// Lee ?id= y los demás datos de la dirección en el navegador: la página se compila sin ellos.
+function Pantalla() {
+  const params = Object.fromEntries(useSearchParams());
   const clienteId = typeof params.cliente === "string" ? params.cliente : "";
   const router = useRouter();
   const { can } = useSesion();

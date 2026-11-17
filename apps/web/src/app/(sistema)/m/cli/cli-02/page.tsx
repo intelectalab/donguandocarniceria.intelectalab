@@ -1,8 +1,8 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Ban, FileCheck, Link2, MapPin, Pencil, ShoppingBag, Wallet } from "lucide-react";
 import { Alert, Badge, Button, Cifra, DataTable, DetailList, PageHeader, StatusBadge, Tabs, confirmAction, toast, type Column } from "@/components/ui";
 import { api, mensajeDe } from "@/lib/api";
@@ -19,8 +19,13 @@ type Pedido = { id: string; number: string; created_at: string; channel: string;
 type Comprobante = { id: string; full_number: string; doc_type: string; issue_date: string; brand_name: string | null; total: number; balance: number; due_date: string | null; sunat_status: string | null };
 
 /** CLI-02 Ficha del cliente: datos, documento, consentimiento, saldo, cuentas por cobrar, pedidos por marca y canal, direcciones y alertas. ?id= el cliente. */
-export default function FichaDelCliente({ searchParams }: PageProps<"/m/cli/cli-02">) {
-  const params = use(searchParams);
+export default function FichaDelCliente() {
+  return <Suspense><Pantalla /></Suspense>;
+}
+
+// Lee ?id= y los demás datos de la dirección en el navegador: la página se compila sin ellos.
+function Pantalla() {
+  const params = Object.fromEntries(useSearchParams());
   const id = typeof params.id === "string" ? params.id : "";
   const router = useRouter();
   const { can } = useSesion();
