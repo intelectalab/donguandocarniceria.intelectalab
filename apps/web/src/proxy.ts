@@ -10,6 +10,8 @@ const PUBLICAS = ["/login", "/forgot-password", "/reset-password"];
 // Páginas públicas de GestionCarnica (landing): se ven con o sin sesión; con dos dominios, en el de la página.
 const PAGINAS = ["/", "/precios"];
 const INICIO = "/inicio";
+// Lo que abre un cliente sin cuenta (el enlace de ubicación de CLI-07): con o sin sesión, en el dominio del sistema.
+const ABIERTAS = ["/u"];
 
 // Dos dominios, como «aycha.pe» (página pública) y «app.aycha.pe» (el sistema), igual que erp-saas.
 // Se activa al definir SITE_URL y APP_URL; sin ellas todo vive en un solo dominio.
@@ -39,6 +41,7 @@ export function proxy(request: NextRequest) {
   if (DOS_DOMINIOS && host === APP_HOST && PAGINAS.includes(pathname)) {
     return NextResponse.redirect(new URL(`${pathname}${search}`, SITE_URL));
   }
+  if (coincide(pathname, ABIERTAS)) return NextResponse.next();
   // Las páginas públicas, con o sin sesión.
   if (PAGINAS.includes(pathname)) return NextResponse.next();
 
