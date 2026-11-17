@@ -7,6 +7,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicoController;
 use App\Http\Controllers\TenantController;
+use App\Modulos\Cli\Http\Controllers\EnlaceController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -23,6 +24,9 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1/publico')->group(function () {
     Route::get('/planes', [PublicoController::class, 'planes'])->middleware('throttle:60,1');
     Route::post('/demo', [PublicoController::class, 'demo'])->middleware('throttle:5,1');
+    // CLI-07: el cliente abre su enlace de ubicación (de un solo uso) y marca su pin. La empresa sale del enlace.
+    Route::get('/ubicacion/{token}', [EnlaceController::class, 'publico'])->middleware('throttle:30,1')->where('token', '[A-Za-z0-9]{32}');
+    Route::post('/ubicacion/{token}', [EnlaceController::class, 'completar'])->middleware('throttle:10,1')->where('token', '[A-Za-z0-9]{32}');
 });
 
 Route::prefix('v1')->middleware('tenant')->group(function () {
