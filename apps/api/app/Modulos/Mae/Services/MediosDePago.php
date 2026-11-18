@@ -57,7 +57,15 @@ final class MediosDePago
      */
     public static function comision(string $medioId, string $fecha, float $monto): array
     {
-        $f = self::comisionVigente($medioId, substr($fecha, 0, 10));
+        return self::comisionCon(self::comisionVigente($medioId, substr($fecha, 0, 10)), $monto);
+    }
+
+    /**
+     * Comisión de un monto con una vigencia ya leída (o null = sin comisión). La usa comision() y los cálculos de
+     * muchos cobros, que leen las vigencias una sola vez (MAE-04, comisión efectiva del mes).
+     */
+    public static function comisionCon(?object $f, float $monto): array
+    {
         $pct = $f ? (float) $f->fee_pct : 0.0;
         $fijo = $f ? (float) $f->fee_fixed : 0.0;
         $comision = round($monto * $pct / 100 + $fijo, 2);

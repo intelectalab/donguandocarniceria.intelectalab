@@ -8,7 +8,8 @@ import { fecha, soles } from "@/lib/formato";
 import { useSesion } from "@/lib/sesion";
 import { useListado } from "@/lib/useListado";
 import { Dialogo } from "@/modulos/mae/Dialogo";
-import { tc, useDatos } from "@/modulos/mae/tipos";
+import { SelectorMes } from "@/modulos/mae/SelectorMes";
+import { mesesEntre, nombreMes, tc, useDatos } from "@/modulos/mae/tipos";
 
 type Fila = { id: string; buy: number; sell: number; loaded_via: string | null; loaded_by: string | null; edit_reason: string | null; edited_by: string | null };
 type Dia = { date: string; habil: boolean; feriado: string | null; futuro: boolean; fila: Fila | null; respaldo: { sell: number; fecha_usada: string } | null };
@@ -20,20 +21,10 @@ type Datos = {
   parametros: { dias_respaldo: number; hora_carga: string };
 };
 
-const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "setiembre", "octubre", "noviembre", "diciembre"];
 const DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const DIA_LARGO = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 const ORIGEN: Record<string, string> = { SUNAT: "SUNAT", MANUAL: "Manual", IMPORT: "Importado" };
-const nombreMes = (m: string) => `${MESES[Number(m.slice(5, 7)) - 1]} ${m.slice(0, 4)}`;
 const diaSemana = (d: string) => new Date(`${d}T12:00:00`).getDay();
-
-function mesesEntre(desde: string, hasta: string) {
-  const out: string[] = [];
-  for (let [a, m] = [Number(desde.slice(0, 4)), Number(desde.slice(5, 7))]; `${a}-${String(m).padStart(2, "0")}` <= hasta; m === 12 ? (a++, m = 1) : m++) {
-    out.push(`${a}-${String(m).padStart(2, "0")}`);
-  }
-  return out.slice(-12);
-}
 
 /**
  * MAE-05 Tipo de cambio: calendario de compra y venta por día, con su origen (SUNAT, manual, importado), los días hábiles
@@ -108,14 +99,7 @@ export default function TipoDeCambio() {
         <section className="rounded-xl border border-line bg-surface p-4 shadow-card sm:p-5">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-[15px] font-semibold first-letter:uppercase">{nombreMes(datos.mes)} · {datos.moneda} (compra / venta)</h2>
-            <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Mes">
-              {mesesEntre(datos.meses_desde < datos.mes ? datos.meses_desde : datos.mes, datos.hoy.slice(0, 7)).map((m) => (
-                <button key={m} type="button" role="tab" aria-selected={m === datos.mes} onClick={() => setMes(m)}
-                  className={`cursor-pointer rounded-full border px-3 py-1 text-[12.5px] ${m === datos.mes ? "border-primary bg-primary text-primary-ink" : "border-line hover:bg-surface-2"}`}>
-                  {MESES[Number(m.slice(5, 7)) - 1].slice(0, 3)} {m.slice(2, 4)}
-                </button>
-              ))}
-            </div>
+            <SelectorMes meses={mesesEntre(datos.meses_desde < datos.mes ? datos.meses_desde : datos.mes, datos.hoy.slice(0, 7))} actual={datos.mes} onChange={setMes} />
           </div>
           <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
             {DIAS.map((d) => <div key={d} className="text-center text-[11.5px] text-muted">{d}</div>)}

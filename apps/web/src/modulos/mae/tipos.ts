@@ -76,3 +76,16 @@ export function ordenarFilas<T>(filas: T[], sort: string, valor: (fila: T, campo
 
 /** Texto para buscar sin distinguir mayúsculas ni tildes: «credito» encuentra «Crédito». */
 export const sinTildes = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+export const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "setiembre", "octubre", "noviembre", "diciembre"];
+/** «2026-10» → «octubre 2026». */
+export const nombreMes = (m: string) => `${MESES[Number(m.slice(5, 7)) - 1]} ${m.slice(0, 4)}`;
+/** Meses «AAAA-MM» de desde a hasta, en orden (para el selector de mes). */
+export function mesesEntre(desde: string, hasta: string): string[] {
+  const out: string[] = [];
+  for (let [a, m] = [Number(desde.slice(0, 4)), Number(desde.slice(5, 7))]; `${a}-${String(m).padStart(2, "0")}` <= hasta; m === 12 ? (a++, m = 1) : m++) {
+    out.push(`${a}-${String(m).padStart(2, "0")}`);
+  }
+  return out;
+}
+

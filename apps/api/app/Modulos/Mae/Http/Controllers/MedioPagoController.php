@@ -92,19 +92,46 @@ class MedioPagoController extends Controller
             ->get(['f.id', 'f.payment_method_id', 'm.name as medio', 'f.valid_from', 'f.valid_to', 'f.fee_pct', 'f.fee_fixed', 'f.igv_included', 'f.note', 'f.created_by'])
             ->map(fn ($f) => (array) $f + ['vigencia' => $f->valid_from > $hoy ? 'PROGRAMADA' : ($f->valid_to && $f->valid_to < $hoy ? 'HISTORICA' : 'VIGENTE')]);
 
-        return response()->json(['comisiones' => $filas, 'efectiva' => $this->efectiva(substr($hoy, 0, 7)),
+        return response()->json(['comisiones' => $filas,
             'medios' => DB::table('payment_methods')->where('status', '<>', 'INTERNAL')->orderBy('sort_order')->get(['id', 'name', 'system_code'])]);
+    }
+
+    /**
+     * KPI-MAE-02 de un mes (?mes=AAAA-MM; sin él, el actual). Devuelve también desde qué mes hay cobros, para los
+     * botones de mes, y los totales. No se aceptan meses futuros.
+     */
+    public function efectivaDelMes(Request $request)
+    {
+        $hoy = TiposDeCambio::hoy();
+        $d = $request->validate(['mes' => ['nullable', 'date_format:Y-m', 'before_or_equal:'.substr($hoy, 0, 7)]]);
+        $mes = $d['mes'] ?? substr($hoy, 0, 7);
+        $filas = $this->efectiva($mes);
+        $primero = DB::table('payments')->where('status', 'CONFIRMED')->min('paid_at');
+        $cobrado = round(array_sum(array_column($filas, 'cobrado')), 2);
+        $comision = round(array_sum(array_column($filas, 'comision')), 2);
+
+        return response()->json([
+            'mes' => $mes, 'hoy' => $hoy, 'filas' => $filas,
+            'meses_desde' => $primero ? (new \DateTimeImmutable((string) $primero))->setTimezone(new \DateTimeZone('America/Lima'))->format('Y-m') : $mes,
+            'totales' => ['cobros' => array_sum(array_column($filas, 'cobros')), 'cobrado' => $cobrado, 'comision' => $comision,
+                'pct' => $cobrado ? round($comision / $cobrado * 100, 2) : 0.0],
+        ]);
     }
 
     /** KPI-MAE-02: comisión efectiva del mes por medio (cobros confirmados de CAJ). */
     private function efectiva(string $mes): array
     {
         $porMedio = [];
+        // Las vigencias se leen una vez; cada cobro usa la de su día en hora de Lima (RN-MAE-05).
+        $vigencias = DB::table('payment_method_fees')->orderBy('valid_from')->get()->groupBy('payment_method_id');
+        $vigente = fn (string $medio, string $dia) => ($vigencias[$medio] ?? collect())
+            ->first(fn ($f) => $f->valid_from <= $dia && (! $f->valid_to || $f->valid_to >= $dia));
         DB::table('payments as p')->join('payment_methods as m', 'm.id', '=', 'p.payment_method_id')->where('p.status', 'CONFIRMED')
             ->whereRaw("to_char(p.paid_at AT TIME ZONE 'America/Lima', 'YYYY-MM') = ?", [$mes])
-            ->orderBy('p.paid_at')->select(['p.payment_method_id', 'm.name', 'p.amount', 'p.paid_at'])
-            ->each(function ($p) use (&$porMedio) {
-                $c = MediosDePago::comision($p->payment_method_id, substr((string) $p->paid_at, 0, 10), (float) $p->amount);
+            ->orderBy('p.paid_at')
+            ->select(['p.payment_method_id', 'm.name', 'p.amount', DB::raw("to_char(p.paid_at AT TIME ZONE 'America/Lima', 'YYYY-MM-DD') as dia")])
+            ->each(function ($p) use (&$porMedio, $vigente) {
+                $c = MediosDePago::comisionCon($vigente($p->payment_method_id, $p->dia), (float) $p->amount);
                 $porMedio[$p->payment_method_id] ??= ['medio' => $p->name, 'cobros' => 0, 'cobrado' => 0.0, 'comision' => 0.0];
                 $porMedio[$p->payment_method_id]['cobros']++;
                 $porMedio[$p->payment_method_id]['cobrado'] += (float) $p->amount;

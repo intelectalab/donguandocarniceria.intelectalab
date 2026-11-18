@@ -32,6 +32,7 @@ Route::prefix('mae')->group(function () {
     Route::put('/medios/{id}', [MedioPagoController::class, 'update'])->middleware(['modulo:MAE,E', $pm])->whereUuid('id');
     Route::post('/medios/{id}/estado', [MedioPagoController::class, 'estado'])->middleware(['modulo:MAE,E', $pm])->whereUuid('id');
     Route::get('/comisiones', [MedioPagoController::class, 'comisiones'])->middleware('modulo:MAE');
+    Route::get('/comisiones/efectiva', [MedioPagoController::class, 'efectivaDelMes'])->middleware('modulo:MAE');
     Route::get('/comisiones/simular', [MedioPagoController::class, 'simular'])->middleware('modulo:MAE');
     Route::post('/comisiones', [MedioPagoController::class, 'storeComision'])->middleware(['modulo:MAE,C', $pm]);
 

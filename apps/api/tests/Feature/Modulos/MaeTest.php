@@ -51,6 +51,19 @@ class MaeTest extends TestCase
         return DB::table('payment_methods')->where('system_code', $codigo)->value('id');
     }
 
+    public function test_comision_efectiva_por_mes(): void
+    {
+        // Mes actual (noviembre) sin cobros; octubre con los de la demo; los botones empiezan en el primer mes con cobros.
+        $this->admin()->getJson('/api/v1/mae/comisiones/efectiva')->assertOk()->assertJsonPath('mes', '2026-11')->assertJsonPath('totales.cobros', 0);
+        $oct = $this->admin()->getJson('/api/v1/mae/comisiones/efectiva?mes=2026-10')->assertOk();
+        $this->assertSame('2026-09', $oct->json('meses_desde'));
+        $this->assertSame(358, $oct->json('totales.cobros'));
+        $this->assertSame(358, collect($oct->json('filas'))->sum('cobros'));
+        $mp = collect($oct->json('filas'))->firstWhere('medio', 'Mercado Pago (web)');
+        $this->assertEquals(3.99, $mp['pct']); // en octubre rige la de 3,99 %
+        $this->admin()->getJson('/api/v1/mae/comisiones/efectiva?mes=2026-12')->assertUnprocessable()->assertJsonValidationErrors('mes');
+    }
+
     public function test_ca_mae_01_comision_de_mercado_pago_por_vigencia_y_sin_cruces(): void
     {
         $mp = $this->medio('MERCADOPAGO');

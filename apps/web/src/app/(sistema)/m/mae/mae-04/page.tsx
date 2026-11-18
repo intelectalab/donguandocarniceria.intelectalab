@@ -6,7 +6,8 @@ import { api, mensajeDe } from "@/lib/api";
 import { fecha, numero, soles } from "@/lib/formato";
 import { useSesion } from "@/lib/sesion";
 import { Dialogo } from "@/modulos/mae/Dialogo";
-import { hoyLima, pct, useDatos } from "@/modulos/mae/tipos";
+import { SelectorMes } from "@/modulos/mae/SelectorMes";
+import { hoyLima, mesesEntre, nombreMes, pct, sinTildes, useDatos } from "@/modulos/mae/tipos";
 
 type Comision = {
   id: string; payment_method_id: string; medio: string; valid_from: string; valid_to: string | null; fee_pct: string | number; fee_fixed: string | number;
@@ -14,7 +15,8 @@ type Comision = {
 };
 type Efectiva = { medio: string; cobros: number; cobrado: number; comision: number; pct: number };
 type MedioCorto = { id: string; name: string; system_code: string | null };
-type Datos = { comisiones: Comision[]; efectiva: Efectiva[]; medios: MedioCorto[] };
+type Datos = { comisiones: Comision[]; medios: MedioCorto[] };
+type DatosEfectiva = { mes: string; hoy: string; meses_desde: string; filas: Efectiva[]; totales: { cobros: number; cobrado: number; comision: number; pct: number } };
 type Simulacion = { pct: number; fijo: number; comision: number; igv: number; neto: number; fila: { valid_from: string; valid_to: string | null; igv_included: boolean } | null };
 
 const VIGENCIA: Record<Comision["vigencia"], [string, Tone]> = { VIGENTE: ["Vigente", "ok"], PROGRAMADA: ["Programada", "info"], HISTORICA: ["Histórica", "neutral"] };
@@ -47,7 +49,6 @@ function ordenar(filas: Comision[], medios: MedioCorto[], sort: string): Comisio
     return c * signo || porDefecto(a, b);
   });
 }
-const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "setiembre", "octubre", "noviembre", "diciembre"];
 
 /**
  * MAE-04 Comisiones por medio de pago: historial por vigencia (porcentaje, monto fijo, IGV incluido o no), simulador
@@ -59,9 +60,14 @@ export default function Comisiones() {
   const { datos, error, recargar } = useDatos<Datos>(`/v1/mae/comisiones${medio ? `?payment_method_id=${medio}` : ""}`);
   const [nueva, setNueva] = useState(false);
   const [orden, setOrden] = useState("");
-  const filas = useMemo(() => (datos ? ordenar(datos.comisiones, datos.medios, orden) : []), [datos, orden]);
+  const [busca, setBusca] = useState("");
+  const filas = useMemo(() => {
+    if (!datos) return [];
+    const q = sinTildes(busca.trim());
+    const vistas = q ? datos.comisiones.filter((f) => [f.medio, f.note ?? "", String(Number(f.fee_pct))].some((x) => sinTildes(x).includes(q))) : datos.comisiones;
+    return ordenar(vistas, datos.medios, orden);
+  }, [datos, orden, busca]);
   const gestiona = can("mae.payment_method.manage") && puede("MAE", "C");
-  const mes = MESES[Number(hoyLima().slice(5, 7)) - 1];
 
   const columnas: Column<Comision>[] = [
     { key: "medio", header: "Medio", cardTitle: true, sortable: true, render: (f) => <span className="font-semibold">{f.medio}</span> },
@@ -72,13 +78,6 @@ export default function Comisiones() {
     { key: "igv_included", header: "IGV", hideOnMobile: true, sortable: true, render: (f) => (f.igv_included ? "Incluido" : "Más IGV") },
     { key: "vigencia", header: "Vigencia hoy", sortable: true, render: (f) => <Badge tone={VIGENCIA[f.vigencia][1]}>{VIGENCIA[f.vigencia][0]}</Badge> },
     { key: "note", header: "Nota", hideOnMobile: true, render: (f) => f.note ?? "—" },
-  ];
-  const columnasEfectiva: Column<Efectiva>[] = [
-    { key: "medio", header: "Medio", cardTitle: true },
-    { key: "cobros", header: "Cobros", align: "right", render: (r) => numero(r.cobros) },
-    { key: "cobrado", header: "Cobrado", align: "right", render: (r) => soles(r.cobrado) },
-    { key: "comision", header: "Comisión", align: "right", render: (r) => soles(r.comision) },
-    { key: "pct", header: "%", align: "right", render: (r) => pct(r.pct) },
   ];
 
   return (
@@ -94,14 +93,11 @@ export default function Comisiones() {
           <h2 className="mb-3 text-[15px] font-semibold">Simulador «cobro de {soles(100)} el día X»</h2>
           {datos ? <Simulador medios={datos.medios} /> : <p className="text-[13px] text-muted">Cargando…</p>}
         </section>
-        <section className="space-y-3">
-          <h2 className="text-[15px] font-semibold">Comisión efectiva de {mes}</h2>
-          <DataTable columns={columnasEfectiva} rows={datos?.efectiva ?? []} rowKey={(r) => r.medio} loading={!datos && !error}
-            empty={`Sin cobros confirmados en ${mes}.`} />
-        </section>
+        <ComisionEfectiva />
       </div>
 
       <DataTable columns={columnas} rows={filas} loading={!datos && !error} empty="Sin comisiones registradas para ese medio." sort={orden} onSortChange={setOrden}
+        search={{ value: busca, onChange: setBusca, placeholder: "Buscar medio o nota…" }}
         toolbar={
           <div className="w-full sm:w-[220px]">
             <Select aria-label="Medio" value={medio} onChange={(e) => setMedio(e.target.value)} placeholder="Medio: todos" className="!min-h-9 h-9 py-1.5 text-[13px]"
@@ -189,5 +185,39 @@ function NuevaComision({ medios, inicial, onClose, onGuardado }: { medios: Medio
         <Field label="Nota" error={e.note} className="sm:col-span-2"><Textarea value={v.note} maxLength={255} onChange={(x) => setV({ ...v, note: x.target.value })} /></Field>
       </>}
     </Dialogo>
+  );
+}
+
+const columnasEfectiva: Column<Efectiva>[] = [
+  { key: "medio", header: "Medio", cardTitle: true },
+  { key: "cobros", header: "Cobros", align: "right", render: (r) => numero(r.cobros) },
+  { key: "cobrado", header: "Cobrado", align: "right", render: (r) => soles(r.cobrado) },
+  { key: "comision", header: "Comisión", align: "right", render: (r) => soles(r.comision) },
+  { key: "pct", header: "%", align: "right", render: (r) => pct(r.pct) },
+];
+
+/**
+ * KPI-MAE-02 por mes: de los cobros confirmados del mes (los registra Caja), cuánto se lleva cada medio según la
+ * comisión vigente el día de cada cobro. Botones para ver meses anteriores; por defecto, el actual.
+ */
+function ComisionEfectiva() {
+  const [mes, setMes] = useState("");
+  const { datos, error } = useDatos<DatosEfectiva>(`/v1/mae/comisiones/efectiva${mes ? `?mes=${mes}` : ""}`);
+  const t = datos?.totales;
+  return (
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-[15px] font-semibold first-letter:uppercase">Comisión efectiva de {datos ? nombreMes(datos.mes) : "…"}</h2>
+        {datos && <SelectorMes meses={mesesEntre(datos.meses_desde < datos.mes ? datos.meses_desde : datos.mes, datos.hoy.slice(0, 7))} actual={datos.mes} onChange={setMes} />}
+      </div>
+      {error && <Alert tone="bad">{error}</Alert>}
+      <DataTable columns={columnasEfectiva} rows={datos?.filas ?? []} rowKey={(r) => r.medio} loading={!datos && !error}
+        empty={datos ? `Sin cobros confirmados en ${nombreMes(datos.mes)}.` : "Cargando…"} />
+      {t && t.cobros > 0 && (
+        <p className="text-[12.5px] text-muted">
+          Total: {numero(t.cobros)} cobros por {soles(t.cobrado)}; comisión {soles(t.comision)} ({pct(t.pct)} del total cobrado).
+        </p>
+      )}
+    </section>
   );
 }
