@@ -32,7 +32,7 @@ export default function ForgotPasswordForm() {
   }
 
   return (
-    <AuthShell empresa={empresa} pending={!listo} title="Recuperar contraseña" subtitle="Le enviaremos un código para crear una nueva contraseña.">
+    <AuthShell empresa={empresa} pending={!listo} title="Recuperar contraseña" subtitle="Escribe tu correo y te enviaremos un código para crear una nueva.">
       <form onSubmit={handleSubmit} noValidate className="grid gap-3.5">
         <motion.div variants={item}>
           <label htmlFor="email" className={authLabel}>Correo electrónico</label>

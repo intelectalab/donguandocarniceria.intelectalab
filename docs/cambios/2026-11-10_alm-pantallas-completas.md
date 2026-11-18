@@ -38,5 +38,11 @@ Sigue a [2026-11-10_alm-modulo.md](2026-11-10_alm-modulo.md). Se revisó cada pa
 - `php artisan test --testsuite=Feature`: **159 en verde**. `npm run typecheck` y `npm run lint` limpios.
 - Las 13 pantallas revisadas a 390 px y 1440 px sin desborde horizontal ni errores.
 
+## Ajustes tras la revisión
+- **Fichas por id con alcance:** la ficha del almacén, del saldo, del movimiento y del pedido responden 404 si son de un local o una marca fuera del alcance del usuario, igual que las listas. Con 404 no se revela que el registro existe. Lo hace `Alcance::dentroDelAlcance()`.
+- **Reintentar reserva:** revisa que el pedido sea del local y la marca de quien reintenta.
+- **Promoción:** un aviso por lote y día (si se repite, `RN-ALM-15`) y como máximo 20 pedidos por minuto, para no llenar las notificaciones de marketing y ventas.
+- Prueba nueva en `AlmTest`: el almacenero del Local 2 no abre fichas ni reintenta reservas del Local 1; el del Local 1 sí.
+
 ## Pendiente de decisión
 - **Registrar temperaturas desde ALM:** hoy solo se muestran. Las tablas son de CAL; registrar desde ALM espera la respuesta de Maximo.

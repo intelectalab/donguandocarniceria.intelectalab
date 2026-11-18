@@ -1,6 +1,7 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { BadgePercent, Receipt, Scale, Tag } from "lucide-react";
 import { Alert, Badge, Cifra, DataTable, Field, Input, PageHeader, Select, type Column } from "@/components/ui";
 import { api, mensajeDe } from "@/lib/api";
@@ -11,8 +12,13 @@ type Fila = Simulacion["traza"][number];
 const hoy = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Lima" });
 
 /** CAT-07 Simulador de precio (RN-CAT-05): qué lista y qué precio elegiría el sistema, y por qué. ?variant_id= la preselecciona. */
-export default function Simulador({ searchParams }: PageProps<"/m/cat/cat-07">) {
-  const params = use(searchParams);
+export default function Simulador() {
+  return <Suspense><Pantalla /></Suspense>;
+}
+
+// Lee los datos de la dirección (?id=…) en el navegador: la página se compila sin ellos.
+function Pantalla() {
+  const params = Object.fromEntries(useSearchParams());
   const [buscar, setBuscar] = useState("");
   const [variantes, setVariantes] = useState<Variante[]>([]);
   const [caso, setCaso] = useState({

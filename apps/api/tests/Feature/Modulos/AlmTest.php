@@ -3,6 +3,7 @@
 namespace Tests\Feature\Modulos;
 
 use App\Models\User;
+use App\Modulos\Alm\Services\AlertasService;
 use App\Modulos\Alm\Services\InventarioService;
 use App\Modulos\Alm\Services\ReservasService;
 use App\Support\RuleError;
@@ -509,6 +510,31 @@ class AlmTest extends TestCase
         $this->como(self::GERENTE)->postJson('/api/v1/alm/mermas', $merma)->assertCreated();
     }
 
+    public function test_las_fichas_por_id_respetan_el_alcance_por_local(): void
+    {
+        $this->usuario();
+        $wh = $this->almacen('CAM-L1');
+        $saldo = DB::table('stock_balances')->where('warehouse_id', $wh)->value('id');
+        $mov = DB::table('stock_movements')->where('warehouse_id', $wh)->value('id');
+        $pedido = DB::table('sales_orders')->where('establishment_id', DB::table('warehouses')->where('id', $wh)->value('establishment_id'))
+            ->whereIn('status', ['CONFIRMED', 'IN_PREPARATION', 'WEIGHED', 'READY'])->value('id');
+
+        // El almacenero del Local 2 no abre fichas del Local 1 aunque conozca el id, ni reintenta sus reservas.
+        $l2 = $this->como(self::ALMACENERO_L2);
+        $l2->getJson("/api/v1/alm/almacenes/{$wh}")->assertNotFound();
+        $l2->getJson("/api/v1/alm/stock/{$saldo}")->assertNotFound();
+        $l2->getJson("/api/v1/alm/kardex/{$mov}")->assertNotFound();
+        $this->assertNotNull($pedido, 'La demo tiene pedidos en curso del Local 1');
+        $l2->getJson("/api/v1/alm/reservas/pedidos/{$pedido}")->assertNotFound();
+        $l2->postJson("/api/v1/alm/reservas/pedidos/{$pedido}/reintentar")->assertNotFound();
+
+        // El del Local 1 sí.
+        $l1 = $this->como(self::ALMACENERO);
+        $l1->getJson("/api/v1/alm/almacenes/{$wh}")->assertOk();
+        $l1->getJson("/api/v1/alm/stock/{$saldo}")->assertOk();
+        $l1->getJson("/api/v1/alm/kardex/{$mov}")->assertOk();
+    }
+
     public function test_los_costos_solo_se_ven_con_permiso(): void
     {
         $fila = $this->como(self::ALMACENERO)->getJson('/api/v1/alm/stock?per_page=1')->assertOk()->json('data.0');
@@ -582,9 +608,11 @@ class AlmTest extends TestCase
         $lot = $this->lote('M3-CHO-1K', 'L-CHO-PRO', now()->addDays(2)->toDateString());
         $this->entrada('ALM-L1', 'M3-CHO-1K', $lot, 5);
         $this->como(self::GERENTE)->postJson("/api/v1/alm/alertas/{$lot}/promocion")->assertOk();
+        // El mismo día no se repite el aviso.
+        $this->como(self::GERENTE)->postJson("/api/v1/alm/alertas/{$lot}/promocion")->assertUnprocessable()->assertJsonPath('code', 'RN-ALM-15');
         $this->usuario();
         $this->assertSame(2, DB::table('notifications')->where('type', 'stock.promo_suggested')->whereIn('role', ['MARKETING', 'VENDEDORA'])->count());
-        \App\Modulos\Alm\Services\AlertasService::generarDiarias();
+        AlertasService::generarDiarias();
         $this->assertTrue(DB::table('notifications')->where('type', 'stock.expiring')->where('role', 'SUPERVISORA_VENTAS')->exists());
     }
 }
