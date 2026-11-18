@@ -73,3 +73,6 @@ export function ordenarFilas<T>(filas: T[], sort: string, valor: (fila: T, campo
     return String(x ?? "").localeCompare(String(y ?? ""), "es", { sensitivity: "base", numeric: true }) * signo;
   });
 }
+
+/** Texto para buscar sin distinguir mayúsculas ni tildes: «credito» encuentra «Crédito». */
+export const sinTildes = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();

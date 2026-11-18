@@ -1,6 +1,6 @@
 # 16/11/2026 · MAE Maestros comunes: base, servicios y primeras tandas de pantallas
 
-Se avanza por tandas: **tanda 1** MAE-01, 02 y 10 (trabajadores), **tanda 2** MAE-03 y 04 (medios de pago y comisiones) , **tanda 3** MAE-05 (tipo de cambio) y **tanda 4** MAE-06 y 07 (unidades y catálogos SUNAT). Siguen MAE-08 y 09 (ubigeo y entidades financieras). La API de todas ya está hecha y probada.
+Se avanza por tandas: **tanda 1** MAE-01, 02 y 10 (trabajadores), **tanda 2** MAE-03 y 04 (medios de pago y comisiones) , **tanda 3** MAE-05 (tipo de cambio) , **tanda 4** MAE-06 y 07 (unidades y catálogos SUNAT) y **tanda 5** MAE-08 y 09 (ubigeo y entidades financieras). Con esto están las diez pantallas del módulo.
 
 ## Base de datos
 Migración `2026_11_16_000200_mae_restricciones_y_reglas.php` (después de `git pull`: `php artisan migrate --database=pgsql_owner`):
@@ -22,7 +22,7 @@ Migración `2026_11_16_000200_mae_restricciones_y_reglas.php` (después de `git 
 
 ## Tareas programadas y comandos
 - `mae:cargar-tipo-cambio`: días hábiles a las 09:00 de Lima, 3 intentos; si falla avisa a Administración una vez por día (RN-MAE-14). Hasta que INT traiga el conector de SUNAT la fuente es `SinConector` y el tipo de cambio se carga a mano.
-- `mae:importar-global {sunat|ubigeo|entidades} {archivo}`: lo usa el operador de la plataforma para actualizar los catálogos globales (RN-MAE-11).
+- `mae:importar-global {sunat|ubigeo|entidades} {archivo} [--probar]`: lo usa el operador de la plataforma para actualizar los catálogos globales (RN-MAE-11). Formatos y paso a paso en [docs/catalogos-globales.md](../catalogos-globales.md); la pantalla para hacerlo desde la consola de Intelectalab queda pendiente.
 
 ## Pantallas
 - **MAE-01 Trabajadores:** cifras, filtros por local, cargo y estado, usuario vinculado de cada uno. El sueldo nunca se muestra.
@@ -32,7 +32,9 @@ Migración `2026_11_16_000200_mae_restricciones_y_reglas.php` (después de `git 
 - **MAE-04 Comisiones:** simulador «cobro de S/ 100,00 el día X», comisión efectiva del mes por medio, historial por vigencia (por medio y la más nueva primero; columnas ordenables) y «Nueva comisión».
 - **MAE-05 Tipo de cambio:** cifras de lo aplicable hoy y de la cobertura del mes; calendario con compra y venta por día, origen, días hábiles sin carga en rojo con la venta que se usa (RN-MAE-07), feriados y corregidos; detalle del día con «Cargar de SUNAT», «Registrar a mano» o «Corregir» con motivo (RN-MAE-08); consulta «¿qué tipo de cambio usa un documento?»; cargas manuales y correcciones paginadas (`GET /v1/mae/tipo-cambio/registros`, con búsqueda, tipo y rango de fechas). La contadora la ve en su menú por `mae.exchange_rate.edit` (`POR_PERMISO` en `lib/modulos.ts`).
 - **MAE-06 Unidades y conversiones:** unidades con código SUNAT, tipo, decimales, origen (sistema o propia) y si están en el catálogo 03; conversiones con su inversa calculada; calculadora; «Nueva conversión» y «Nueva unidad» (propia de la empresa: código vigente del catálogo 03 que no use, `POST /v1/mae/unidades`, permiso `mae.unit.manage`). Columnas ordenables.
-- **MAE-07 Catálogos SUNAT:** pestañas por catálogo, búsqueda, vigencia y «¿Se puede usar este código?» (RN-MAE-12). Sin importar desde la pantalla: los catálogos son globales y los actualiza Intelectalab con `mae:importar-global`. Columnas ordenables.
+- **MAE-07 Catálogos SUNAT:** pestañas por catálogo, buscador de la tabla (sin distinguir tildes), vigencia y «¿Se puede usar este código?» (RN-MAE-12). Sin importar desde la pantalla: los catálogos son globales y los actualiza Intelectalab con `mae:importar-global`. Columnas ordenables.
+- **MAE-08 Ubigeo:** cifras de distritos de Lima Metropolitana (43), Callao (7) y Arequipa, ubigeo de cada local y tabla paginada con búsqueda, filtros por nivel y departamento, orden por columna y cuántas direcciones de clientes usan cada distrito. Solo consulta.
+- **MAE-09 Entidades financieras:** bancos, billeteras, adquirentes, pasarelas y cajas con RUC, código CCI y los medios de pago que las usan; buscador, filtro por tipo, orden por columna y ficha. Solo consulta.
 
 ## Importar desde Excel (también en CLI-12)
 `App\Support\Importar` y el componente `ArchivoImportar`, como en erp-saas: plantilla `.xlsx` con los colores de la empresa, instrucciones, ejemplos, filas en formato texto y listas desplegables; acepta `.xlsx`, `.xls` o `.csv` de hasta 2 MB, reconoce las columnas por su título en cualquier orden, salta las filas «#» y convierte las fechas de Excel. Lee solo las filas que se pueden importar y no calcula fórmulas. Rutas `GET …/importar/plantilla` y `POST …/importar/archivo` en MAE y CLI, con su permiso y límite por minuto.
@@ -45,5 +47,5 @@ Migración `2026_11_16_000200_mae_restricciones_y_reglas.php` (después de `git 
 `tests/Feature/Modulos/MaeTest.php` (14: CA-MAE-01 a 06, RN-MAE-01 y 13, ficha e historia, importación con CSV y con Excel, tipo de cambio, carga automática, permisos y aislamiento) y una nueva en `CliImportacionTest`. Suite completa: 273 correctas.
 
 ## Pendiente
-- Pantallas MAE-08 y 09.
+- Pantalla de la consola de Intelectalab para importar los catálogos globales (hoy, el comando): [docs/catalogos-globales.md](../catalogos-globales.md).
 - Contrato de los servicios de MAE en `docs/contratos.md`.

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Alert, Badge, Button, DataTable, Field, Input, PageHeader, Select, type Column } from "@/components/ui";
 import { api, mensajeDe } from "@/lib/api";
 import { fecha } from "@/lib/formato";
-import { hoyLima, ordenarFilas, useDatos } from "@/modulos/mae/tipos";
+import { hoyLima, ordenarFilas, sinTildes, useDatos } from "@/modulos/mae/tipos";
 
 type Item = { id: string; catalog: string; code: string; description: string; valid_from: string; valid_to: string | null; vigente: boolean };
 type Datos = { catalogo: string; catalogos: { code: string; name: string }[]; items: Item[] };
@@ -20,8 +20,8 @@ export default function CatalogosSunat() {
   const [orden, setOrden] = useState("");
   const { datos, error } = useDatos<Datos>(`/v1/mae/sunat?catalogo=${catalogo}`);
   const filas = useMemo(() => {
-    const t = busca.trim().toLowerCase();
-    const vistas = (datos?.items ?? []).filter((x) => !t || x.code.toLowerCase().includes(t) || x.description.toLowerCase().includes(t));
+    const t = sinTildes(busca.trim());
+    const vistas = (datos?.items ?? []).filter((x) => !t || sinTildes(x.code).includes(t) || sinTildes(x.description).includes(t));
     return ordenarFilas(vistas, orden, (x, c) => (c === "valid_to" ? x.valid_to ?? "9999-12-31" : c === "vigente" ? (x.vigente ? 0 : 1) : (x as unknown as Record<string, string>)[c]));
   }, [datos, busca, orden]);
 
@@ -48,12 +48,7 @@ export default function CatalogosSunat() {
       </div>
 
       <DataTable columns={columnas} rows={filas} loading={!datos && !error} empty="No hay códigos con esa búsqueda." sort={orden} onSortChange={setOrden}
-        toolbar={
-          <div className="w-full sm:w-[260px]">
-            <Input aria-label="Buscar código o descripción" placeholder="Buscar código o descripción…" value={busca} onChange={(e) => setBusca(e.target.value)}
-              className="!min-h-9 h-9 py-1.5 text-[13px]" />
-          </div>
-        } />
+        search={{ value: busca, onChange: setBusca, placeholder: "Buscar código o descripción…" }} />
 
       {datos && <Validar catalogos={datos.catalogos} />}
     </div>
