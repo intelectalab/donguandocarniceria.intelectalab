@@ -186,6 +186,13 @@ final class Usuarios
         if ($u->status !== 'INACTIVE') {
             RuleError::fail('RN-SEG-17', 'El usuario no está inactivo.');
         }
+        if ($u->employee_id) {
+            // RN-MAE-02: un trabajador dado de baja no recupera el acceso. RN-MAE-13: un solo usuario vigente.
+            if (DB::table('employees')->where(['id' => $u->employee_id, 'status' => 'INACTIVE'])->exists()) {
+                RuleError::fail('RN-MAE-02', 'Su trabajador está dado de baja: no recupera el acceso. Si es otra persona, quita el vínculo con el trabajador antes de reactivarlo.');
+            }
+            self::trabajadorLibre($u->employee_id, $u->id);
+        }
 
         return DB::transaction(function () use ($u, $quien) {
             // Vuelve con contraseña nueva: se le manda otra invitación.
@@ -314,8 +321,10 @@ final class Usuarios
         if (! DB::table('employees')->where('id', $employeeId)->exists()) {
             RuleError::fail('RN-SEG-01', 'El trabajador no existe.');
         }
-        if (User::where('employee_id', $employeeId)->when($salvo, fn ($q) => $q->where('id', '<>', $salvo))->exists()) {
-            RuleError::fail('RN-SEG-01', 'Ese trabajador ya está vinculado a otro usuario.');
+        // RN-MAE-13: a lo más un usuario vigente por trabajador; uno ya inactivo no impide vincular otro.
+        if (User::where('employee_id', $employeeId)->whereIn('status', ['ACTIVE', 'LOCKED', 'INVITED'])
+            ->when($salvo, fn ($q) => $q->where('id', '<>', $salvo))->exists()) {
+            RuleError::fail('RN-MAE-13', 'Ese trabajador ya tiene otro usuario vigente: desactívalo antes de vincular este.');
         }
     }
 

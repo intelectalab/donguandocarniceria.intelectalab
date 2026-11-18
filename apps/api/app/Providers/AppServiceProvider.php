@@ -11,7 +11,8 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // MAE · RN-MAE-14: fuente del tipo de cambio. El conector real (SUNAT) llega con INT; hasta entonces se carga a mano.
+        $this->app->bind(\App\Modulos\Mae\Services\TipoCambio\FuenteTipoCambio::class, \App\Modulos\Mae\Services\TipoCambio\SinConector::class);
     }
 
     public function boot(): void

@@ -13,3 +13,6 @@ Schedule::command('alm:alertas-vencimiento')->dailyAt('06:00')->timezone('Americ
 
 // SEG · RN-SEG-09: cierra cada hora las sesiones vencidas que nadie volvió a usar (quedan en la bitácora).
 Schedule::command('seg:vencer-sesiones')->hourly()->withoutOverlapping();
+
+// MAE · RN-MAE-14: tipo de cambio del día desde el conector FX (09:00 Lima, mae_fx_load_time); si falla tres veces avisa.
+Schedule::command('mae:cargar-tipo-cambio')->dailyAt('09:00')->timezone('America/Lima')->weekdays()->withoutOverlapping();

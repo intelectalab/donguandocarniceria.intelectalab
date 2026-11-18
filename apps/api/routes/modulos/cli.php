@@ -73,6 +73,8 @@ Route::prefix('cli')->group(function () {
     Route::get('/fusiones', [DuplicadoController::class, 'fusiones'])->middleware('modulo:CLI');
 
     // CLI-12 Importar clientes
+    Route::get('/importar/plantilla', [ImportacionController::class, 'plantilla'])->middleware(['modulo:CLI,C', $manage, 'throttle:20,1']);
+    Route::post('/importar/archivo', [ImportacionController::class, 'leerArchivo'])->middleware(['modulo:CLI,C', $manage, 'throttle:20,1']);
     Route::post('/importar/revisar', [ImportacionController::class, 'revisar'])->middleware(['modulo:CLI,C', $manage, 'throttle:20,1']);
     Route::post('/importar', [ImportacionController::class, 'importar'])->middleware(['modulo:CLI,C', $manage, 'throttle:10,1']);
 });

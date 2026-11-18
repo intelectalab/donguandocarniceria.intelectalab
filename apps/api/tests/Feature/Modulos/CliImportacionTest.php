@@ -21,6 +21,25 @@ class CliImportacionTest extends TestCase
         return $this->desde(self::DG, $this->token ??= $this->ingresar(self::DG, 'rquispe@donguando.pe'));
     }
 
+    public function test_modelo_en_excel_y_lectura_del_archivo(): void
+    {
+        $r = $this->gerente()->get('/api/v1/cli/importar/plantilla')->assertOk();
+        $this->assertStringContainsString('plantilla-clientes.xlsx', (string) $r->headers->get('Content-Disposition'));
+
+        $libro = new \PhpOffice\PhpSpreadsheet\Spreadsheet;
+        $libro->getActiveSheet()->fromArray([
+            ['# Importar clientes'],
+            ['Celular', 'Nombre', 'Distrito', 'Documento (DNI o RUC)'],
+            ['987 111 222', 'Gloria Vásquez Ríos', 'Miraflores', '45879632'],
+        ]);
+        $ruta = tempnam(sys_get_temp_dir(), 'cl').'.xlsx';
+        (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($libro))->save($ruta);
+        $texto = $this->gerente()->post('/api/v1/cli/importar/archivo', ['archivo' => new \Illuminate\Http\UploadedFile($ruta, 'clientes.xlsx', null, null, true)])
+            ->assertOk()->json('texto');
+        $this->assertSame("nombre;celular;correo;documento;distrito\nGloria Vásquez Ríos;987 111 222;;45879632;Miraflores", $texto);
+        $this->gerente()->postJson('/api/v1/cli/importar/revisar', ['texto' => $texto])->assertOk()->assertJsonPath('resumen.nuevas', 1);
+    }
+
     public function test_revisa_e_importa(): void
     {
         $texto = implode("\n", [

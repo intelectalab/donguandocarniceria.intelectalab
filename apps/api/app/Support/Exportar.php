@@ -251,6 +251,12 @@ final class Exportar
 
     /* ------------------------------------------------------------------ apoyo */
 
+    /** Colores de la empresa para otros archivos con su diseño (plantillas de importación). */
+    public static function coloresDeLaEmpresa(): array
+    {
+        return self::colores();
+    }
+
     /** Colores del tema de la empresa (PLT-06), o los de GestionCarnica. Solo #RRGGBB. */
     private static function colores(): array
     {
