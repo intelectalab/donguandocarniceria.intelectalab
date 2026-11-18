@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { CircleCheck, CircleOff, Pencil, Plus, Scale, ScanBarcode, Tag, Trash2, Weight } from "lucide-react";
 import { Alert, Badge, Button, Cifra, DataTable, DetailList, Modal, PageHeader, Select, StatusBadge, confirmAction, toast, type Column, type Tone } from "@/components/ui";
 import { api, mensajeDe } from "@/lib/api";
@@ -18,13 +18,8 @@ const TONO_MODO: Record<string, Tone> = { UNIT_VARIABLE_WEIGHT: "primary", KG: "
 type Resumen = { peso_variable: number; por_kg: number; por_unidad: number; con_plu: number; tolerancia: number };
 
 /** CAT-03 Variantes y cortes. ?product_id= muestra las de un producto; con &nueva=1 abre el alta. */
-export default function Variantes() {
-  return <Suspense><Pantalla /></Suspense>;
-}
-
-// Lee los datos de la dirección (?id=…) en el navegador: la página se compila sin ellos.
-function Pantalla() {
-  const params = Object.fromEntries(useSearchParams());
+export default function Variantes({ searchParams }: PageProps<"/m/cat/cat-03">) {
+  const params = use(searchParams);
   const productoId = typeof params.product_id === "string" ? params.product_id : "";
   const router = useRouter();
   const { me, marca, can } = useSesion();

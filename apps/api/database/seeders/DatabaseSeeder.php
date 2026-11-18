@@ -12,5 +12,6 @@ class DatabaseSeeder extends Seeder
     {
         $this->call(PrototipoSeeder::class);
         $this->call(AlmDemoSeeder::class);
+        $this->call(EquDemoSeeder::class);
     }
 }

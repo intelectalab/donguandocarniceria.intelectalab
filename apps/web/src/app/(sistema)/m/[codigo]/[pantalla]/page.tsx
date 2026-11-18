@@ -3,7 +3,7 @@
 import { use } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { moduloPorCodigo, pantallasDelMenu, rutaPantalla } from "@/lib/modulos";
+import { moduloPorCodigo, pantallaVisible, rutaPantalla } from "@/lib/modulos";
 import { useSesion } from "@/lib/sesion";
 
 /**
@@ -16,12 +16,12 @@ export default function FichaPantalla({ params }: PageProps<"/m/[codigo]/[pantal
   const { codigo, pantalla } = use(params);
   const { me } = useSesion();
   const modulo = moduloPorCodigo(codigo);
-  const visibles = modulo ? pantallasDelMenu(modulo.code, me.modules, me.roles, me.permissions) : [];
+  const visibles = modulo ? modulo.screens.filter((p) => pantallaVisible(modulo.code, p, me.roles)) : [];
   const i = visibles.findIndex((p) => p.code === pantalla.toUpperCase());
   const p = visibles[i];
 
   if (!modulo || !p) {
-    return <p className="text-sm text-muted">No existe esa pantalla. <Link href="/inicio" className="text-primary underline">Volver al inicio</Link></p>;
+    return <p className="text-sm text-muted">No existe esa pantalla. <Link href="/" className="text-primary underline">Volver al inicio</Link></p>;
   }
 
   const anterior = visibles[i - 1];

@@ -297,3 +297,57 @@ Avisos (`notifications`): a CALIDAD al enviar a revisión, al autor al devolverl
 ### Pendientes del contrato
 - **PRO:** tomará `vigente()` y `escalar()` en PRO-05 y registrará las lecturas de los puntos de control (KPI-REC-03).
 - **CAL:** el registro sanitario de la ficha técnica hoy se lee de `sanitary_registrations` o del producto.
+
+## EQU · Equipos, calibración y mantenimiento
+
+Dueño: EQU. Estado: **implementado** (18/11/2026). Lo usarán PRO (horas de equipo en la orden, PRO-09), ALM y VEN (balanza del lote o de la venta por peso), CAL (cámaras y termómetros) y COS (costo por centro de costo).
+
+**EQU es el único que escribe** `equipment`, `equipment_calibrations`, `maintenance_plans`, `maintenance_orders` y `equipment_usage`. Los demás leen o llaman a `EquiposService` (`App\Modulos\Equ\Services`).
+
+### `EquiposService::exigirApto(string $equipmentId, ?string $fecha = null): object`
+RN-EQU-03 y RN-EQU-04. Falla con `RuleError` si el equipo está dado de baja, fuera de servicio, o exige calibración y no tiene una conforme vigente a la fecha (por defecto hoy, hora de Lima). Devuelve la fila del equipo. `apto()` responde lo mismo como `bool` y `motivoNoApto($equipo, $fecha)` da `['rule' => 'RN-EQU-0X', 'msg' => '…']` o `null`.
+
+### `EquiposService::exigirBalanza(string $equipmentId, ?string $fecha = null): object`
+CA-EQU-01. Igual que `exigirApto` y además exige que sea una balanza. Para el lote producido o recibido y la venta por peso.
+
+### `EquiposService::registrarUso(array $d, User $quien): object`
+Horas de un equipo en una orden de producción. `$d`: `equipment_id`, `hours` (> 0, máx. 24), `used_on` (no futura), `production_order_id` o `order_ref`, y `source` (`PRO` o `EQU`). Exige equipo apto a la fecha y que no sea de los que no van por horas (balanzas, termómetros, cámaras y congeladoras). Guarda `cost = hours × hourly_rate` del equipo en ese momento (RN-EQU-09) y suma al horómetro. Devuelve la fila de `equipment_usage`. En la API: `POST /api/v1/equ/uso`.
+
+### Otras lecturas
+`calibracionVigente($id, $fecha)`, `ultimaCalibracion($id)`, `estadoCalibracion($equipo, $fecha)` (`NOT_APPLICABLE`, `BLOCKED`, `EXPIRING`, `USABLE`), `correctivasAbiertas($id)`, `kpis($desde, $hasta, $locales)` (KPI-EQU-01 a 04) y `disponibilidad($ids, $desde, $hasta)`.
+
+### Escrituras (las usan las pantallas de EQU)
+`guardarEquipo`, `fijarCarga`, `registrarCalibracion`, `abrirOrden`, `reportarFalla`, `iniciarOrden`, `terminarOrden`, `anularOrden`, `guardarPlan`, `generarPreventivas`, `avisarCalibraciones`, `lecturaHorometro`. Cada una abre su `DB::transaction`. Los números de orden `OM-####` se asignan con un candado por empresa.
+
+**Reglas que valida:** RN-EQU-01 a RN-EQU-12. En la base: balanza con calibración exigida (RN-EQU-01), calibración con certificado y vigencia (RN-EQU-02), total de la orden (RN-EQU-06), una orden abierta por plan, y calibraciones sin `UPDATE` ni `DELETE` para `aycha_app` (RN-EQU-12).
+
+### Eventos que emite EQU
+| Evento | Cuándo | Datos |
+|---|---|---|
+| `equipment.out_of_service` | Falla reportada, calibración no conforme o cambio manual | `code`, `reason` (`CORRECTIVE`, `CALIBRATION`, `MANUAL`) |
+| `equipment.back_in_service` | Correctiva cerrada o calibración conforme tras una no conforme | `code`, `reason` |
+| `equipment.calibrated` | Registrar calibración | `equipment_id`, `code`, `result`, `valid_until` |
+| `maintenance_order.opened` | Abrir orden o reportar falla (nueva) | `equipment_id`, `kind` |
+| `maintenance_order.closed` | Terminar la orden | `number`, `equipment_id`, `kind`, `total_cost`, `cost_center_id`, `external_supplier_id`, `external_cost`, `downtime_hours` |
+| `maintenance_order.preventive_created` | `equ:diario` o «Generar preventivas» | `numbers`, `date` |
+
+Avisos (`notifications`): a JEFE_PRODUCCION por cada falla nueva, calibración no conforme y preventivas atrasadas; a CALIDAD y JEFE_PRODUCCION por calibraciones por vencer, y a CALIDAD por las vencidas. Cada aviso automático sale una sola vez por día.
+
+### Permisos y alcance de EQU
+| Acción | Exige |
+|---|---|
+| Ver equipos, calibraciones, planes, órdenes, uso y tablero | módulo EQU (L) |
+| Crear y editar equipos, fijar la carga por hora | `equ.equipment.manage` |
+| Registrar calibraciones | `equ.calibration.record` |
+| Planes, órdenes preventivas, iniciar, terminar y anular órdenes | `equ.maintenance.manage` |
+| Reportar falla (orden correctiva) | `equ.failure.report` o `equ.maintenance.manage` |
+| Registrar horas y lecturas de horómetro | módulo EQU (C) |
+
+**Alcance por local:** las listas, cifras y el tablero se filtran por los locales del usuario; escribir sobre un equipo de otro local responde 404.
+
+### Pendientes del contrato
+- **PRO:** llamará `registrarUso()` con `source = PRO` y agregará la llave foránea de `equipment_usage.production_order_id`.
+- **ALM, PRO y VEN:** agregarán la columna de la balanza usada en el lote o la venta y llamarán `exigirBalanza()`.
+- **CAL:** el punto de temperatura de cámaras y congeladoras (RN-EQU-11) hoy se busca en `temperature_points`.
+- **Archivos:** fotos de fallas y certificados se guardan como ruta; falta el almacenamiento de archivos.
+- **CAJERO** no tiene el módulo EQU en la matriz aunque tenga `equ.failure.report`.

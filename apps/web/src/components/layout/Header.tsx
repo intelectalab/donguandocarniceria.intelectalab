@@ -5,7 +5,6 @@ import Link from "next/link";
 import { ChevronDown, Home, KeyRound, LogOut, Menu, Moon, RotateCcw, Sun, User as UserIcon } from "lucide-react";
 import GlobalSearch, { type SearchScreen } from "./GlobalSearch";
 import ChangePasswordModal from "./ChangePasswordModal";
-import { api } from "@/lib/api";
 import NotificationBell from "./NotificationBell";
 import { iniciales } from "@/lib/empresa";
 
@@ -23,15 +22,13 @@ type HeaderProps = {
   screens: SearchScreen[];
   /** Sin sesión todavía: sin buscador, campana ni menú. */
   ready: boolean;
-  /** Módulos del día a día de la persona (los de su menú corto), para las notificaciones importantes. */
-  modulosDelDia?: string[];
 };
 
 // Botón de ícono de la barra: color de la marca, igual en tema claro y oscuro.
 const ICON_BUTTON =
   "relative flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-[10px] text-primary transition-colors hover:bg-primary-soft active:scale-95";
 
-export default function Header({ open, currentSection, crumbs = [], onToggle, user, onLogout, tenantName, screens, ready, modulosDelDia = [] }: HeaderProps) {
+export default function Header({ open, currentSection, crumbs = [], onToggle, user, onLogout, tenantName, screens, ready }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -64,8 +61,6 @@ export default function Header({ open, currentSection, crumbs = [], onToggle, us
     try {
       localStorage.setItem("aycha-tema", nuevo);
     } catch {}
-    // También en la cuenta (SEG-06), para que el modo siga a la persona en otros equipos.
-    api("/v1/seg/mi-cuenta/preferencias", { method: "PUT", body: { ui_theme_mode: nuevo === "dark" ? "DARK" : "LIGHT" } }).catch(() => {});
   }
 
   const menuItem = "flex w-full cursor-pointer items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-ink transition-colors hover:bg-surface-2";
@@ -79,7 +74,7 @@ export default function Header({ open, currentSection, crumbs = [], onToggle, us
       <div className="mr-auto min-w-0">
         <nav aria-label="Ruta" className="flex items-center gap-[5px] overflow-hidden text-[11.5px] whitespace-nowrap text-muted">
           <Home size={13} className="shrink-0" />
-          <span className="truncate">{tenantName ?? "GestionCarnica"}</span>
+          <span className="truncate">{tenantName ?? "Aycha"}</span>
           {/* La clave es la posición: un grupo y su módulo pueden llamarse igual («Plataforma»). */}
           {crumbs.map((c, i) => (
             <span key={i} className="flex min-w-0 items-center gap-[5px]">
@@ -99,7 +94,7 @@ export default function Header({ open, currentSection, crumbs = [], onToggle, us
           <Sun size={19} className="theme-sun-icon" />
         </button>
 
-        {ready && <NotificationBell className={ICON_BUTTON} modulosDelDia={modulosDelDia} />}
+        {ready && <NotificationBell className={ICON_BUTTON} />}
 
         {ready && (
           <div className="relative" ref={dropdownRef}>
