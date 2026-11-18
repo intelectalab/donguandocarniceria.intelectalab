@@ -47,5 +47,6 @@ Migración `2026_11_16_000200_mae_restricciones_y_reglas.php` (después de `git 
 `tests/Feature/Modulos/MaeTest.php` (14: CA-MAE-01 a 06, RN-MAE-01 y 13, ficha e historia, importación con CSV y con Excel, tipo de cambio, carga automática, permisos y aislamiento) y una nueva en `CliImportacionTest`. Suite completa: 273 correctas.
 
 ## Pendiente
+- MAE-09: en la ficha de cada entidad, la fila «Cuentas de la empresa» con las cuentas de la empresa en esa entidad, como en el prototipo. Sale de `cash_accounts`, así que se agrega cuando se construya CAJ.
 - Pantalla de la consola de Intelectalab para importar los catálogos globales (hoy, el comando): [docs/catalogos-globales.md](../catalogos-globales.md).
 - Contrato de los servicios de MAE en `docs/contratos.md`.

@@ -62,7 +62,7 @@ export default function Entidades() {
               { label: "Medios de pago que la usan", value: abierta.medios.join(", ") || "—" },
               { label: "Estado", value: <StatusBadge status={abierta.status} labels={ESTADOS} /> },
             ]} />
-            <p className="text-[12.5px] text-muted">Registro de todo el sistema y de solo lectura. Las cuentas de la empresa en cada banco se verán aquí cuando exista el módulo de Caja.</p>
+            <p className="text-[12.5px] text-muted">Registro de todo el sistema y de solo lectura.</p>
           </div>
         </Modal>
       )}
