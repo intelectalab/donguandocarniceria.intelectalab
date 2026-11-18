@@ -18,15 +18,10 @@ export function mensajeDe(err: unknown, porDefecto: string) {
   return porDefecto;
 }
 
-/**
- * Ingreso. Como en erp-saas, en el ingreso general lleva «Volver al inicio» (la página pública) y
- * «Ver planes»; con el dominio de una empresa no, porque son de la página de GestionCarnica.
- */
-export default function LoginForm({ inicioUrl = "/", planesUrl = "/#precios" }: { inicioUrl?: string; planesUrl?: string }) {
+export default function LoginForm() {
   const router = useRouter();
   const volver = useSearchParams().get("volver");
   const { empresa, error: errorEmpresa, listo } = useEmpresa();
-  const deEmpresa = empresa?.general === false;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -41,9 +36,8 @@ export default function LoginForm({ inicioUrl = "/", planesUrl = "/#precios" }: 
     try {
       const data = await api<LoginResponse>("/v1/auth/login", { method: "POST", body: { email, password, remember } });
       setToken(data.token, remember);
-      // Pendiente de SEG: el segundo factor. La contraseña vencida la maneja el armazón (lleva a Mi cuenta).
-      // «volver» solo puede ser una dirección de este sitio: «//otro.com» o «/\otro.com» llevarían a otro sitio.
-      router.push(volver && /^\/(?![/\\])/.test(volver) ? volver : "/inicio");
+      // Pendiente de SEG: segundo factor (decidir TOTP o código por correo) y cambio obligatorio de contraseña.
+      router.push(volver?.startsWith("/") ? volver : "/");
     } catch (err) {
       setError(mensajeDe(err, "Ocurrió un error. Intenta de nuevo."));
       setLoading(false);
@@ -51,14 +45,12 @@ export default function LoginForm({ inicioUrl = "/", planesUrl = "/#precios" }: 
   }
 
   return (
-    <AuthShell empresa={empresa} pending={!listo} title="Iniciar sesión" subtitle="Hola de nuevo. Ingresa con el correo que te registró tu empresa."
-      volver={deEmpresa || !listo ? undefined : { href: inicioUrl, label: "Volver al inicio" }}
-      footer={deEmpresa || !listo ? undefined : <>¿Aún no tienes cuenta? <a href={planesUrl} className="font-medium text-primary hover:underline">Ver planes</a></>}>
+    <AuthShell empresa={empresa} pending={!listo} title="Iniciar sesión" subtitle="Bienvenido(a). Ingrese sus credenciales.">
       <form onSubmit={handleSubmit} noValidate className="grid gap-3.5">
         {errorEmpresa && <div role="alert" className={authError}>{errorEmpresa}</div>}
 
         <motion.div variants={item}>
-          <label htmlFor="email" className={authLabel}>Correo</label>
+          <label htmlFor="email" className={authLabel}>Usuario (correo)</label>
           <div className="relative">
             <input id="email" type="email" required autoComplete="username" placeholder="nombre@empresa.pe"
               value={email} onChange={(e) => setEmail(e.target.value)} className={authInput} />
@@ -86,7 +78,7 @@ export default function LoginForm({ inicioUrl = "/", planesUrl = "/#precios" }: 
             </span>
             <span className="text-muted">Recordarme</span>
           </button>
-          <Link href="/forgot-password" className="font-medium text-primary hover:underline">¿Olvidaste tu contraseña?</Link>
+          <Link href="/forgot-password" className="font-medium text-primary hover:underline">¿Olvidó su contraseña?</Link>
         </motion.div>
 
         {error && (

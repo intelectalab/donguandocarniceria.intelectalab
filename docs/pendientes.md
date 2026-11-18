@@ -24,7 +24,6 @@ Lo que se vio y se dejó para después, para no perderlo. Cada punto dice qué f
 1. **Pronto, pequeño:** ocultar a todos los roles de empresa las pantallas de consola, con la misma lista de pantallas permitidas (`screenOnly`) que ya se usa para la vendedora y el repartidor.
 2. **Decidir:** quitar el rol `SOPORTE_PLATAFORMA`. En el prototipo simula a Intelectalab; en el sistema real lo cubren los usuarios de plataforma.
 3. **Con OPS (fase 4):** la consola como entrada aparte (por ejemplo `/consola`), con `platform_users`, su login y su segundo factor. Diseñar cómo entra **sin saltarse el RLS** de las empresas, porque un usuario de plataforma no tiene `tenant_id`.
-4. **Con OPS: importar catálogos globales** (SUNAT, ubigeo y entidades financieras). *Anotado el 18/11/2026.* Hoy se hace con el comando `php artisan mae:importar-global`; el botón «Importar catálogo» del prototipo va en la consola de Intelectalab, no en el sistema de la empresa. Qué debe tener la pantalla: [catalogos-globales.md](catalogos-globales.md#lo-que-falta-para-más-adelante).
 
 ## 2. Datos y ajustes globales dentro de módulos de empresa
 *Anotado el 03/11/2026.*
@@ -42,8 +41,6 @@ PLT, SEG, MAE, INT y AUD son de cada empresa, pero algunas pantallas tocan datos
 | INT-13 Simulador de integraciones | Solo existe en ambientes de prueba | Oculto en producción |
 
 **Por hacer:** al construir cada una, que la API rechace escrituras de empresa sobre tablas globales (hoy el RLS no las cubre porque no tienen `tenant_id`) y que la pantalla se muestre de solo lectura.
-
-*Hecho el 17/11/2026 para MAE-07, 08 y 09:* las tres pantallas son de solo consulta y la aplicación solo tiene `SELECT` sobre `sunat_catalog_items`, `ubigeo` y `financial_institutions`. Se actualizan con el comando descrito en [catalogos-globales.md](catalogos-globales.md).
 
 ## 3. Otros pendientes conocidos
 - **Segundo factor** (SEG-02, SEG-03): pendiente por decisión del equipo; no se implementa por ahora.

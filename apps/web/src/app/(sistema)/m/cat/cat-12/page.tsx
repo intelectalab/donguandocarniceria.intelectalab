@@ -1,7 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { use, useEffect, useState } from "react";
 import { CalendarClock, History, Percent, TrendingUp } from "lucide-react";
 import { Badge, Cifra, DataTable, PageHeader, Select, type Column } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -13,13 +12,8 @@ import type { CambioPrecio, ListaPrecio } from "@/modulos/cat/tipos";
 type Resumen = { cambios: number; este_mes: number; programados: number; variacion_promedio: number | null };
 
 /** CAT-12 Historial de precios: cambios por variante y lista con usuario, fecha y precio anterior. ?variant_id= filtra. */
-export default function HistorialDePrecios() {
-  return <Suspense><Pantalla /></Suspense>;
-}
-
-// Lee los datos de la dirección (?id=…) en el navegador: la página se compila sin ellos.
-function Pantalla() {
-  const params = Object.fromEntries(useSearchParams());
+export default function HistorialDePrecios({ searchParams }: PageProps<"/m/cat/cat-12">) {
+  const params = use(searchParams);
   const variante = typeof params.variant_id === "string" ? params.variant_id : "";
   const { marca } = useSesion();
   const [listas, setListas] = useState<ListaPrecio[]>([]);

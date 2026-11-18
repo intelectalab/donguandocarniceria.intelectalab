@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { CalendarClock, CircleSlash, FileUp, History, Plus, Tags } from "lucide-react";
 import { Alert, Badge, Button, Checkbox, Cifra, DataTable, Field, Input, PageHeader, Select, Tabs, Textarea, toast, type Column } from "@/components/ui";
 import { api, mensajeDe } from "@/lib/api";
@@ -20,13 +20,8 @@ const hoy = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Li
 const manana = () => new Date(Date.now() + 86400000).toLocaleDateString("en-CA", { timeZone: "America/Lima" });
 
 /** CAT-06 Precios de la lista. ?lista= elige la lista; &cuando=FUTURE abre los programados. */
-export default function PreciosDeLaLista() {
-  return <Suspense><Pantalla /></Suspense>;
-}
-
-// Lee los datos de la dirección (?id=…) en el navegador: la página se compila sin ellos.
-function Pantalla() {
-  const params = Object.fromEntries(useSearchParams());
+export default function PreciosDeLaLista({ searchParams }: PageProps<"/m/cat/cat-06">) {
+  const params = use(searchParams);
   const router = useRouter();
   const { marca, can } = useSesion();
   const puedeEditar = can("cat.price.manage");

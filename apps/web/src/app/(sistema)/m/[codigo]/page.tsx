@@ -2,7 +2,7 @@
 
 import { use } from "react";
 import Link from "next/link";
-import { grupoDe, moduloPorCodigo, pantallasDelMenu, rutaPantalla } from "@/lib/modulos";
+import { grupoDe, moduloPorCodigo, pantallaVisible, rutaPantalla } from "@/lib/modulos";
 import { useSesion } from "@/lib/sesion";
 
 const ACCIONES: Record<string, string> = { C: "Crear", L: "Leer", E: "Editar", A: "Aprobar o anular" };
@@ -19,13 +19,13 @@ export default function FichaModulo({ params }: PageProps<"/m/[codigo]">) {
   const modulo = moduloPorCodigo(codigo);
   const acceso = me.modules.find((m) => m.code === modulo?.code);
   // Las pantallas que este rol ve en el menú, en el orden de la spec.
-  const visibles = modulo ? pantallasDelMenu(modulo.code, me.modules, me.roles, me.permissions) : [];
+  const visibles = modulo ? modulo.screens.filter((p) => pantallaVisible(modulo.code, p, me.roles)) : [];
 
   if (!modulo || !acceso) {
     return (
       <div className="space-y-2">
         <h1 className="text-xl font-bold">Sin acceso</h1>
-        <p className="text-sm text-muted">Tu rol no tiene acceso a este módulo. <Link href="/inicio" className="text-primary underline">Volver al inicio</Link></p>
+        <p className="text-sm text-muted">Tu rol no tiene acceso a este módulo. <Link href="/" className="text-primary underline">Volver al inicio</Link></p>
       </div>
     );
   }
