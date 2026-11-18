@@ -90,6 +90,37 @@ final class Unidades
         return DB::table('unit_conversions')->find($id);
     }
 
+    public const TIPOS = ['UNIT', 'WEIGHT', 'VOLUME', 'SERVICE', 'PACKAGE'];
+
+    /**
+     * Unidad propia de la empresa (como la Bolsa del prototipo). Su código tiene que estar vigente en el catálogo 03 de
+     * SUNAT para que los comprobantes salgan bien (RN-MAE-12) y no repetirse; decimales de 0 a 6 (RN-MAE-10).
+     * Las unidades del sistema no se crean ni se cambian aquí.
+     */
+    public static function agregarUnidad(array $d, User $quien): object
+    {
+        $codigo = strtoupper(trim($d['code']));
+        $item = self::sunatVigente('03', $codigo);
+        if (DB::table('units_of_measure')->where('code', $codigo)->exists()) {
+            RuleError::fail('RN-MAE-10', "La unidad {$codigo} ya existe.");
+        }
+        if (! in_array($d['uom_type'], self::TIPOS, true)) {
+            RuleError::fail('RN-MAE-10', 'Tipo de unidad no válido.');
+        }
+        $decimales = (int) $d['decimals'];
+        if ($decimales < 0 || $decimales > 6) {
+            RuleError::fail('RN-MAE-10', 'Una unidad admite de 0 a 6 decimales.');
+        }
+        $id = DB::table('units_of_measure')->insertGetId([
+            'code' => $codigo, 'sunat_code' => $codigo, 'name' => trim($d['name'] ?? '') ?: $item->description,
+            'kind' => $d['uom_type'] === 'SERVICE' ? 'SERVICE' : 'UNIT', 'uom_type' => $d['uom_type'], 'decimals' => $decimales,
+            'is_system' => false, 'status' => 'ACTIVE',
+        ]);
+        Events::emit('unit.created', 'units_of_measure', $id, ['code' => $codigo, 'by' => $quien->id]);
+
+        return DB::table('units_of_measure')->find($id);
+    }
+
     public static function sunatItem(string $catalogo, string $codigo): ?object
     {
         return DB::table('sunat_catalog_items')->where(['catalog' => $catalogo, 'code' => $codigo])->first();

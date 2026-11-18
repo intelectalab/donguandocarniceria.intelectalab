@@ -80,6 +80,8 @@ class MaeTest extends TestCase
     public function test_ca_mae_03_conversiones_y_decimales_de_la_unidad(): void
     {
         $this->admin()->getJson('/api/v1/mae/unidades/convertir?qty=1.25&from=KGM&to=GRM')->assertOk()->assertJsonPath('resultado', 1250);
+        $kg = collect($this->admin()->getJson('/api/v1/mae/unidades')->assertOk()->json('conversiones'))->firstWhere('from_uom', 'KGM');
+        $this->assertSame([1000, 0.001], [$kg['factor'], $kg['inversa']]); // números, no el texto «1000.000000» de la base
         $this->admin()->getJson('/api/v1/mae/unidades/convertir?qty=500&from=GRM&to=KGM')->assertOk()->assertJsonPath('resultado', 0.5);
         $this->admin()->getJson('/api/v1/mae/unidades/convertir?qty=1.5&from=NIU&to=BX')->assertUnprocessable()->assertJsonPath('code', 'RN-MAE-10');
         $this->admin()->getJson('/api/v1/mae/unidades/convertir?qty=1&from=KGM&to=LTR')->assertUnprocessable()->assertJsonPath('code', 'RN-MAE-09');
@@ -87,6 +89,22 @@ class MaeTest extends TestCase
         $this->admin()->postJson('/api/v1/mae/conversiones', ['from_uom' => 'GRM', 'to_uom' => 'KGM', 'factor' => 0.001])->assertUnprocessable()->assertJsonPath('code', 'RN-MAE-09');
         $this->admin()->postJson('/api/v1/mae/conversiones', ['from_uom' => 'BG', 'to_uom' => 'NIU', 'factor' => 10, 'note' => 'Bolsa de 10'])->assertCreated();
         $this->assertSame(0.1, Unidades::factor('NIU', 'BG'));
+    }
+
+    public function test_unidad_propia_con_codigo_vigente_del_catalogo_03(): void
+    {
+        $libres = collect($this->admin()->getJson('/api/v1/mae/unidades')->assertOk()->json('codigos_libres'))->pluck('code');
+        $this->assertContains('TNE', $libres);
+        $this->assertNotContains('KGM', $libres);
+        $this->admin()->postJson('/api/v1/mae/unidades', ['code' => 'tne', 'uom_type' => 'WEIGHT', 'decimals' => 3])->assertCreated()->assertJsonPath('code', 'TNE');
+        $tne = collect($this->admin()->getJson('/api/v1/mae/unidades')->json('unidades'))->firstWhere('code', 'TNE');
+        $this->assertSame(['Tonelada', false, 3], [$tne['name'], $tne['is_system'], $tne['decimals']]);
+        // No se repite, el código debe existir en el catálogo 03 y hace falta el permiso.
+        $this->admin()->postJson('/api/v1/mae/unidades', ['code' => 'TNE', 'uom_type' => 'WEIGHT', 'decimals' => 3])->assertUnprocessable()->assertJsonPath('code', 'RN-MAE-10');
+        $this->admin()->postJson('/api/v1/mae/unidades', ['code' => 'BG', 'uom_type' => 'PACKAGE', 'decimals' => 0])->assertUnprocessable();
+        $this->admin()->postJson('/api/v1/mae/unidades', ['code' => 'XYZ', 'uom_type' => 'UNIT', 'decimals' => 0])->assertUnprocessable()->assertJsonPath('code', 'RN-MAE-12');
+        $this->admin()->postJson('/api/v1/mae/unidades', ['code' => 'TNE', 'uom_type' => 'WEIGHT', 'decimals' => 9])->assertUnprocessable()->assertJsonValidationErrors('decimals');
+        $this->como('ana.torres@donguando.pe')->postJson('/api/v1/mae/unidades', ['code' => 'TNE', 'uom_type' => 'WEIGHT', 'decimals' => 3])->assertForbidden();
     }
 
     public function test_ca_mae_04_la_baja_desactiva_el_usuario_y_cierra_su_sesion(): void

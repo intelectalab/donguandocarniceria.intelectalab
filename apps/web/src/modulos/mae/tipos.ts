@@ -58,3 +58,18 @@ export const tc = (n: number | null | undefined) => n === null || n === undefine
 export const dias = (desde: string, hasta: string) => Math.round((Date.parse(hasta) - Date.parse(desde)) / 86_400_000);
 /** Hoy en Lima, AAAA-MM-DD. */
 export const hoyLima = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Lima" }).format(new Date());
+
+/**
+ * Orden en pantalla para tablas cortas que llegan completas (unidades, catálogos). sort: «campo» o «-campo», como
+ * DataTable; sin sort se respeta el orden de la API. Números se comparan como números y textos sin tildes.
+ */
+export function ordenarFilas<T>(filas: T[], sort: string, valor: (fila: T, campo: string) => string | number | boolean | null | undefined): T[] {
+  if (!sort) return filas;
+  const campo = sort.replace(/^-/, "");
+  const signo = sort.startsWith("-") ? -1 : 1;
+  return [...filas].sort((a, b) => {
+    const [x, y] = [valor(a, campo), valor(b, campo)];
+    if (typeof x === "number" && typeof y === "number") return (x - y) * signo;
+    return String(x ?? "").localeCompare(String(y ?? ""), "es", { sensitivity: "base", numeric: true }) * signo;
+  });
+}

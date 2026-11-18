@@ -33,8 +33,22 @@ class CatalogoController extends Controller
             'unidades' => DB::table('units_of_measure')->orderBy('code')->get()->map(fn ($u) => (array) $u + ['sunat_vigente' => isset($sunat[$u->code])
                 && $sunat[$u->code]->valid_from <= $hoy && (! $sunat[$u->code]->valid_to || $sunat[$u->code]->valid_to >= $hoy)]),
             'conversiones' => DB::table('unit_conversions')->where('status', 'ACTIVE')->orderBy('from_uom')->get()
-                ->map(fn ($c) => (array) $c + ['factor' => (float) $c->factor, 'inversa' => round(1 / (float) $c->factor, 6)]),
+                ->map(fn ($c) => array_merge((array) $c, ['factor' => (float) $c->factor, 'inversa' => round(1 / (float) $c->factor, 6)])),
+            // Códigos del catálogo 03 vigentes que la empresa todavía no usa: los que puede dar de alta como unidad propia.
+            'codigos_libres' => DB::table('sunat_catalog_items as s')->where('s.catalog', '03')->where('s.valid_from', '<=', $hoy)
+                ->where(fn ($w) => $w->whereNull('s.valid_to')->orWhere('s.valid_to', '>=', $hoy))
+                ->whereNotIn('s.code', DB::table('units_of_measure')->select('code'))->orderBy('s.code')->get(['s.code', 's.description']),
         ]);
+    }
+
+    /** Unidad propia de la empresa: código del catálogo 03 vigente, tipo y decimales (Unidades::agregarUnidad). */
+    public function storeUnidad(Request $request)
+    {
+        $d = $request->validate(['code' => ['required', 'string', 'max:6', 'regex:/^[A-Za-z0-9]+$/'], 'name' => ['nullable', 'string', 'min:2', 'max:40'],
+            'uom_type' => ['required', Rule::in(Unidades::TIPOS)], 'decimals' => ['required', 'integer', 'between:0,6']]);
+        $u = Unidades::agregarUnidad($d, $request->user());
+
+        return response()->json(['id' => $u->id, 'code' => $u->code], 201);
     }
 
     public function convertir(Request $request)

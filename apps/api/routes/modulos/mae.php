@@ -45,6 +45,7 @@ Route::prefix('mae')->group(function () {
     // MAE-06 Unidades y conversiones
     Route::get('/unidades', [CatalogoController::class, 'unidades'])->middleware('modulo:MAE');
     Route::get('/unidades/convertir', [CatalogoController::class, 'convertir'])->middleware('modulo:MAE');
+    Route::post('/unidades', [CatalogoController::class, 'storeUnidad'])->middleware(['modulo:MAE,C', 'permiso:mae.unit.manage']);
     Route::post('/conversiones', [CatalogoController::class, 'storeConversion'])->middleware(['modulo:MAE,C', 'permiso:mae.unit.manage']);
 
     // MAE-07, MAE-08 y MAE-09: globales, solo lectura
