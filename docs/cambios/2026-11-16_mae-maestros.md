@@ -42,8 +42,12 @@ Migración `2026_11_16_000200_mae_restricciones_y_reglas.php` (después de `git 
 ## Otros
 - Seguridad: reactivar un usuario de un trabajador de baja se bloquea (RN-MAE-02), y vincular cuenta solo usuarios vigentes (RN-MAE-13).
 - La API ya no responde 500 cuando llega una llamada sin sesión que no pide JSON: responde 401.
+- **Errores de validación en español en toda la API** (`apps/api/lang/es/validation.php` y `lang/es.json`): antes salían en inglés en todos los módulos («The phone field is required. (and 3 more errors)»); ahora «Falta el celular. (y 3 errores más)». Los campos comunes tienen su nombre en español en `attributes`; para uno nuevo, agregarlo ahí o pasar el mensaje en `validate()`.
+- Mensajes sin códigos internos: «Todavía no hay conexión con SUNAT para el tipo de cambio: regístralo a mano», «Regístralo en Maestros › Tipo de cambio» y el motivo con que se desactiva el usuario al dar de baja («Cese del trabajador: …»).
 
 ## Pruebas
+Probado también en pantalla, contra `aycha_test` (18/11/2026): crear, editar, vincular y dar de baja trabajadores; importar con el modelo en Excel; configurar, desactivar y activar medios de pago; comisiones con y sin cruce; registrar y corregir el tipo de cambio; nueva unidad y conversiones.
+
 `tests/Feature/Modulos/MaeTest.php` (14: CA-MAE-01 a 06, RN-MAE-01 y 13, ficha e historia, importación con CSV y con Excel, tipo de cambio, carga automática, permisos y aislamiento) y una nueva en `CliImportacionTest`. Suite completa: 273 correctas.
 
 ## Pendiente

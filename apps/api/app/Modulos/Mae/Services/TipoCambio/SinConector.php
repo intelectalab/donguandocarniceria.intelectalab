@@ -7,7 +7,7 @@ final class SinConector implements FuenteTipoCambio
 {
     public function del(string $fecha, string $moneda): ?array
     {
-        throw new \RuntimeException('Todavía no hay un conector de tipo de cambio configurado (INT): cárgalo a mano en MAE-05.');
+        throw new \RuntimeException('Todavía no hay conexión con SUNAT para el tipo de cambio: regístralo a mano.');
     }
 
     public function nombre(): string

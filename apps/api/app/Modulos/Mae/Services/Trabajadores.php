@@ -129,7 +129,7 @@ final class Trabajadores
             $sesiones = 0;
             foreach (User::where('employee_id', $e->id)->whereIn('status', ['ACTIVE', 'LOCKED', 'INVITED'])->get() as $u) {
                 $antes = DB::table('personal_access_tokens')->where('tokenable_type', User::class)->where('tokenable_id', $u->id)->count();
-                Usuarios::desactivar($u, "Cese del trabajador (RN-MAE-02): {$motivo}", $quien);
+                Usuarios::desactivar($u, "Cese del trabajador: {$motivo}", $quien);
                 $sesiones += $antes;
                 $usuarios++;
             }

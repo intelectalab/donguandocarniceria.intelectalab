@@ -93,7 +93,7 @@ final class TiposDeCambio
             ->where('date', '>=', $usarAnterior ? $desde : $fecha)->orderByDesc('date')->first();
         if (! $r) {
             $f = date('d/m/Y', strtotime($fecha));
-            RuleError::fail('RN-MAE-07', "No hay tipo de cambio {$moneda} del {$f} ni publicado en los {$dias} días anteriores: el documento no se graba. Cárgalo en MAE-05.");
+            RuleError::fail('RN-MAE-07', "No hay tipo de cambio {$moneda} del {$f} ni publicado en los {$dias} días anteriores: el documento no se graba. Regístralo en Maestros › Tipo de cambio.");
         }
 
         return ['buy' => (float) $r->buy, 'sell' => (float) $r->sell, 'fecha_usada' => $r->date, 'respaldo' => $r->date !== $fecha];
