@@ -2294,7 +2294,7 @@
    {
     "code": "GRJ-02",
     "name": "Mapeo de productos",
-    "desc": "Código e ítem de la granja → variante de Aycha, factor de conversión y estado; muestra ítems sin mapear",
+    "desc": "Código e ítem de la granja → variante de GestionCarnica, factor de conversión y estado; muestra ítems sin mapear",
     "roles": null
    },
    {
@@ -3432,7 +3432,7 @@
    {
     "code": "SEP-10",
     "name": "Exportación completa",
-    "desc": "Genera el paquete (JSON de Aycha y Excel o CSV), muestra su huella y su tamaño, y da el enlace de descarga con vencimiento",
+    "desc": "Genera el paquete (JSON de GestionCarnica y Excel o CSV), muestra su huella y su tamaño, y da el enlace de descarga con vencimiento",
     "roles": null
    },
    {
@@ -3454,7 +3454,7 @@
   "name": "API pública y webhooks",
   "title": "API pública, claves y webhooks",
   "phase": 4,
-  "objective": "Que los clientes del SaaS conecten Aycha con sus otros sistemas sin pedir desarrollos: el ERP de un restaurante crea pedidos, una tienda online consulta stock y precios, y el contador o un BI recibe los comprobantes aceptados. Cada empresa crea **claves con alcances y vencimiento**, recibe **webhooks firmados** con reintentos e historial, lee la **documentación OpenAPI** y prueba en un **sandbox**",
+  "objective": "Que los clientes del SaaS conecten GestionCarnica con sus otros sistemas sin pedir desarrollos: el ERP de un restaurante crea pedidos, una tienda online consulta stock y precios, y el contador o un BI recibe los comprobantes aceptados. Cada empresa crea **claves con alcances y vencimiento**, recibe **webhooks firmados** con reintentos e historial, lee la **documentación OpenAPI** y prueba en un **sandbox**",
   "screens": [
    {
     "code": "API-01",
@@ -3771,7 +3771,7 @@
   "name": "Planes y suscripciones",
   "title": "Planes y suscripciones",
   "phase": 4,
-  "objective": "Que Intelectalab venda Aycha a otras empresas del rubro sin hacer nada a mano: el cliente elige un plan del producto que necesita (Granja, Comercial y, más adelante, Marcas gourmet), el plan **enciende los módulos** que incluye, los límites se miden solos, el cobro es recurrente con tarjeta tokenizada y cada mes recibe su comprobante electrónico emitido por Intelectalab. Si no paga, la empresa pas",
+  "objective": "Que Intelectalab venda GestionCarnica a otras empresas del rubro sin hacer nada a mano: el cliente elige un plan del producto que necesita (Granja, Comercial y, más adelante, Marcas gourmet), el plan **enciende los módulos** que incluye, los límites se miden solos, el cobro es recurrente con tarjeta tokenizada y cada mes recibe su comprobante electrónico emitido por Intelectalab. Si no paga, la empresa pas",
   "screens": [
    {
     "code": "SUS-01",

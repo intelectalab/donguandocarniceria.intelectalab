@@ -30,6 +30,8 @@ class User extends Authenticatable
             'twofa_required' => 'boolean',
             'must_change_password' => 'boolean',
             'notify_prefs' => 'array',
+            'menu_favs' => 'array',
+            'menu_corto' => 'boolean',
             'last_login' => 'datetime',
             'locked_until' => 'datetime',
             'password_changed_at' => 'datetime',

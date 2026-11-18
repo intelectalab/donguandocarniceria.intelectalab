@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Pública: la pantalla de ingreso. En modo por dominio sale con el nombre, el color y las marcas
- * de la empresa; en el ingreso general (sin empresa todavía), con la marca de Aycha.
+ * de la empresa; en el ingreso general (sin empresa todavía), con la marca de GestionCarnica.
  */
 class TenantController extends Controller
 {
@@ -37,7 +37,7 @@ class TenantController extends Controller
         $tenant = TenantContext::tenant();
         if (! $tenant) {
             return response()->json([
-                'general' => true, 'name' => 'Aycha Comercial', 'short' => 'Aycha', 'trade_name' => null,
+                'general' => true, 'name' => 'GestionCarnica Comercial', 'short' => 'GestionCarnica', 'trade_name' => null,
                 'logo_url' => null, 'primary_color' => null, 'brands' => [],
             ]);
         }

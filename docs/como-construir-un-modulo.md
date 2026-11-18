@@ -64,6 +64,15 @@ Con un módulo apagado para la empresa, `modulo:` responde `RN-PLT-07`, aunque e
 
 **Ejemplo completo:** PLT-03 Empresas, PLT-04 Locales, PLT-05 Marcas y PLT-08 Series (`app/Modulos/Plt/`, `routes/modulos/plt.php`, `tests/Feature/Modulos/`).
 
+**Exportar:** todo botón «Exportar» genera un Excel con diseño de reporte, hecho en la API con `App\Support\Exportar`. Nunca CSV plano ni un archivo armado en el navegador. Pone la banda con el nombre y logo del cliente en los colores de su marca, título, descripción, quién y cuándo lo generó, cifras de resumen, encabezados de color, filas alternadas, filtros, paneles fijos y página lista para imprimir. Escribe los textos como texto (nada se vuelve fórmula), deja la descarga en la bitácora de accesos y pone en el pie quién la descargó. La ruta lleva su permiso y un límite de pedidos (`throttle:10,1`). En la web se descarga con `apiDescargar()` de `@/lib/api`. Ejemplo: la matriz de SEG-12 (`RolController::exportar`).
+```php
+return Exportar::libro('Stock por almacén', $request->user())
+    ->hoja('Stock', columnas: [['titulo' => 'Producto', 'ancho' => 30], ['titulo' => 'Saldo', 'ancho' => 12, 'tipo' => 'numero'],
+        ['titulo' => 'Valor', 'ancho' => 14, 'tipo' => 'soles']], filas: $filas, descripcion: 'Saldo al cierre del día', resumen: ['Productos' => 77])
+    ->descargar('stock');
+```
+Tipos de columna: `texto`, `numero`, `soles`, `porcentaje`, `fecha`, `centro` y `marca` (verdadero se ve como ●). Con muchas columnas angostas, `'girar' => true` pone el encabezado vertical. Una exportación con datos personales (clientes, trabajadores) espera el flujo de aprobación de AUD.
+
 ### Pruebas
 Una prueba por cada criterio `CA-…` de la spec, con los números del criterio, en `tests/Feature/Modulos/<Codigo>Test.php`. `Tests\TestCase` ya prepara la base con las dos empresas de demo y deshace cada prueba al terminar. Para entrar como un rol:
 

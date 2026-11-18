@@ -7,10 +7,11 @@ import { BookOpen, Cloud, Coins, Factory, Gauge, Home, Lock, Megaphone, ShieldCh
 import Header from "./Header";
 import Sidebar, { type MenuItem } from "./Sidebar";
 import ContextSelectors from "./ContextSelectors";
-import { UiHost } from "@/components/ui";
-import { api, apiImagen } from "@/lib/api";
+import { UiHost, toast } from "@/components/ui";
+import { api, apiImagen, mensajeDe } from "@/lib/api";
 import { clearToken } from "@/lib/auth";
 import { MODULOS, menuDe, rutaPantalla } from "@/lib/modulos";
+import { pantallasDelDia } from "@/lib/menuDia";
 import { useEstadoSesion } from "@/lib/sesion";
 import { aplicarTema, cssDeTema } from "@/lib/temaMarca";
 
@@ -31,6 +32,7 @@ const GROUP_ICONS = {
 
 const CUENTA = [
   { href: "/perfil", label: "Mi perfil" },
+  { href: "/perfil/sesiones", label: "Mis sesiones y dispositivos" },
   { href: "/notificaciones", label: "Notificaciones" },
 ];
 // Páginas fuera del menú y del buscador, solo para el título de la cabecera.
@@ -59,6 +61,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const sidebarOpen = useSyncExternalStore(suscribirSidebar, leerSidebar, () => true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+
+  // Con la contraseña vencida (o si se le pidió cambiarla) solo se usa Mi cuenta hasta crear una
+  // nueva; la API responde 403 a lo demás (RN-SEG-02).
+  const debeCambiarClave = Boolean(sesion?.me.user.must_change_password) && pathname !== "/perfil";
+  useEffect(() => {
+    if (debeCambiarClave) router.replace("/perfil");
+  }, [debeCambiarClave, router]);
 
   function toggleSidebar() {
     // En celular abre el cajón; en escritorio pliega o despliega la barra.
@@ -95,18 +104,53 @@ export default function AppShell({ children }: { children: ReactNode }) {
   }, [temas, marcaActual]);
 
   // Menú en el orden de sus grupos: solo los módulos que el rol ve; los apagados, con candado.
+  const menu = useMemo(() => (sesion ? menuDe(sesion.me.modules, sesion.me.roles, sesion.me.permissions) : []), [sesion]);
   const items = useMemo<MenuItem[]>(() => {
     if (!sesion) return [];
-    const modulos = menuDe(sesion.me.modules, sesion.me.roles).flatMap((g) => g.modulos.map((m) => ({
+    const modulos = menu.flatMap((g) => g.modulos.map((m) => ({
       href: `/m/${m.code.toLowerCase()}`, label: m.name, code: m.code, group: g.name, locked: !m.enabled,
       children: m.visibles.map((p) => ({ href: rutaPantalla(m.code, p.code), label: p.name, code: p.code })),
     })));
-    return [{ href: "/", label: "Inicio", group: "Inicio" }, ...modulos];
-  }, [sesion]);
+    return [{ href: "/inicio", label: "Inicio", group: "Inicio" }, ...modulos];
+  }, [sesion, menu]);
 
-  const currentItem = items.find((it) => (it.href === "/" ? pathname === "/" : pathname === it.href || pathname.startsWith(`${it.href}/`)));
+  // «Lo de todos los días»: las pantallas del puesto y las fijadas con la estrella (se guardan en la
+  // cuenta; mientras responde la API se ve el cambio y, si falla, vuelve a lo guardado).
+  const [fijadas, setFijadas] = useState<string[] | null>(null);
+  const guardadas = sesion?.me.user.menu_favs;
+  const misFijadas = useMemo(() => fijadas ?? guardadas ?? [], [fijadas, guardadas]);
+  const delDia = useMemo(() => (sesion ? pantallasDelDia(menu, sesion.me.roles, misFijadas) : []), [sesion, menu, misFijadas]);
+  async function fijar(code: string) {
+    const nuevas = misFijadas.includes(code) ? misFijadas.filter((c) => c !== code) : [...misFijadas, code];
+    setFijadas(nuevas);
+    try {
+      const r = await api<{ menu_favs: string[] }>("/v1/seg/mi-cuenta/menu", { method: "PUT", body: { favs: nuevas } });
+      setFijadas(r.menu_favs);
+    } catch (e) {
+      setFijadas(null);
+      toast.error(mensajeDe(e));
+    }
+  }
+  // Menú corto (solo «Lo de todos los días») o completo. Sin elegir, el corto si el puesto tiene al menos
+  // 3 pantallas del día; con menos, siempre el completo. Se recuerda en la cuenta.
+  const [eligioCorto, setEligioCorto] = useState<boolean | null>(null);
+  const hayCorto = delDia.length >= 3;
+  // Para la campana: los módulos del día a día (con menú corto); sin él, la API usa donde registra o aprueba.
+  const modulosDelDia = useMemo(() => (hayCorto ? [...new Set(delDia.map((p) => p.code.slice(0, 3)))].sort() : []), [hayCorto, delDia]);
+  const menuCorto = hayCorto && (eligioCorto ?? sesion?.me.user.menu_corto ?? true);
+  async function cambiarMenu(corto: boolean) {
+    setEligioCorto(corto);
+    try {
+      await api("/v1/seg/mi-cuenta/menu", { method: "PUT", body: { corto } });
+    } catch (e) {
+      toast.error(mensajeDe(e));
+    }
+  }
+
+  const currentItem = items.find((it) => pathname === it.href || pathname.startsWith(`${it.href}/`));
   const currentScreen = currentItem?.children?.find((p) => pathname === p.href || pathname.startsWith(`${p.href}/`));
-  const cuenta = OTRAS.find((c) => pathname.startsWith(c.href));
+  // La dirección más larga que coincide: /perfil/sesiones antes que /perfil.
+  const cuenta = [...OTRAS].sort((a, b) => b.href.length - a.href.length).find((c) => pathname.startsWith(c.href));
   // Título: la pantalla (o el módulo, en su ficha); migas: grupo · módulo.
   const currentSection = currentScreen?.label ?? currentItem?.label ?? cuenta?.label ?? "Inicio";
   const crumbs = currentItem && currentItem.group !== "Inicio"
@@ -127,7 +171,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const tenantLogo = urlLogo && logo?.url === urlLogo ? logo.src : null;
 
   useEffect(() => {
-    document.title = `${currentSection} · ${tenantName ?? "Aycha"}`;
+    document.title = `${currentSection} · ${tenantName ?? "GestionCarnica"}`;
   }, [currentSection, tenantName]);
 
   // Un módulo o una pantalla abiertos por su dirección sin acceso del rol, o un módulo apagado,
@@ -157,6 +201,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const sidebar = (compact: boolean) => (
     <Sidebar items={items} compact={compact} loading={cargando} onNavigate={() => setMobileOpen(false)} onLogout={handleLogout}
       loggingOut={loggingOut} groupIcons={GROUP_ICONS} user={user} tenantName={tenantName} tenantLogo={tenantLogo} modulesHref={modulesHref}
+      delDia={delDia} fijadas={misFijadas} onFijar={fijar} menuCorto={menuCorto} onCambiarMenu={hayCorto ? cambiarMenu : undefined}
       context={sesion ? <ContextSelectors variant="sidebar" /> : undefined} />
   );
 
@@ -174,14 +219,14 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <Header open={sidebarOpen || mobileOpen} currentSection={currentSection} crumbs={crumbs} onToggle={toggleSidebar}
-          user={user} onLogout={handleLogout} tenantName={tenantName} screens={searchScreens} ready={Boolean(sesion)} />
+          user={user} onLogout={handleLogout} tenantName={tenantName} screens={searchScreens} ready={Boolean(sesion)} modulosDelDia={modulosDelDia} />
 
         <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 md:p-10">
           {error ? (
             <Aviso titulo="No se pudo cargar tu sesión" texto={`${error} El servidor no respondió.`}>
               <button onClick={reintentar} className="rounded-[9px] bg-primary px-4 py-2 text-[13px] font-semibold text-primary-ink hover:brightness-110">Reintentar</button>
             </Aviso>
-          ) : !sesion ? (
+          ) : !sesion || debeCambiarClave ? (
             <div className="space-y-3">
               {[1, 2, 3].map((n) => <div key={n} className="h-24 animate-pulse rounded-xl bg-surface-2" />)}
             </div>
@@ -190,7 +235,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
               texto={denegado === "apagado"
                 ? "RN-PLT-07: este módulo está apagado en tu empresa. El administrador del sistema puede encenderlo en Plataforma → Módulos."
                 : "Tu rol no tiene permiso para abrir esta pantalla. Si la necesitas, pídeselo al administrador de tu empresa."}>
-              <Link href="/" className="rounded-[9px] border border-line bg-surface px-4 py-2 text-[13px] font-medium hover:bg-surface-2">Ir al inicio</Link>
+              <Link href="/inicio" className="rounded-[9px] border border-line bg-surface px-4 py-2 text-[13px] font-medium hover:bg-surface-2">Ir al inicio</Link>
             </Aviso>
           ) : children}
         </main>

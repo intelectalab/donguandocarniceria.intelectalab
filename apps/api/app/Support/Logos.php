@@ -55,6 +55,14 @@ final class Logos
         return Storage::disk('local')->response($ruta, null, ['Cache-Control' => $cache, 'X-Content-Type-Options' => 'nosniff']);
     }
 
+    /** Ruta del archivo en disco, o null si no hay (para incrustarlo en un reporte). */
+    public static function archivo(string $carpeta, ?string $nombre): ?string
+    {
+        $ruta = $nombre ? self::ruta($carpeta, $nombre) : null;
+
+        return $ruta && Storage::disk('local')->exists($ruta) ? Storage::disk('local')->path($ruta) : null;
+    }
+
     private static function ruta(string $carpeta, string $nombre): string
     {
         $tenant = TenantContext::id() ?? abort(404);

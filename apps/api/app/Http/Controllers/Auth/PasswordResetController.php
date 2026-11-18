@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Modulos\Seg\Services\Bitacora;
+use App\Modulos\Seg\Services\Sesiones;
 use App\Support\Params;
 use App\Support\PasswordPolicy;
 use App\Support\TenantContext;
@@ -21,7 +23,9 @@ use Illuminate\Validation\ValidationException;
 class PasswordResetController extends Controller
 {
     private const ALFABETO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
     private const MAX_INTENTOS = 5;
+
     private const RESPUESTA = 'Si el correo existe, enviamos un código de 6 caracteres.';
 
     public function forgot(Request $request)
@@ -38,7 +42,8 @@ class PasswordResetController extends Controller
     private function enviarCodigo(string $email, Request $request): null
     {
         $user = User::whereRaw('lower(email) = ?', [strtolower(trim($email))])->first();
-        if ($user && $user->status === 'ACTIVE') {
+        if ($user && in_array($user->status, ['ACTIVE', 'INVITED'], true)) {
+            Bitacora::registrar('PASSWORD_RESET_REQUESTED', ['user' => $user, 'email' => $email]);
             $minutos = (int) (Params::get('seg_reset_token_minutes') ?? 30);
             $codigo = '';
             for ($i = 0; $i < 6; $i++) {
@@ -104,9 +109,14 @@ class PasswordResetController extends Controller
 
         DB::transaction(function () use ($user, $token, $data) {
             PasswordPolicy::store($user, $data['password']);
+            // Un usuario invitado (SEG-08) queda activo al fijar su primera contraseña.
+            if ($user->status === 'INVITED') {
+                $user->forceFill(['status' => 'ACTIVE'])->save();
+            }
             DB::table('password_reset_tokens')->where('id', $token->id)->update(['used_at' => now(), 'updated_at' => now()]);
             // Con la contraseña nueva se cierran las sesiones abiertas en otros equipos.
-            $user->tokens()->delete();
+            Sesiones::cerrando('REVOKED', 'Contraseña restablecida', fn () => $user->tokens()->delete());
+            Bitacora::registrar('PASSWORD_RESET', ['user' => $user, 'details' => ['kind' => $token->kind]]);
         });
 
         return response()->json(['message' => 'Contraseña actualizada. Ya puedes iniciar sesión.']);

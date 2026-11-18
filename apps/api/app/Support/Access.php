@@ -52,9 +52,12 @@ final class Access
 
     private static function load(User $user): array
     {
-        $roles = DB::table('user_roles')->join('roles', 'roles.id', '=', 'user_roles.role_id')
+        $filas = DB::table('user_roles')->join('roles', 'roles.id', '=', 'user_roles.role_id')
             ->where('user_roles.user_id', $user->id)->where('roles.status', 'ACTIVE')
-            ->pluck('roles.code', 'roles.id');
+            ->get(['roles.id', 'roles.code', 'roles.scope_mode']);
+        $roles = $filas->pluck('code', 'id');
+        // RN-SEG-13: con un rol de alcance total ve todo, aunque queden marcas o locales guardados.
+        $alcanceTotal = $filas->contains(fn ($r) => $r->scope_mode !== 'ASSIGNED');
 
         $permissions = DB::table('role_permissions')->join('permissions', 'permissions.id', '=', 'role_permissions.permission_id')
             ->whereIn('role_permissions.role_id', $roles->keys())->pluck('permissions.code')
@@ -72,7 +75,7 @@ final class Access
             $modules = ['*' => 'L'];
         }
 
-        $scopes = DB::table('user_scopes')->where('user_id', $user->id)->get();
+        $scopes = $alcanceTotal ? collect() : DB::table('user_scopes')->where('user_id', $user->id)->get();
 
         return [
             'roles' => $roles->values()->all(),

@@ -2,7 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Support\TenantContext;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /** Lo que usa el menú de usuario y el ingreso: cambiar contraseña, recuperarla y notificaciones. */
@@ -66,5 +69,65 @@ class CuentaTest extends TestCase
         $otra = $this->ingresar(self::DG, 'cnunez@donguando.pe');
         $ids = array_column($this->desde(self::DG, $otra)->getJson('/api/v1/me/notifications?per_page=100')->json('data'), 'id');
         $this->assertNotContains($primera['id'], $ids);
+    }
+
+    public function test_la_campana_cuenta_solo_las_importantes_para_el_puesto(): void
+    {
+        $email = 'ana.torres@donguando.pe';
+        $token = $this->ingresar(self::DG, $email);
+        $api = fn () => $this->desde(self::DG, $token);
+        $api()->postJson('/api/v1/me/notifications/read-all')->assertNoContent();
+
+        $tenantId = DB::selectOne('SELECT auth_tenants_for_email(?) AS t', [$email])->t;
+        TenantContext::set(TenantContext::find($tenantId));
+        $yo = DB::table('users')->where('email', $email)->value('id');
+        $aviso = fn (string $titulo, string $tono, string $modulo, int $min) => ['user_id' => $yo, 'title' => $titulo, 'body' => 'Prueba', 'tone' => $tono,
+            'module' => $modulo, 'at' => now()->subMinutes($min), 'type' => 'prueba', 'in_app' => true];
+        DB::table('notifications')->insert([
+            $aviso('Roja de otro módulo', 'bad', 'CNT', 5),
+            $aviso('Ámbar de mi día', 'warn', 'CRM', 1),
+            $aviso('Ámbar de otro módulo', 'warn', 'CNT', 2),
+            $aviso('Informativa de mi día', 'info', 'CRM', 3),
+        ]);
+
+        $r = $api()->getJson('/api/v1/me/notifications/summary?dia=CRM,PED')->assertOk();
+        $this->assertSame(4, $r->json('unread'));
+        $this->assertSame(2, $r->json('importantes'), 'Lo rojo y lo ámbar de sus módulos del día');
+        $this->assertSame(['Roja de otro módulo', 'Ámbar de mi día'], array_column($r->json('latest_importantes'), 'title'), 'Lo rojo primero');
+        $this->assertSame('Ámbar de mi día', $r->json('latest.0.title'), 'Todas, de la más nueva a la más antigua');
+
+        $api()->getJson('/api/v1/me/notifications/summary?dia=crm;drop')->assertUnprocessable();
+    }
+
+    public function test_una_notificacion_del_rol_se_lee_por_persona(): void
+    {
+        $ana = $this->ingresar(self::DG, 'ana.torres@donguando.pe');
+        $carmen = $this->ingresar(self::DG, 'cnunez@donguando.pe');
+        foreach ([$ana, $carmen] as $t) {
+            $this->desde(self::DG, $t)->postJson('/api/v1/me/notifications/read-all')->assertNoContent();
+        }
+        $tenantId = DB::selectOne('SELECT auth_tenants_for_email(?) AS t', ['ana.torres@donguando.pe'])->t;
+        TenantContext::set(TenantContext::find($tenantId));
+        $id = (string) Str::uuid();
+        DB::table('notifications')->insert(['id' => $id, 'role' => 'VENDEDORA', 'title' => 'Vender primero: prueba', 'body' => 'Prueba', 'tone' => 'warn',
+            'module' => 'ALM', 'at' => now(), 'type' => 'prueba', 'in_app' => true]);
+
+        $sinLeer = fn (string $t) => $this->desde(self::DG, $t)->getJson('/api/v1/me/notifications/summary')->json('unread');
+        $this->assertSame(1, $sinLeer($ana));
+        $this->assertSame(1, $sinLeer($carmen));
+
+        // Ana la lee: para ella queda leída; para Carmen, no.
+        $this->desde(self::DG, $ana)->postJson("/api/v1/me/notifications/{$id}/read")->assertNoContent();
+        $this->assertSame(0, $sinLeer($ana));
+        $this->assertSame(1, $sinLeer($carmen), 'Que la lea una vendedora no la marca para las demás');
+        $this->assertTrue(collect($this->desde(self::DG, $ana)->getJson('/api/v1/me/notifications?per_page=100')->json('data'))->firstWhere('id', $id)['read']);
+
+        // «Marcar todas» de Carmen tampoco toca a nadie más, y repetir la lectura no falla.
+        $this->desde(self::DG, $carmen)->postJson('/api/v1/me/notifications/read-all')->assertNoContent();
+        $this->desde(self::DG, $carmen)->postJson("/api/v1/me/notifications/{$id}/read")->assertNoContent();
+        $this->assertSame(0, $sinLeer($carmen));
+        TenantContext::set(TenantContext::find($tenantId));
+        $this->assertNull(DB::table('notifications')->where('id', $id)->value('read_at'), 'La notificación del rol no guarda quién la leyó');
+        $this->assertSame(2, DB::table('notification_reads')->where('notification_id', $id)->count());
     }
 }

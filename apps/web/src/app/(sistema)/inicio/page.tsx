@@ -10,7 +10,7 @@ import { useSesion } from "@/lib/sesion";
  */
 export default function Inicio() {
   const { me } = useSesion();
-  const menu = menuDe(me.modules, me.roles);
+  const menu = menuDe(me.modules, me.roles, me.permissions);
   const total = menu.reduce((n, g) => n + g.modulos.length, 0);
 
   return (

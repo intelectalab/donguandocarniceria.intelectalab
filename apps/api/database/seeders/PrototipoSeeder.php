@@ -44,10 +44,15 @@ class PrototipoSeeder extends Seeder
     ];
 
     private array $data;
+
     private array $ids = [];        // tabla => [uuid => true] de lo que se va a sembrar
+
     private array $columnas = [];
+
     private array $fks = [];
+
     private string $hash;
+
     private int $horasCorregidas = 0;
 
     public function run(): void
@@ -124,6 +129,7 @@ class PrototipoSeeder extends Seeder
                             unset($this->ids[$t][$id]);
                             $omitidas++;
                         }
+
                         continue;
                     }
                     $convertidas[$t][] = $fila;
@@ -138,6 +144,16 @@ class PrototipoSeeder extends Seeder
             foreach ($convertidas as $t => $rows) {
                 $this->insertar($t, $rows);
             }
+            // Ceses del prototipo sin fecha: la del día en que se desactivó su usuario, con su motivo.
+            DB::statement(<<<'SQL'
+                UPDATE employees e
+                   SET terminated_on = u.fecha, termination_reason = COALESCE(u.motivo, e.termination_reason)
+                  FROM (SELECT DISTINCT ON (employee_id) employee_id, deactivated_at::date AS fecha, deactivated_reason AS motivo
+                          FROM users WHERE employee_id IS NOT NULL AND deactivated_at IS NOT NULL
+                         ORDER BY employee_id, deactivated_at DESC) u
+                 WHERE u.employee_id = e.id AND e.status = 'INACTIVE' AND e.termination_reason = 'Cese registrado antes del módulo MAE'
+                   AND u.fecha >= e.hire_date
+                SQL);
         } finally {
             DB::statement("SET session_replication_role = 'origin'");
         }
@@ -271,6 +287,7 @@ class PrototipoSeeder extends Seeder
             }
             if ($col === 'tenant_id') {
                 $fila[$col] = $this->uid('', $empresa);
+
                 continue;
             }
             $v = $tabla === 'users' && $col === 'password' ? $this->hash : ($r[$col] ?? null);
@@ -298,7 +315,18 @@ class PrototipoSeeder extends Seeder
             }
         }
 
-        return $fila;
+        return $tabla === 'employees' ? $this->trabajador($fila) : $fila;
+    }
+
+    /** RN-MAE-02: activo ⇔ sin fecha de cese. La demo trae un cesado (TERMINATED) sin fecha; la spec usa ACTIVE e INACTIVE. */
+    private function trabajador(array $f): array
+    {
+        if (($f['status'] ?? null) === 'ACTIVE') {
+            return array_merge($f, ['terminated_on' => null, 'termination_reason' => null]);
+        }
+
+        return array_merge($f, ['status' => 'INACTIVE', 'terminated_on' => $f['terminated_on'] ?? $f['hire_date'],
+            'termination_reason' => $f['termination_reason'] ?? 'Cese registrado antes del módulo MAE']);
     }
 
     private function tipo(mixed $v, string $tipo, ?string $clave): mixed

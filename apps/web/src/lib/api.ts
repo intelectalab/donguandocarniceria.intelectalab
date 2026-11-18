@@ -79,3 +79,29 @@ export async function apiImagen(path: string): Promise<string | null> {
   });
   return res.ok ? URL.createObjectURL(await res.blob()) : null;
 }
+
+/**
+ * Descarga un archivo de la API (una exportación en Excel…) con la sesión del usuario. El nombre
+ * sale del encabezado Content-Disposition de la API; si no viene, el de respaldo.
+ *   await apiDescargar("/v1/seg/matriz/exportar", "matriz.xlsx");
+ */
+export async function apiDescargar(path: string, respaldo = "exportacion.xlsx"): Promise<void> {
+  const token = getToken();
+  const res = await fetch(`/api${path}`, {
+    headers: { Accept: "application/json, application/octet-stream", "X-Tenant-Host": window.location.host, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new ApiError(data.message ?? "No se pudo descargar el archivo.", res.status, data.code, data.errors);
+  }
+  const disposicion = res.headers.get("Content-Disposition") ?? "";
+  const nombre = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposicion)?.[1];
+  const url = URL.createObjectURL(await res.blob());
+  const enlace = document.createElement("a");
+  enlace.href = url;
+  enlace.download = nombre ? decodeURIComponent(nombre) : respaldo;
+  document.body.appendChild(enlace);
+  enlace.click();
+  enlace.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

@@ -91,6 +91,6 @@ Route::prefix('alm')->group(function () {
     // ALM-11 Alertas de vencimiento y KPI
     Route::get('/alertas', [AlertaController::class, 'index'])->middleware('modulo:ALM');
     Route::post('/alertas/generar', [AlertaController::class, 'generar'])->middleware('modulo:ALM,E');
-    Route::post('/alertas/{lotId}/promocion', [PantallaController::class, 'promocion'])->middleware('modulo:ALM,E')->whereUuid('lotId');
+    Route::post('/alertas/{lotId}/promocion', [PantallaController::class, 'promocion'])->middleware(['modulo:ALM,E', 'throttle:20,1'])->whereUuid('lotId');
     Route::get('/kpi', [AlertaController::class, 'kpi'])->middleware('modulo:ALM');
 });
