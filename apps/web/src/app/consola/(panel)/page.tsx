@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-// Inicio de la consola: por ahora, Usuarios de plataforma (la lista de empresas llega en la tanda 2).
+// Inicio de la consola: la lista de empresas (OPS-02).
 export default function InicioConsola() {
-  redirect("/consola/usuarios");
+  redirect("/consola/empresas");
 }

@@ -9,6 +9,7 @@ use App\Http\Controllers\PublicoController;
 use App\Http\Controllers\TenantController;
 use App\Modulos\Cli\Http\Controllers\EnlaceController;
 use App\Modulos\Ops\Http\Controllers\ConsolaController;
+use App\Modulos\Ops\Http\Controllers\EmpresaController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -47,6 +48,11 @@ Route::prefix('v1/consola')->group(function () {
         Route::post('/usuarios/{id}/estado', [ConsolaController::class, 'estadoUsuario'])->whereUuid('id');
         Route::post('/usuarios/{id}/reiniciar-2fa', [ConsolaController::class, 'reiniciarSegundoFactor'])->whereUuid('id');
         Route::post('/usuarios/{id}/reenviar', [ConsolaController::class, 'reenviarInvitacion'])->middleware('throttle:10,1')->whereUuid('id');
+        // OPS-02 Empresas, OPS-03 Ficha y alta de empresa (solo PLATFORM_ADMIN da de alta; lo valida el servicio)
+        Route::get('/empresas', [EmpresaController::class, 'index']);
+        Route::get('/empresas/opciones', [EmpresaController::class, 'opciones']);
+        Route::get('/empresas/{id}', [EmpresaController::class, 'show'])->whereUuid('id');
+        Route::post('/empresas', [EmpresaController::class, 'store'])->middleware('throttle:10,1');
     });
 });
 

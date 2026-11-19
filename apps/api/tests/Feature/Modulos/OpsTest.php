@@ -3,6 +3,7 @@
 namespace Tests\Feature\Modulos;
 
 use App\Modulos\Ops\Services\UsuariosPlataforma;
+use App\Support\TenantContext;
 use App\Support\Totp;
 use Illuminate\Database\QueryException;
 use Illuminate\Routing\Middleware\ThrottleRequests;
@@ -219,5 +220,89 @@ class OpsTest extends TestCase
         } finally {
             DB::rollBack();
         }
+    }
+
+    /* ------------------------------------------------------------------ tanda 2: empresas y alta */
+
+    private function datosAlta(array $cambios = []): array
+    {
+        return $cambios + [
+            'ruc' => '20100047218', 'legal_name' => 'Distribuidora Cárnica del Norte SAC', 'trade_name' => 'Carnes del Norte', 'tax_regime' => 'MYPE',
+            'fiscal_address' => 'Av. Industrial 123, Trujillo', 'business_type' => 'DISTRIBUIDORA', 'plan_code' => 'CRECIMIENTO',
+            'admin_name' => 'Rosa Medina Paz', 'admin_email' => 'rosa.medina@carnesdelnorte.pe', 'admin_phone' => '987654321',
+        ];
+    }
+
+    public function test_alta_de_empresa_crea_todo_y_su_administrador_puede_entrar(): void
+    {
+        [$token] = $this->admin();
+        $r = $this->consola($token)->postJson('/api/v1/consola/empresas', $this->datosAlta())->assertCreated();
+        $id = $r->json('id');
+        $codigo = $r->json('codigo');
+
+        $t = DB::table('tenants')->where('id', $id)->first();
+        $this->assertSame('20100047218', $t->ruc);
+        $this->assertSame('CRECIMIENTO', $t->plan);
+        $s = DB::table('subscriptions')->where('tenant_id', $id)->first();
+        $this->assertSame('TRIAL', $s->status);
+        $this->assertSame('2026-12-03', Carbon::parse($s->trial_ends_at)->timezone('America/Lima')->toDateString(), '14 días de prueba (RN-SUS-15)');
+        $this->assertDatabaseHas('subscription_events', ['subscription_id' => $s->id, 'event' => 'CREATED', 'to_status' => 'TRIAL', 'actor_type' => 'PLATFORM_USER']);
+        $this->assertDatabaseHas('platform_audit_log', ['action' => 'TENANT_CREATED', 'target_tenant_id' => $id]);
+
+        // Dentro de la empresa nueva (con su contexto, como la API): razón social, roles, permisos y módulos del plan.
+        TenantContext::set(TenantContext::find($id));
+        $this->assertSame(1, DB::table('companies')->count());
+        $this->assertSame(22, DB::table('roles')->count());
+        $this->assertTrue(DB::table('permissions')->where('code', 'equ.usage.record')->exists(), 'Incluye los permisos que agregaron los módulos');
+        $encendidos = DB::table('tenant_modules')->where('enabled', true)->pluck('module_code')->all();
+        $this->assertContains('CRM', $encendidos, 'CRM viene en Crecimiento');
+        $this->assertNotContains('TEL', $encendidos, 'Telefonía no viene en Crecimiento');
+        $this->assertSame('INVITED', DB::table('users')->where('email', 'rosa.medina@carnesdelnorte.pe')->value('status'));
+        TenantContext::set(null);
+
+        // La administradora crea su contraseña con el código y entra a su empresa.
+        $this->desde(self::DG)->postJson('/api/v1/auth/reset', ['email' => 'rosa.medina@carnesdelnorte.pe', 'code' => $codigo, 'password' => 'Norte#Carnes2026'])->assertOk();
+        $tokenEmpresa = $this->ingresar(self::DG, 'rosa.medina@carnesdelnorte.pe', 'Norte#Carnes2026');
+        $this->desde(self::DG, $tokenEmpresa)->getJson('/api/v1/me')->assertOk()->assertJsonPath('tenant.id', $id);
+        // Y no ve nada de Don Guando.
+        TenantContext::set(TenantContext::find($id));
+        $this->assertSame(0, DB::table('customers')->count());
+        TenantContext::set(null);
+    }
+
+    public function test_alta_valida_ruc_unico_y_solo_la_hace_el_administrador(): void
+    {
+        [$token] = $this->admin();
+        $this->consola($token)->postJson('/api/v1/consola/empresas', $this->datosAlta(['ruc' => '20100047219']))
+            ->assertStatus(422)->assertJsonPath('code', 'RN-ONB-01');
+        // El RUC de Don Guando ya es cliente (RN-ONB-02).
+        $this->consola($token)->postJson('/api/v1/consola/empresas', $this->datosAlta(['ruc' => '20609147254']))
+            ->assertStatus(422)->assertJsonPath('code', 'RN-ONB-02');
+        $this->consola($token)->postJson('/api/v1/consola/empresas', $this->datosAlta(['trial_days' => 45]))
+            ->assertStatus(422)->assertJsonPath('code', 'RN-SUS-15');
+        [, $tokenL1] = $this->cuenta($token, 'karen.vilchez@intelectalab.com', 'SUPPORT_L1');
+        $this->consola($tokenL1)->postJson('/api/v1/consola/empresas', $this->datosAlta())->assertStatus(422)->assertJsonPath('code', 'RN-OPS-10');
+        $this->assertFalse(DB::table('tenants')->where('ruc', '20100047218')->exists());
+    }
+
+    public function test_lista_y_ficha_muestran_plan_estado_y_uso_sin_datos_de_negocio(): void
+    {
+        [$token] = $this->admin();
+        $id = $this->consola($token)->postJson('/api/v1/consola/empresas', $this->datosAlta())->assertCreated()->json('id');
+        $lista = collect($this->consola($token)->getJson('/api/v1/consola/empresas')->assertOk()->json('data'));
+        $dg = $lista->firstWhere('ruc', '20609147254');
+        $this->assertSame('Sin suscripción', $dg['subscription_status_name'], 'Don Guando es piloto (RN-SUS-21)');
+        $this->assertGreaterThan(0, $dg['uso'][0]['usado']);
+        $this->assertNull($dg['uso'][0]['limite']);
+        $nueva = $lista->firstWhere('id', $id);
+        $this->assertSame('TRIAL', $nueva['subscription_status']);
+        $this->assertSame(15, $nueva['uso'][0]['limite']);
+        $this->assertSame(0.0, (float) $nueva['mrr'], 'En prueba no suma al MRR');
+
+        $f = $this->consola($token)->getJson("/api/v1/consola/empresas/{$id}")->assertOk();
+        $f->assertJsonPath('suscripcion.status', 'TRIAL')->assertJsonPath('contact_email', 'rosa.medina@carnesdelnorte.pe');
+        $this->assertNotEmpty($f->json('modulos_encendidos'));
+        $this->assertSame('TENANT_CREATED', $f->json('acciones_consola.0.action'));
+        $this->assertArrayNotHasKey('customers', $f->json());
     }
 }

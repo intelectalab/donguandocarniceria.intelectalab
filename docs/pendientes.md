@@ -23,7 +23,7 @@ Lo que se vio y se dejó para después, para no perderlo. Cada punto dice qué f
 **Por hacer.**
 1. **Pronto, pequeño:** ocultar a todos los roles de empresa las pantallas de consola, con la misma lista de pantallas permitidas (`screenOnly`) que ya se usa para la vendedora y el repartidor.
 2. **Decidir:** quitar el rol `SOPORTE_PLATAFORMA`. En el prototipo simula a Intelectalab; en el sistema real lo cubren los usuarios de plataforma.
-3. ~~**Con OPS (fase 4):** la consola como entrada aparte~~ **Hecho el 19/11/2026 (tanda 1):** `/consola` con `platform_users`, su ingreso con segundo factor y su propia sesión; no fija empresa, así que RLS no le muestra datos de negocio. Ver [cambios/2026-11-19_ops-consola.md](cambios/2026-11-19_ops-consola.md). Siguen las empresas, los planes y las suscripciones (tandas 2 y 3).
+3. ~~**Con OPS (fase 4):** la consola como entrada aparte~~ **Hecho el 19/11/2026 (tanda 1):** `/consola` con `platform_users`, su ingreso con segundo factor y su propia sesión; no fija empresa, así que RLS no le muestra datos de negocio. Ver [cambios/2026-11-19_ops-consola.md](cambios/2026-11-19_ops-consola.md). El 19/11 también la tanda 2: lista y ficha de empresas y el alta desde la consola. Siguen los planes, las suscripciones y suspender o reactivar (tanda 3).
 4. **Con OPS: importar catálogos globales** (SUNAT, ubigeo y entidades financieras). *Anotado el 18/11/2026.* Hoy se hace con el comando `php artisan mae:importar-global`; el botón «Importar catálogo» del prototipo va en la consola de Intelectalab, no en el sistema de la empresa. Qué debe tener la pantalla: [catalogos-globales.md](catalogos-globales.md#lo-que-falta-para-más-adelante).
 
 ## 2. Datos y ajustes globales dentro de módulos de empresa

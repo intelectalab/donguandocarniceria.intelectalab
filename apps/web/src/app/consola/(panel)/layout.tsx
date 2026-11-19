@@ -10,10 +10,10 @@ import { apiConsola, clearTokenConsola, type UsuarioConsola } from "@/lib/consol
 
 // Lo que ya existe de la consola; lo demás aparece en la tanda que le toca.
 const MENU = [
+  { href: "/consola/empresas", label: "Empresas", code: "OPS-02", icon: Building2 },
   { href: "/consola/usuarios", label: "Usuarios de plataforma", code: "OPS-12", icon: Users },
 ];
 const PROXIMAMENTE = [
-  { label: "Empresas", icon: Building2 },
   { label: "Planes y suscripciones", icon: CreditCard },
   { label: "Bitácora de la consola", icon: ScrollText },
   { label: "Parámetros de plataforma", icon: Settings2 },
