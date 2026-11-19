@@ -12,7 +12,7 @@ type Usuario = {
   id: string; email: string; full_name: string; role: string; role_name: string; status: string; status_name: string;
   twofa_enabled_at: string | null; last_login_at: string | null; disabled_reason: string | null; sesiones: number;
 };
-type Respuesta = { data: Usuario[]; roles: { code: string; name: string }[]; dominio: string };
+type Respuesta = { data: Usuario[]; roles: { code: string; name: string }[]; dominios: string[] };
 
 const ESTADOS: Record<string, [string, "ok" | "warn" | "bad" | "neutral"]> = {
   ACTIVE: ["Activo", "ok"], INVITED: ["Invitado", "warn"], LOCKED: ["Bloqueado", "bad"], DISABLED: ["De baja", "neutral"],
@@ -107,15 +107,15 @@ export default function UsuariosPlataforma() {
       )}
       <DataTable columns={columnas} rows={datos?.data ?? []} loading={!datos && !error} error={error} onRetry={cargar} empty="Aún no hay usuarios de plataforma." />
       {editando && datos && (
-        <FormularioUsuario usuario={editando === "nuevo" ? null : editando} roles={datos.roles} dominio={datos.dominio}
+        <FormularioUsuario usuario={editando === "nuevo" ? null : editando} roles={datos.roles} dominios={datos.dominios}
           onClose={() => setEditando(null)} onGuardado={() => { setEditando(null); cargar(); }} />
       )}
     </div>
   );
 }
 
-function FormularioUsuario({ usuario, roles, dominio, onClose, onGuardado }: {
-  usuario: Usuario | null; roles: { code: string; name: string }[]; dominio: string; onClose: () => void; onGuardado: () => void;
+function FormularioUsuario({ usuario, roles, dominios, onClose, onGuardado }: {
+  usuario: Usuario | null; roles: { code: string; name: string }[]; dominios: string[]; onClose: () => void; onGuardado: () => void;
 }) {
   const [email, setEmail] = useState(usuario?.email ?? "");
   const [nombre, setNombre] = useState(usuario?.full_name ?? "");
@@ -147,8 +147,9 @@ function FormularioUsuario({ usuario, roles, dominio, onClose, onGuardado }: {
       description={usuario ? "El correo no cambia: para otra persona, crea otra cuenta." : "Queda como invitado hasta que active su cuenta con el código que le llega por correo."}
       footer={<><Button onClick={onClose} disabled={guardando}>Cancelar</Button><Button variant="primary" type="submit" form="f-usuario-plataforma" loading={guardando}>Guardar</Button></>}>
       <form id="f-usuario-plataforma" onSubmit={guardar} className="grid gap-4">
-        <Field label="Correo" required error={errores.email} hint={`Del dominio ${dominio}`}>
-          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={Boolean(usuario)} placeholder={`nombre@${dominio}`} autoComplete="off" />
+        <Field label="Correo" required error={errores.email}
+          hint={dominios.length ? `De ${dominios.length === 1 ? "el dominio" : "los dominios"} ${dominios.join(", ")} (se cambia en Parámetros de plataforma)` : "Cualquier correo"}>
+          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={Boolean(usuario)} placeholder={`nombre@${dominios[0] ?? "correo.com"}`} autoComplete="off" />
         </Field>
         <Field label="Nombre completo" required error={errores.full_name}>
           <Input value={nombre} onChange={(e) => setNombre(e.target.value)} maxLength={120} />

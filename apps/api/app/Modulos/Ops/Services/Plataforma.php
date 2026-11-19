@@ -35,6 +35,7 @@ final class Plataforma
         'ops_console_session_max_hours' => ['entero', 1, 24],
         'ops_platform_user_invite_hours' => ['entero', 1, 168],
         'ops_console_ip_allowlist' => ['redes'],
+        'ops_platform_email_domains' => ['dominios'],
         'sus_trial_days_default' => ['entero', 1, 30],
         'sus_trial_max_days' => ['entero', 1, 90],
     ];
@@ -168,9 +169,22 @@ final class Plataforma
 
             return (int) $valor;
         }
-        // Redes: lista de IP o CIDR (IPv4).
         $lista = is_array($valor) ? $valor : preg_split('/[\s,;]+/', (string) $valor, -1, PREG_SPLIT_NO_EMPTY);
-        $lista = array_values(array_unique(array_map('trim', $lista)));
+        $lista = array_values(array_unique(array_map(fn ($x) => mb_strtolower(trim(ltrim(trim($x), '@'))), $lista)));
+        // Dominios de correo: nombre de dominio válido (sin @), máximo 20.
+        if ($regla[0] === 'dominios') {
+            foreach ($lista as $dom) {
+                if (! preg_match('/^(?=.{3,120}$)([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/', $dom)) {
+                    RuleError::fail('RN-OPS-01', "«{$dom}» no es un dominio válido (por ejemplo intelectalab.com).");
+                }
+            }
+            if (count($lista) > 20) {
+                RuleError::fail('RN-OPS-01', 'Máximo 20 dominios.');
+            }
+
+            return $lista;
+        }
+        // Redes: lista de IP o CIDR (IPv4).
         foreach ($lista as $red) {
             [$ip, $bits] = array_pad(explode('/', $red), 2, null);
             if (! filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) || ($bits !== null && (! ctype_digit($bits) || (int) $bits > 32))) {

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Modulos;
 
 use App\Modulos\Ops\Services\UsuariosPlataforma;
+use App\Support\RuleError;
 use App\Support\TenantContext;
 use App\Support\Totp;
 use Illuminate\Database\QueryException;
@@ -489,5 +490,33 @@ class OpsTest extends TestCase
         [, $tokenL2] = $this->cuenta($token, 'soporte@intelectalab.com', 'SUPPORT_L2');
         $this->consola($tokenL2)->post('/api/v1/consola/catalogos/revisar', ['tabla' => 'ubigeo', 'archivo' => $archivo($existente)])
             ->assertStatus(422)->assertJsonPath('code', 'RN-OPS-10');
+    }
+
+    public function test_dominios_de_correo_permitidos_se_cambian_en_parametros(): void
+    {
+        [$token] = $this->admin();
+        $alta = fn (string $email) => $this->consola($token)->postJson('/api/v1/consola/usuarios', ['email' => $email, 'full_name' => 'Persona de Prueba', 'role' => 'READ_ONLY']);
+        $alta('persona@gmail.com')->assertStatus(422)->assertJsonPath('code', 'RN-OPS-01');
+        $this->consola($token)->putJson('/api/v1/consola/parametros/ops_platform_email_domains', ['value' => "intelectalab.com\n@Gmail.com", 'reason' => 'Personal con Gmail'])
+            ->assertOk()->assertJsonPath('value', ['intelectalab.com', 'gmail.com']);
+        $alta('persona@gmail.com')->assertCreated();
+        $this->consola($token)->putJson('/api/v1/consola/parametros/ops_platform_email_domains', ['value' => 'no es dominio', 'reason' => 'Prueba de error'])
+            ->assertStatus(422)->assertJsonPath('code', 'RN-OPS-01');
+        // Vacío: cualquier correo.
+        $this->consola($token)->putJson('/api/v1/consola/parametros/ops_platform_email_domains', ['value' => '', 'reason' => 'Sin restricción de dominio'])->assertOk();
+        $alta('otra@empresa.pe')->assertCreated();
+    }
+
+    public function test_la_primera_cuenta_puede_agregar_su_dominio_desde_el_servidor(): void
+    {
+        try {
+            UsuariosPlataforma::primeraCuenta('yadira@gmail.com', 'Yadira Prueba');
+            $this->fail('Sin --agregar-dominio, un correo de otro dominio no entra');
+        } catch (RuleError $e) {
+            $this->assertSame('RN-OPS-01', $e->rule);
+        }
+        $this->assertNotEmpty(UsuariosPlataforma::primeraCuenta('yadira@gmail.com', 'Yadira Prueba', true));
+        $this->assertContains('gmail.com', json_decode(DB::table('platform_parameters')->where('key', 'ops_platform_email_domains')->value('value'), true));
+        $this->assertDatabaseHas('platform_parameter_history', ['key' => 'ops_platform_email_domains', 'changed_by_name' => 'Servidor (ops:crear-admin)']);
     }
 }

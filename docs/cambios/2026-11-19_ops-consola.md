@@ -415,3 +415,23 @@ Falta de la spec:
 - **Cambio de plan con prorrateo.**
 - **Lo que ve la empresa de su suscripción:** SUS-01 a 08.
 - **ONB-01 a 15:** registro público y asistente de alta.
+
+---
+
+## Dominios de correo de la consola (ajuste del 19/11)
+
+Antes, las cuentas de la consola tenían que ser `@intelectalab.com`, fijo en el código (`Consola::DOMINIO`). Ahora es el parámetro de plataforma **`ops_platform_email_domains`**:
+
+- Es una lista de dominios y viene con `intelectalab.com`. Lo agrega la migración `2026_11_19_000400_ops_dominios_de_correo.php`.
+- Se cambia en **OPS-16 Parámetros de plataforma**, con motivo y queda en el historial. Se escribe un dominio por línea; acepta escrito con o sin @ y lo guarda en minúsculas. Se aceptan hasta 20 dominios válidos.
+- **Vacío acepta cualquier correo.**
+- Vale para las cuentas nuevas: las que ya existen no cambian.
+- **Primera cuenta con otro dominio:** como todavía no hay administrador que pueda cambiar el parámetro, el comando tiene la opción `--agregar-dominio`, que suma el dominio de ese correo a la lista y deja constancia en el historial y en la bitácora:
+
+  ```
+  php artisan ops:crear-admin nombre@gmail.com "Nombre" --agregar-dominio
+  ```
+
+  Sin esa opción, el comando rechaza el correo y explica cómo usarla.
+
+Se agregaron 2 pruebas; en total el sistema tiene 337. Se revisó en el navegador agregando `gmail.com` desde OPS-16.

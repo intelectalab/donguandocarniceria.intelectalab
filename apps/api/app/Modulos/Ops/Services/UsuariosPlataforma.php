@@ -68,13 +68,24 @@ final class UsuariosPlataforma
      * Primera cuenta de la consola, desde el servidor (comando ops:crear-admin). Solo si no hay ningún administrador
      * de plataforma activo: después, las cuentas se crean en OPS-12. Devuelve el código de activación.
      */
-    public static function primeraCuenta(string $email, string $nombre): string
+    public static function primeraCuenta(string $email, string $nombre, bool $agregarDominio = false): string
     {
         if (DB::table('platform_users')->where('role', 'PLATFORM_ADMIN')->where('status', 'ACTIVE')->exists()) {
             RuleError::fail('RN-OPS-10', 'Ya hay un administrador de plataforma activo: crea las demás cuentas en Usuarios de plataforma.');
         }
-        $email = self::correo($email);
         $sistema = ['id' => null, 'full_name' => 'Servidor (ops:crear-admin)', 'role' => 'PLATFORM_ADMIN'];
+        // Sin administrador no hay quien cambie los dominios en la consola: desde el servidor se agrega el de esta cuenta.
+        $dominio = mb_strtolower(mb_substr(strrchr(trim($email), '@') ?: '', 1));
+        $dominios = Consola::dominios();
+        if ($agregarDominio && $dominio !== '' && $dominios && ! in_array($dominio, $dominios, true)) {
+            $nuevo = [...$dominios, $dominio];
+            DB::table('platform_parameters')->where('key', 'ops_platform_email_domains')->update(['value' => json_encode($nuevo), 'updated_at' => now()]);
+            DB::table('platform_parameter_history')->insert(['key' => 'ops_platform_email_domains', 'old_value' => json_encode($dominios), 'new_value' => json_encode($nuevo),
+                'reason' => "Dominio de la primera cuenta de la consola ({$dominio})", 'changed_by_name' => $sistema['full_name'], 'changed_at' => now()]);
+            Consola::bitacora('PARAMETER_CHANGED', $sistema, ['entity' => 'platform_parameters', 'entity_id' => 'ops_platform_email_domains',
+                'reason' => "Dominio de la primera cuenta de la consola ({$dominio})", 'detail' => ['antes' => $dominios, 'despues' => $nuevo]]);
+        }
+        $email = self::correo($email);
 
         return DB::transaction(function () use ($email, $nombre, $sistema) {
             $existe = DB::table('platform_users')->whereRaw('lower(email) = ?', [$email])->first();
@@ -332,8 +343,10 @@ final class UsuariosPlataforma
     private static function correo(string $email): string
     {
         $email = mb_strtolower(trim($email));
-        if (! str_ends_with($email, '@'.Consola::DOMINIO)) {
-            RuleError::fail('RN-OPS-01', 'El correo debe ser del dominio '.Consola::DOMINIO.'.');
+        $dominios = Consola::dominios();
+        if ($dominios && ! in_array(mb_substr(strrchr($email, '@') ?: '', 1), $dominios, true)) {
+            RuleError::fail('RN-OPS-01', 'El correo debe ser de '.(count($dominios) === 1 ? 'el dominio ' : 'uno de estos dominios: ').implode(', ', $dominios)
+                .'. Los dominios permitidos se cambian en Parámetros de plataforma.');
         }
 
         return $email;

@@ -13,7 +13,7 @@ type Parametro = {
   historial: { old_value: unknown; new_value: unknown; reason: string; changed_by_name: string; changed_at: string }[];
 };
 
-const mostrar = (v: unknown) => Array.isArray(v) ? (v.length ? v.join(", ") : "Vacía (acepta todas)") : String(v);
+const mostrar = (v: unknown) => Array.isArray(v) ? (v.length ? v.join(", ") : "Vacía (acepta todo)") : String(v);
 
 /** OPS-16 Parámetros de plataforma: valores de toda la plataforma; cada cambio pide motivo y queda en su historial (RN-OPS-05). */
 export default function ParametrosPlataforma() {
@@ -69,7 +69,8 @@ export default function ParametrosPlataforma() {
 }
 
 function Editar({ p, onClose, onGuardado }: { p: Parametro; onClose: () => void; onGuardado: () => void }) {
-  const esLista = p.regla?.[0] === "redes";
+  const esLista = p.regla?.[0] === "redes" || p.regla?.[0] === "dominios";
+  const esDominios = p.regla?.[0] === "dominios";
   const [valor, setValor] = useState(esLista ? (p.value as string[]).join("\n") : String(p.value));
   const [motivo, setMotivo] = useState("");
   const [errores, setErrores] = useState<Record<string, string>>({});
@@ -98,7 +99,9 @@ function Editar({ p, onClose, onGuardado }: { p: Parametro; onClose: () => void;
       footer={<><Button onClick={onClose} disabled={guardando}>Cancelar</Button><Button variant="primary" type="submit" form="f-parametro" loading={guardando}>Guardar</Button></>}>
       <form id="f-parametro" onSubmit={guardar} className="grid gap-4">
         {esLista ? (
-          <Field label="Redes permitidas" error={errores.value} hint="Una IP o red por línea (por ejemplo 190.237.14.22 o 10.0.0.0/8). Vacía acepta todas. Incluye la tuya o te quedarás sin acceso.">
+          <Field label={esDominios ? "Dominios de correo permitidos" : "Redes permitidas"} error={errores.value}
+            hint={esDominios ? "Un dominio por línea, sin @ (por ejemplo intelectalab.com). Vacía acepta cualquier correo. Solo vale para las cuentas nuevas."
+              : "Una IP o red por línea (por ejemplo 190.237.14.22 o 10.0.0.0/8). Vacía acepta todas. Incluye la tuya o te quedarás sin acceso."}>
             <Textarea rows={4} value={valor} onChange={(e) => setValor(e.target.value)} className="font-mono" />
           </Field>
         ) : (

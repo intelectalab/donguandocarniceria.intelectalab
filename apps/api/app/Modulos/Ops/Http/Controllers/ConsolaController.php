@@ -67,7 +67,7 @@ class ConsolaController extends Controller
         return response()->json([
             'data' => UsuariosPlataforma::lista(),
             'roles' => collect(Consola::ROLES)->map(fn ($n, $c) => ['code' => $c, 'name' => $n])->values(),
-            'dominio' => Consola::DOMINIO,
+            'dominios' => Consola::dominios(),
         ]);
     }
 

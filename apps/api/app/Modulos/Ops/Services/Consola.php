@@ -37,8 +37,11 @@ final class Consola
         'tenant.status' => 'cambiar el estado de una suscripción ni suspender o reactivar empresas', 'tenant.create' => 'dar de alta empresas',
         'plans.manage' => 'administrar planes, pruebas ni descuentos', 'catalogs.import' => 'importar catálogos globales'];
 
-    /** Dominio de correo del personal de Intelectalab (como en el prototipo). */
-    public const DOMINIO = 'intelectalab.com';
+    /** Dominios de correo permitidos para las cuentas de la consola (parámetro de plataforma; vacío = cualquiera). */
+    public static function dominios(): array
+    {
+        return array_values(array_filter((array) self::param('ops_platform_email_domains', ['intelectalab.com'])));
+    }
 
     public static function param(string $key, mixed $porDefecto = null): mixed
     {
