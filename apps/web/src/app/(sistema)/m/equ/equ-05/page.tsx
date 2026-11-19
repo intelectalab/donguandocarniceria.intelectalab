@@ -52,7 +52,7 @@ export default function Planes() {
 
   return (
     <div className="space-y-5">
-      <PageHeader description={`Cada plan crea su orden preventiva al llegar la fecha o las horas de uso (cada mañana, o con «Generar órdenes»). Con más de ${c.datos?.overdue_days ?? 7} días de atraso se avisa al jefe de producción (RN-EQU-07).`}
+      <PageHeader description={`Cada plan crea su orden preventiva al llegar la fecha o las horas de uso (cada mañana, o con «Generar órdenes»). Con más de ${c.datos?.overdue_days ?? 7} días de atraso se avisa al jefe de producción.`}
         actions={gestiona && <>
           <Button icon={RefreshCw} loading={generando} onClick={generar}>Generar órdenes que tocan</Button>
           <Button variant="primary" icon={Plus} disabled={!op} onClick={() => setEditando(null)}>Nuevo plan</Button>
@@ -63,7 +63,7 @@ export default function Planes() {
         <CifraLink titulo="Vencidos" valor={c.datos ? numero(c.datos.overdue) : undefined} detalle={`Más de ${c.datos?.overdue_days ?? 7} días · aviso al jefe`} icono={TriangleAlert}
           tono={c.datos?.overdue ? "bad" : "ok"} onClick={() => setEstado("OVERDUE")} />
         <CifraLink destacada titulo="Cumplimiento del preventivo" valor={c.datos?.compliance.value != null ? porcentaje(c.datos.compliance.value, 1) : "—"}
-          detalle={c.datos ? `${c.datos.compliance.on_time} de ${c.datos.compliance.total} a tiempo este mes · KPI-EQU-04` : undefined} icono={CalendarCheck} href="/m/equ/equ-09" />
+          detalle={c.datos ? `${c.datos.compliance.on_time} de ${c.datos.compliance.total} a tiempo este mes` : undefined} icono={CalendarCheck} href="/m/equ/equ-09" />
       </div>
       {error && <Alert tone="bad">{error}</Alert>}
       <DataTable rows={datos?.data ?? []} rowKey={(p) => p.id} columns={columnas} loading={!datos && !error} empty="No hay planes con esos filtros."

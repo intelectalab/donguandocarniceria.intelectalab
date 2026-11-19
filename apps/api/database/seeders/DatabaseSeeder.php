@@ -11,6 +11,7 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call(PrototipoSeeder::class);
+        \App\Modulos\Equ\Permisos::asegurar(); // permisos de EQU que la spec no trae
         $this->call(AlmDemoSeeder::class);
         $this->call(EquDemoSeeder::class);
     }

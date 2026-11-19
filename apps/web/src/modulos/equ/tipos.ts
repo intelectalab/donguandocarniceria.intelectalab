@@ -40,7 +40,7 @@ export type Opciones = {
   employees: { id: string; full_name: string; position: string | null; establishment_id: string | null }[];
   params: { calibration_alert_days: number; preventive_overdue_days: number; scale_calibration_months: number; expiring_days: number };
   today: string; suggested_valid_until: string;
-  can: { manage: boolean; calibrate: boolean; maintain: boolean; report: boolean };
+  can: { manage: boolean; calibrate: boolean; maintain: boolean; report: boolean; usage: boolean };
 };
 
 export type Equipo = {

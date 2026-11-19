@@ -16,7 +16,7 @@ class EquDiario extends Command
 {
     protected $signature = 'equ:diario {--fecha= : Fecha (AAAA-MM-DD), por defecto hoy en Lima}';
 
-    protected $description = 'Crea las órdenes preventivas que tocan y avisa calibraciones por vencer (RN-EQU-07 y RN-EQU-08)';
+    protected $description = 'Crea las órdenes preventivas que tocan y avisa calibraciones por vencer';
 
     public function handle(): int
     {

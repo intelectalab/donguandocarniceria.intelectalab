@@ -52,7 +52,7 @@ export default function Equipos() {
 
   return (
     <div className="space-y-5">
-      <PageHeader description="Selladoras, cocinas, ollas, balanzas, cámaras, congeladoras, molinos y embutidoras de los locales, con su QR. Un equipo fuera de servicio o con la calibración vencida no se usa (RN-EQU-03 y RN-EQU-04)."
+      <PageHeader description="Selladoras, cocinas, ollas, balanzas, cámaras, congeladoras, molinos y embutidoras de los locales, con su QR. Un equipo fuera de servicio o con la calibración vencida no se usa."
         actions={crea && <Button variant="primary" icon={Plus} disabled={!op} onClick={() => setNuevo(true)}>Nuevo equipo</Button>} />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <CifraLink destacada titulo="Equipos" valor={c ? numero(c.equipment) : undefined} detalle="Activos y fuera de servicio" icono={Wrench} onClick={() => { setEstado(""); setApto(""); }} />

@@ -39,14 +39,14 @@ export default function Ordenes() {
 
   return (
     <div className="space-y-5">
-      <PageHeader description="Una correctiva deja el equipo fuera de servicio hasta cerrarla (RN-EQU-05). Al cerrar, el costo es mano de obra + repuestos + servicio externo y se carga al centro de costo del equipo (RN-EQU-06)."
+      <PageHeader description="Una correctiva deja el equipo fuera de servicio hasta cerrarla. Al cerrar, el costo es mano de obra + repuestos + servicio externo y se carga al centro de costo del equipo."
         actions={crea && <Button variant="primary" icon={Plus} disabled={!op} onClick={() => setNueva(true)}>Nueva orden</Button>} />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <CifraLink titulo="Abiertas" valor={c.datos ? numero(c.datos.open) : undefined} detalle="Abiertas o en curso" icono={Wrench} tono={c.datos?.open ? "warn" : "ok"} onClick={() => { setEstado("ABIERTAS"); setTipo(""); }} />
         <CifraLink titulo="Correctivas abiertas" valor={c.datos ? numero(c.datos.open_corrective) : undefined} detalle="Equipos fuera de servicio" icono={TriangleAlert}
           tono={c.datos?.open_corrective ? "bad" : "ok"} onClick={() => { setEstado("ABIERTAS"); setTipo("CORRECTIVE"); }} />
-        <CifraLink destacada titulo="Costo del mes" valor={c.datos ? soles(c.datos.month_cost) : undefined} detalle="Órdenes cerradas · KPI-EQU-03" icono={CircleDollarSign} href="/m/equ/equ-09" />
-        <CifraLink titulo="Disponibilidad del mes" valor={c.datos?.availability != null ? porcentaje(c.datos.availability, 2) : undefined} detalle="KPI-EQU-01" icono={Activity} href="/m/equ/equ-09" />
+        <CifraLink destacada titulo="Costo del mes" valor={c.datos ? soles(c.datos.month_cost) : undefined} detalle="Órdenes cerradas" icono={CircleDollarSign} href="/m/equ/equ-09" />
+        <CifraLink titulo="Disponibilidad del mes" valor={c.datos?.availability != null ? porcentaje(c.datos.availability, 2) : undefined} detalle="Ver el tablero" icono={Activity} href="/m/equ/equ-09" />
       </div>
       <DataTable {...lista.tabla} columns={columnas} onRowClick={(o) => setAbierta(o.id)}
         search={{ ...lista.tabla.search, placeholder: "Buscar orden, equipo o falla…" }} empty="No hay órdenes con esos filtros."

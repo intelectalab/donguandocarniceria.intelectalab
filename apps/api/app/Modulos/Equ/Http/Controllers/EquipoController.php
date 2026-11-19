@@ -137,6 +137,7 @@ class EquipoController extends Controller
             'can' => [
                 'manage' => Access::can($u, 'equ.equipment.manage'), 'calibrate' => Access::can($u, 'equ.calibration.record'),
                 'maintain' => Access::can($u, 'equ.maintenance.manage'), 'report' => Access::can($u, 'equ.failure.report') || Access::can($u, 'equ.maintenance.manage'),
+                'usage' => Access::can($u, 'equ.usage.record'),
             ],
         ]);
     }

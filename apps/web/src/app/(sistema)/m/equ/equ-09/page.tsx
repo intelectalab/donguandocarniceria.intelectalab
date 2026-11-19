@@ -39,12 +39,12 @@ export default function TableroEquipos() {
       {error && <Alert tone="bad">{error}</Alert>}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <CifraLink destacada titulo="Disponibilidad" valor={t?.availability.value != null ? porcentaje(t.availability.value, 2) : undefined}
-          detalle={t ? `KPI-EQU-01 · ${numero(t.availability.down_hours, 1)} h fuera de servicio` : undefined} icono={Activity} href="/m/equ/equ-06" />
+          detalle={t ? `${numero(t.availability.down_hours, 1)} h fuera de servicio` : undefined} icono={Activity} href="/m/equ/equ-06" />
         <CifraLink titulo="Balanzas con calibración vigente" valor={t ? (t.scales.value != null ? porcentaje(t.scales.value, 1) : "—") : undefined}
-          detalle={t ? `KPI-EQU-02 · ${t.scales.ok} de ${t.scales.total} · meta 100 %` : undefined} icono={Scale} tono={t ? (t.scales.ok === t.scales.total ? "ok" : "bad") : undefined} href="/m/equ/equ-04" />
-        <CifraLink titulo="Costo de mantenimiento" valor={t ? soles(t.maintenance_cost) : undefined} detalle="KPI-EQU-03 · órdenes cerradas" icono={CircleDollarSign} href="/m/equ/equ-06" />
+          detalle={t ? `${t.scales.ok} de ${t.scales.total} · meta 100 %` : undefined} icono={Scale} tono={t ? (t.scales.ok === t.scales.total ? "ok" : "bad") : undefined} href="/m/equ/equ-04" />
+        <CifraLink titulo="Costo de mantenimiento" valor={t ? soles(t.maintenance_cost) : undefined} detalle="Órdenes cerradas" icono={CircleDollarSign} href="/m/equ/equ-06" />
         <CifraLink titulo="Cumplimiento del preventivo" valor={t ? (t.preventive.value != null ? porcentaje(t.preventive.value, 1) : "—") : undefined}
-          detalle={t ? `KPI-EQU-04 · ${t.preventive.on_time} de ${t.preventive.total} a tiempo` : undefined} icono={CalendarCheck} href="/m/equ/equ-05" />
+          detalle={t ? `${t.preventive.on_time} de ${t.preventive.total} a tiempo` : undefined} icono={CalendarCheck} href="/m/equ/equ-05" />
       </div>
       {t && <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-xl border border-line bg-surface p-4 shadow-card">
@@ -89,7 +89,7 @@ export default function TableroEquipos() {
             { key: "code", header: "Balanza", cardTitle: true, render: (b) => <span><span className="font-mono font-semibold">{b.code}</span><span className="block text-[12px] text-muted">{b.name}</span></span> },
             { key: "establishment_name", header: "Local", render: (b) => b.establishment_name },
             { key: "valid_until", header: "Vigente hasta", render: (b) => fecha(b.valid_until) },
-            { key: "usable", header: "Pesa ventas", render: (b) => b.usable ? <Badge tone="ok">Sí</Badge> : <Badge tone="bad">No ({b.rule})</Badge> },
+            { key: "usable", header: "Pesa ventas", render: (b) => b.usable ? <Badge tone="ok">Sí</Badge> : <Badge tone="bad">No</Badge> },
           ]} />
         </section>
       </div>}
