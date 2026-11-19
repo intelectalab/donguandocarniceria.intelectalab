@@ -40,3 +40,11 @@ Después de `git pull`: `php artisan migrate --database=pgsql_owner`.
 
 ## A tener en cuenta
 - Los lotes de stock de los datos de prueba vencieron en octubre: una vendedora no puede confirmar porque no hay stock (RN-PED-17). Para probar, entrar como gerente, que confirma sin stock.
+
+## Revisión antes de subir (18/11/2026, Yadira)
+- **Aprobar o rechazar un descuento revisa el alcance de quien decide:** con el id de una solicitud de otra marca o local responde 404, como la lista. Antes bastaba el permiso de aprobar.
+- **Borradores vencidos:** `ped:vencer-borradores` quedó programado cada hora en `routes/console.php`. Abrir la lista de pedidos ya no cancela borradores: una consulta no cambia datos.
+- **Franjas de entrega:** solo se crean o cambian franjas de los locales del alcance del usuario (también al mover una franja a otro local).
+- Pruebas nuevas en `PedTest` para los tres casos (fallan con el código anterior).
+- Revisado y sin cambios: alcance por marca, local y vendedora en listas y acciones; permisos de crear, confirmar, reprogramar, cancelar y confirmar sin stock; precio desde la lista vigente; descuento sin pasar del subtotal; bloqueos de franja, número y pedido; exportación con Excel y bitácora; enlace de WhatsApp; `?id=` con `useSearchParams` dentro de `Suspense`.
+- Para más adelante: avanzar a «En ruta» o «Entregado» solo pide editar en el módulo (cumple la spec); revisarlo cuando existan PRE y DEL.

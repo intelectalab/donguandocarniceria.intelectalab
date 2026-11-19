@@ -8,9 +8,9 @@ use App\Modulos\Ped\Services\Pedidos;
 use App\Modulos\Ped\Services\Pesos;
 use App\Support\Exportar;
 use App\Support\Listado;
+use App\Support\Params;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
@@ -45,12 +45,8 @@ class PedidoController extends Controller
     /** Contadores por estado con los mismos filtros (sin el de estado) y opciones de los filtros. */
     public function resumen(Request $request)
     {
-        // RN-PED-18: además del comando ped:vencer-borradores, al abrir la lista se cancelan los
-        // borradores vencidos (a lo más cada 10 minutos por empresa).
-        $empresa = DB::selectOne('SELECT app_tenant_id() AS t')->t;
-        if (Cache::add("ped:vencer:{$empresa}", 1, 600)) {
-            Estados::vencerBorradores($request->user());
-        }
+        // RN-PED-18: los borradores vencidos los cancela la tarea ped:vencer-borradores, cada hora
+        // (routes/console.php). Abrir la lista solo consulta: no cambia datos.
         $f = $this->filtros($request);
         $base = $this->consulta($request, $f);
         $this->vista($base, $f['vista'] ?? 'ACTIVOS');
@@ -156,7 +152,7 @@ class PedidoController extends Controller
             'siguientes' => Estados::siguientes($o),
             'saldo' => Estados::saldo($o),
             'peso' => in_array($o->status, ['IN_PREPARATION', 'WEIGHED', 'READY', 'IN_ROUTE', 'DELIVERED', 'NOT_DELIVERED', 'CLOSED'], true) ? Pesos::evaluar($o) : null,
-            'max_reprogramaciones' => (int) (\App\Support\Params::get('ped_max_reschedules', ['brand' => $o->brand_id]) ?? 2),
+            'max_reprogramaciones' => (int) (Params::get('ped_max_reschedules', ['brand' => $o->brand_id]) ?? 2),
         ];
     }
 

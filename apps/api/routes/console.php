@@ -19,3 +19,6 @@ Schedule::command('mae:cargar-tipo-cambio')->dailyAt('09:00')->timezone('America
 
 // EQU · RN-EQU-07 y RN-EQU-08: órdenes preventivas que tocan y avisos de calibración, cada mañana en hora de Lima.
 Schedule::command('equ:diario')->dailyAt('06:10')->timezone('America/Lima')->withoutOverlapping();
+
+// PED · RN-PED-18: cancela los borradores sin actividad (ped_draft_expiry_hours, 48 h por defecto), cada hora.
+Schedule::command('ped:vencer-borradores')->hourly()->withoutOverlapping();
