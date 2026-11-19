@@ -5,6 +5,8 @@ namespace App\Modulos\Ped\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modulos\Ped\Services\Franjas;
 use App\Modulos\Ped\Services\Pedidos;
+use App\Support\Access;
+use App\Support\RuleError;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -48,14 +50,30 @@ class FranjaController extends Controller
 
     public function store(Request $request)
     {
-        return response()->json(Franjas::guardar(null, $this->datos($request)), 201);
+        $d = $this->datos($request);
+        $this->localDelAlcance($request, $d['establishment_id']);
+
+        return response()->json(Franjas::guardar(null, $d), 201);
     }
 
     public function update(Request $request, string $id)
     {
-        DB::table('order_time_slots')->where('id', $id)->firstOrFail();
+        $actual = DB::table('order_time_slots')->where('id', $id)->first() ?? abort(404, 'Franja no encontrada.');
+        $d = $this->datos($request);
+        // Ni la franja actual ni el local al que se mueve pueden estar fuera de su alcance.
+        $this->localDelAlcance($request, $actual->establishment_id);
+        $this->localDelAlcance($request, $d['establishment_id']);
 
-        return response()->json(Franjas::guardar($id, $this->datos($request)));
+        return response()->json(Franjas::guardar($id, $d));
+    }
+
+    /** Solo se crean o cambian franjas de los locales del alcance del usuario (sin locales asignados, todos). */
+    private function localDelAlcance(Request $request, string $local): void
+    {
+        $locales = Access::for($request->user())['establishments'];
+        if ($locales && ! in_array($local, $locales, true)) {
+            RuleError::fail('RN-PED-06', 'Ese local está fuera de tu alcance: solo puedes cambiar las franjas de tus locales.');
+        }
     }
 
     /** Pedidos de una franja en una fecha (al pulsar una celda del calendario). */

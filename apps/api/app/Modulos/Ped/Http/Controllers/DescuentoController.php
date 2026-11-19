@@ -30,6 +30,7 @@ class DescuentoController extends Controller
     public function aprobar(Request $request, string $id)
     {
         $d = $request->validate(['note' => ['nullable', 'string', 'max:255']]);
+        $this->delAlcance($request, $id);
 
         return response()->json(Descuentos::decidir($id, true, $d['note'] ?? null, $request->user()));
     }
@@ -37,8 +38,19 @@ class DescuentoController extends Controller
     public function rechazar(Request $request, string $id)
     {
         $d = $request->validate(['note' => ['required', 'string', 'max:255']]);
+        $this->delAlcance($request, $id);
 
         return response()->json(Descuentos::decidir($id, false, $d['note'], $request->user()));
+    }
+
+    /**
+     * Quien aprueba o rechaza solo decide sobre pedidos de su alcance (marcas y locales), igual que en la lista:
+     * con el id de una solicitud de otra marca responde 404, como si no existiera.
+     */
+    private function delAlcance(Request $request, string $id): void
+    {
+        $orden = DB::table('order_discount_approvals')->where('id', $id)->value('order_id') ?? abort(404, 'Solicitud no encontrada.');
+        Pedidos::visible($orden, $request->user());
     }
 
     /** El límite de quien pide, para avisarle en el formulario antes de guardar. */

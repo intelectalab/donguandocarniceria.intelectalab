@@ -4,7 +4,9 @@ namespace Tests\Feature\Modulos;
 
 use App\Models\User;
 use App\Modulos\Ped\Services\Estados;
+use App\Support\Access;
 use App\Support\TenantContext;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -313,7 +315,7 @@ class PedTest extends TestCase
     {
         $o = $this->pedido(2, ['payment_method_id' => null]);
         $this->contexto();
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         DB::table('sales_orders')->where('id', $o['pedido']['id'])->update(['status' => 'CONFIRMED']);
     }
 
@@ -422,5 +424,60 @@ class PedTest extends TestCase
         $this->supervisora()->postJson('/api/v1/ped/motivos', ['code' => 'LLUVIA', 'name' => 'Lluvia fuerte', 'applies_to' => 'NOT_DELIVERED', 'requires_note' => false, 'counts_as_loss' => false])->assertCreated();
         $this->supervisora()->postJson('/api/v1/ped/limites', ['role' => 'CAJERO', 'brand_id' => $this->marca('DG'), 'max_pct' => 4, 'max_amount' => 15])->assertCreated();
         $this->supervisora()->postJson('/api/v1/ped/limites', ['role' => 'CAJERO', 'max_pct' => 4, 'max_amount' => 15])->assertUnprocessable();
+    }
+
+    /** Limita el alcance de la supervisora (su rol pasa a alcance asignado) a una marca o a un local. */
+    private function supervisoraConAlcance(?string $marca, ?string $local): void
+    {
+        $this->contexto();
+        $u = User::where('email', 'pleon@donguando.pe')->first();
+        DB::table('roles')->where('code', 'SUPERVISORA_VENTAS')->update(['scope_mode' => 'ASSIGNED']);
+        DB::table('user_scopes')->where('user_id', $u->id)->delete();
+        DB::table('user_scopes')->insert(['user_id' => $u->id, 'brand_id' => $marca, 'establishment_id' => $local]);
+        Access::forget();
+    }
+
+    public function test_aprobar_descuento_solo_dentro_de_su_alcance(): void
+    {
+        $o = $this->pedido(2, ['discount' => ['pct' => 10, 'reason' => 'Cliente frecuente']], 'ana.torres@donguando.pe');
+        $sol = collect($this->supervisora()->getJson('/api/v1/ped/descuentos')->json())->firstWhere('order_id', $o['pedido']['id']);
+        // Con alcance solo en otra marca, la solicitud de Don Guando no existe para ella: ni la aprueba ni la rechaza.
+        $this->supervisoraConAlcance($this->marca('M2'), null);
+        $this->supervisora()->postJson("/api/v1/ped/descuentos/{$sol['id']}/aprobar")->assertNotFound();
+        $this->supervisora()->postJson("/api/v1/ped/descuentos/{$sol['id']}/rechazar", ['note' => 'Fuera de mi marca'])->assertNotFound();
+        $this->contexto();
+        $this->assertSame('PENDING', DB::table('order_discount_approvals')->where('id', $sol['id'])->value('status'));
+        // Con Don Guando en su alcance, sí.
+        $this->supervisoraConAlcance($this->marca('DG'), null);
+        $this->supervisora()->postJson("/api/v1/ped/descuentos/{$sol['id']}/aprobar")->assertOk()->assertJsonPath('status', 'APPROVED');
+    }
+
+    public function test_franjas_solo_de_sus_locales(): void
+    {
+        $this->contexto();
+        $l1 = DB::table('establishments')->where('code', 'L1')->value('id');
+        $l2 = DB::table('establishments')->where('code', 'L2')->value('id');
+        $franja = fn (string $local, string $desde) => ['establishment_id' => $local, 'slot_from' => $desde, 'slot_to' => '05:30', 'cutoff' => '04:00',
+            'capacity' => 5, 'weekdays' => [1, 2, 3, 4, 5]];
+        $this->supervisoraConAlcance(null, $l1);
+        $this->supervisora()->postJson('/api/v1/ped/franjas', $franja($l2, '05:00'))->assertUnprocessable()->assertJsonPath('code', 'RN-PED-06');
+        $id = $this->supervisora()->postJson('/api/v1/ped/franjas', $franja($l1, '05:00'))->assertCreated()->json('id');
+        // Tampoco puede mover su franja a otro local, ni cambiar una franja de otro local.
+        $this->supervisora()->putJson("/api/v1/ped/franjas/{$id}", $franja($l2, '05:00'))->assertUnprocessable()->assertJsonPath('code', 'RN-PED-06');
+        $otra = DB::table('order_time_slots')->where('establishment_id', $l2)->value('id');
+        $this->supervisora()->putJson("/api/v1/ped/franjas/{$otra}", $franja($l1, '05:10'))->assertUnprocessable()->assertJsonPath('code', 'RN-PED-06');
+    }
+
+    public function test_abrir_la_lista_no_cancela_borradores_lo_hace_la_tarea(): void
+    {
+        $id = $this->pedido(1)['pedido']['id'];
+        $this->contexto();
+        DB::table('sales_orders')->where('id', $id)->update(['last_activity_at' => now()->subDays(5), 'updated_at' => now()->subDays(5)]);
+        $this->gerente()->getJson('/api/v1/ped/pedidos/resumen')->assertOk();
+        $this->contexto();
+        $this->assertSame('DRAFT', DB::table('sales_orders')->where('id', $id)->value('status'));
+        $this->artisan('ped:vencer-borradores')->assertSuccessful();
+        $this->contexto();
+        $this->assertSame('CANCELLED', DB::table('sales_orders')->where('id', $id)->value('status'));
     }
 }
