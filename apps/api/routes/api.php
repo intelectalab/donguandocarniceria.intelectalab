@@ -11,6 +11,7 @@ use App\Modulos\Cli\Http\Controllers\EnlaceController;
 use App\Modulos\Ops\Http\Controllers\ConsolaController;
 use App\Modulos\Ops\Http\Controllers\EmpresaController;
 use App\Modulos\Ops\Http\Controllers\PlanController;
+use App\Modulos\Ops\Http\Controllers\PlataformaController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -66,6 +67,12 @@ Route::prefix('v1/consola')->group(function () {
         Route::post('/suscripciones/{id}/estado', [PlanController::class, 'estado'])->whereUuid('id');
         Route::post('/suscripciones/{id}/extender', [PlanController::class, 'extender'])->whereUuid('id');
         Route::post('/suscripciones/{id}/descuento', [PlanController::class, 'descuento'])->whereUuid('id');
+        // OPS-13 Bitácora, OPS-16 Parámetros de plataforma y catálogos globales (RN-MAE-11)
+        Route::get('/bitacora', [PlataformaController::class, 'bitacora']);
+        Route::get('/parametros', [PlataformaController::class, 'parametros']);
+        Route::put('/parametros/{key}', [PlataformaController::class, 'cambiarParametro'])->where('key', '[a-z0-9_]{3,60}');
+        Route::post('/catalogos/revisar', [PlataformaController::class, 'revisarCatalogo'])->middleware('throttle:20,1');
+        Route::post('/catalogos/importar', [PlataformaController::class, 'importarCatalogo'])->middleware('throttle:10,1');
     });
 });
 

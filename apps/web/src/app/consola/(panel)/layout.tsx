@@ -3,21 +3,20 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Building2, CreditCard, Layers, Loader2, LogOut, ScrollText, Settings2, ShieldCheck, Users } from "lucide-react";
+import { Building2, CreditCard, Database, Layers, Loader2, LogOut, ScrollText, Settings2, ShieldCheck, Users } from "lucide-react";
 import { UiHost } from "@/components/ui";
 import { SesionConsola } from "@/components/consola/sesion";
 import { apiConsola, clearTokenConsola, type UsuarioConsola } from "@/lib/consola";
 
-// Lo que ya existe de la consola; lo demás aparece en la tanda que le toca.
+// Menú de la consola.
 const MENU = [
   { href: "/consola/empresas", label: "Empresas", code: "OPS-02", icon: Building2 },
   { href: "/consola/suscripciones", label: "Suscripciones", code: "SUS-11", icon: CreditCard },
   { href: "/consola/planes", label: "Catálogo de planes", code: "SUS-09", icon: Layers },
   { href: "/consola/usuarios", label: "Usuarios de plataforma", code: "OPS-12", icon: Users },
-];
-const PROXIMAMENTE = [
-  { label: "Bitácora de la consola", icon: ScrollText },
-  { label: "Parámetros de plataforma", icon: Settings2 },
+  { href: "/consola/catalogos", label: "Catálogos globales", code: "MAE", icon: Database },
+  { href: "/consola/parametros", label: "Parámetros de plataforma", code: "OPS-16", icon: Settings2 },
+  { href: "/consola/bitacora", label: "Bitácora de la consola", code: "OPS-13", icon: ScrollText },
 ];
 
 /** Armazón de la consola de Intelectalab: menú propio, sin empresa ni marca (OPS). */
@@ -61,12 +60,6 @@ export default function PanelConsola({ children }: { children: ReactNode }) {
                 </Link>
               );
             })}
-            <p className="mt-3 hidden px-3 text-[10.5px] font-semibold tracking-wider text-white/40 uppercase md:block">Próximas tandas</p>
-            {PROXIMAMENTE.map((m) => (
-              <span key={m.label} className="hidden items-center gap-2.5 px-3 py-2 text-[13px] text-white/35 md:flex" aria-disabled="true">
-                <m.icon size={16} /> {m.label}
-              </span>
-            ))}
           </nav>
           <div className="hidden border-t border-white/10 p-3 md:block">
             <p className="truncate text-[13px] font-semibold">{usuario.full_name}</p>

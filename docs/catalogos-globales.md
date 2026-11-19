@@ -67,7 +67,17 @@ php artisan mae:importar-global sunat ruta/al/archivo.txt
 
 Después, abrir MAE-07, MAE-08 o MAE-09 y revisar que aparezca lo cargado.
 
-## Lo que falta (para más adelante)
+## Desde la consola (hecho el 19/11/2026)
+
+La consola de Intelectalab tiene la pantalla **Catálogos globales** (`/consola/catalogos`, solo para el administrador de plataforma, con segundo factor):
+
+1. Se elige el catálogo y se sube el archivo con los mismos formatos de arriba (`.txt` o `.csv`, hasta 5 MB).
+2. **«Revisar sin grabar»** muestra las filas nuevas, las que cambian (con ejemplos de antes y después), las que quedan igual y los errores por línea.
+3. Solo con el archivo sin errores se importa, con motivo. Graba con la conexión del dueño de la base y queda en la bitácora de la consola (quién, cuándo, cuántas filas, nombre y huella del archivo).
+
+El comando `mae:importar-global` sigue funcionando y usa la misma lógica (`App\Modulos\Mae\Services\CatalogosGlobales`).
+
+## Lo que se pedía antes (ya resuelto)
 
 Hoy la actualización se hace con este comando porque **todavía no existe la consola de la plataforma** (módulo OPS, de Intelectalab). El prototipo la ponía como un botón «Importar catálogo», «Importar archivo INEI» dentro de MAE-07 y MAE-08, visible solo para el operador de la plataforma (`mae.catalog.import`).
 

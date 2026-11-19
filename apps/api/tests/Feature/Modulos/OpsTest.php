@@ -6,6 +6,7 @@ use App\Modulos\Ops\Services\UsuariosPlataforma;
 use App\Support\TenantContext;
 use App\Support\Totp;
 use Illuminate\Database\QueryException;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Crypt;
@@ -413,5 +414,80 @@ class OpsTest extends TestCase
         $this->consola($tokenL1)->getJson('/api/v1/consola/suscripciones')->assertOk();   // consultar sí
         [, $tokenCobranza] = $this->cuenta($token, 'oscar.delgado@intelectalab.com', 'BILLING');
         $this->consola($tokenCobranza)->postJson("/api/v1/consola/suscripciones/{$sub}/estado", ['status' => 'ACTIVE', 'reason' => 'Pagó la primera cuota'])->assertOk();
+    }
+
+    /* ------------------------------------------------------------------ tanda 4: bitácora, parámetros y catálogos */
+
+    public function test_bitacora_de_la_consola_con_filtros(): void
+    {
+        [$token] = $this->admin();
+        $this->consola($token)->postJson('/api/v1/consola/empresas', $this->datosAlta())->assertCreated();
+        $r = $this->consola($token)->getJson('/api/v1/consola/bitacora?action=TENANT_CREATED')->assertOk();
+        $this->assertSame(1, $r->json('total'));
+        $this->assertSame('Alta de empresa', $r->json('data.0.action_name'));
+        $this->assertSame('Carnes del Norte', $r->json('data.0.tenant_short'));
+        $this->assertSame('20100047218', $r->json('data.0.detail.ruc'), 'El detalle llega como datos, no como texto');
+        $this->assertGreaterThan(0, $this->consola($token)->getJson('/api/v1/consola/bitacora?search=ana')->json('total'));
+        $this->assertNotEmpty($r->json('acciones'));
+    }
+
+    public function test_parametros_de_plataforma_con_motivo_historial_y_reglas(): void
+    {
+        [$token] = $this->admin();
+        $this->consola($token)->putJson('/api/v1/consola/parametros/ops_console_session_minutes', ['value' => 45, 'reason' => 'Turnos largos de soporte'])
+            ->assertOk()->assertJsonPath('value', 45)->assertJsonPath('historial.0.reason', 'Turnos largos de soporte');
+        $this->assertSame(45, (int) json_decode(DB::table('platform_parameters')->where('key', 'ops_console_session_minutes')->value('value')));
+        $this->consola($token)->putJson('/api/v1/consola/parametros/ops_console_session_minutes', ['value' => 500, 'reason' => 'Demasiado'])
+            ->assertStatus(422)->assertJsonPath('code', 'RN-OPS-05');
+        $this->consola($token)->putJson('/api/v1/consola/parametros/ops_console_session_minutes', ['value' => 60])->assertStatus(422)->assertJsonValidationErrors('reason');
+        // RN-OPS-16: no puede dejarse afuera a sí mismo (las pruebas llegan desde 127.0.0.1).
+        $this->consola($token)->putJson('/api/v1/consola/parametros/ops_console_ip_allowlist', ['value' => '10.0.0.0/8', 'reason' => 'Solo la oficina'])
+            ->assertStatus(422)->assertJsonPath('code', 'RN-OPS-16');
+        $this->consola($token)->putJson('/api/v1/consola/parametros/ops_console_ip_allowlist', ['value' => '10.0.0.0/8, 127.0.0.1', 'reason' => 'Oficina y local'])
+            ->assertOk()->assertJsonPath('value', ['10.0.0.0/8', '127.0.0.1']);
+        $this->consola($token)->putJson('/api/v1/consola/parametros/ops_console_ip_allowlist', ['value' => '999.1.1.1', 'reason' => 'Red errada'])
+            ->assertStatus(422)->assertJsonPath('code', 'RN-OPS-16');
+        $this->assertDatabaseHas('platform_audit_log', ['action' => 'PARAMETER_CHANGED', 'entity_id' => 'ops_console_session_minutes']);
+        [, $tokenL1] = $this->cuenta($token, 'karen.vilchez@intelectalab.com', 'SUPPORT_L1');
+        $this->consola($tokenL1)->getJson('/api/v1/consola/parametros')->assertOk();
+        $this->consola($tokenL1)->putJson('/api/v1/consola/parametros/ops_console_session_minutes', ['value' => 20, 'reason' => 'Intento'])
+            ->assertStatus(422)->assertJsonPath('code', 'RN-OPS-10');
+    }
+
+    public function test_catalogos_globales_se_revisan_antes_de_importar(): void
+    {
+        [$token] = $this->admin();
+        $u = DB::table('ubigeo')->where('code', '150101')->first() ?? DB::table('ubigeo')->first();
+        $existente = "{$u->code};{$u->department};{$u->province};{$u->district}";
+        $archivo = fn (string $texto) => UploadedFile::fake()->createWithContent('ubigeo.txt', $texto);
+
+        // Revisar: una igual, una nueva y una con error; no graba nada.
+        $r = $this->consola($token)->post('/api/v1/consola/catalogos/revisar', ['tabla' => 'ubigeo', 'archivo' => $archivo("{$existente}\n999901;PRUEBA;PRUEBA;DISTRITO NUEVO\nabc;sin datos")])
+            ->assertOk();
+        $this->assertSame(2, $r->json('validas'));
+        $this->assertSame(3, $r->json('errores.0.linea'));
+        $this->assertSame(1, $r->json('previa.nuevas'));
+        $this->assertSame(1, $r->json('previa.iguales'));
+        $this->assertFalse(DB::table('ubigeo')->where('code', '999901')->exists());
+
+        // Con errores no importa nada.
+        $this->consola($token)->post('/api/v1/consola/catalogos/importar', ['tabla' => 'ubigeo', 'reason' => 'Actualización INEI', 'archivo' => $archivo("{$existente}\nabc;sin datos")])
+            ->assertStatus(422)->assertJsonPath('code', 'RN-MAE-11');
+
+        // Sin errores importa (con el dueño de la base) y queda en la bitácora. Se deshace al terminar la prueba.
+        $owner = DB::connection('pgsql_owner');
+        $owner->beginTransaction();
+        try {
+            $this->consola($token)->post('/api/v1/consola/catalogos/importar', ['tabla' => 'ubigeo', 'reason' => 'Actualización INEI', 'archivo' => $archivo("{$existente}\n999901;PRUEBA;PRUEBA;DISTRITO NUEVO")])
+                ->assertOk()->assertJsonPath('previa.nuevas', 1);
+            $this->assertTrue($owner->table('ubigeo')->where('code', '999901')->exists());
+        } finally {
+            $owner->rollBack();
+        }
+        $this->assertDatabaseHas('platform_audit_log', ['action' => 'CATALOG_IMPORTED', 'entity' => 'ubigeo']);
+
+        [, $tokenL2] = $this->cuenta($token, 'soporte@intelectalab.com', 'SUPPORT_L2');
+        $this->consola($tokenL2)->post('/api/v1/consola/catalogos/revisar', ['tabla' => 'ubigeo', 'archivo' => $archivo($existente)])
+            ->assertStatus(422)->assertJsonPath('code', 'RN-OPS-10');
     }
 }

@@ -328,3 +328,90 @@ Revisión en el navegador contra `aycha_test`:
 - **SUS-12 a SUS-14:** facturación del SaaS, cobros y mora, que esperan la pasarela y el RUC emisor.
 - **Lo que ve la empresa de su propia suscripción** (SUS-01 a SUS-08), incluida la franja de mora y solo lectura en el sistema.
 - **Tanda 4:** bitácora de la consola, parámetros de plataforma, importar catálogos y ocultar a las empresas las pantallas de la consola.
+
+---
+
+# Tanda 4: bitácora, parámetros de plataforma, catálogos globales y ocultar la consola a las empresas
+
+No hay migración nueva: usa las tablas de la tanda 1 (`platform_audit_log`, `platform_parameters`, `platform_parameter_history`).
+
+## Pantallas
+
+- **OPS-13 Bitácora de la consola** (`/consola/bitacora`):
+  - Muestra toda acción de la consola con fecha y hora, acción en español, quién, empresa, motivo, detalle e IP.
+  - Tiene buscador (persona, motivo, empresa o IP) y filtros por acción, usuario, empresa y rango de fechas. Va paginada.
+  - Es de solo lectura para todos los roles (RN-OPS-05).
+- **OPS-16 Parámetros de plataforma** (`/consola/parametros`):
+  - Cada parámetro muestra su valor, descripción, último cambio y quién lo hizo, y su historial (de antes a después, con motivo).
+  - Solo el administrador de plataforma los cambia, siempre con motivo. Cada cambio deja una fila en el historial (solo inserción) y otra en la bitácora.
+  - Cada parámetro tiene sus límites:
+
+    | Parámetro | Rango |
+    |---|---|
+    | Minutos de inactividad | 5 a 240 |
+    | Horas máximas de sesión | 1 a 24 |
+    | Horas de la invitación | 1 a 168 |
+    | Días de prueba | 1 a 30, sin pasar el tope |
+    | Tope de días de prueba | 1 a 90, sin bajar de los días por defecto |
+    | Redes permitidas | IP o CIDR IPv4 válidas, máximo 50 |
+
+  - **RN-OPS-16:** nadie puede guardar una lista de redes que deje afuera su propia IP.
+- **Catálogos globales** (`/consola/catalogos`, RN-MAE-11): la pantalla que pedía `docs/catalogos-globales.md`.
+  - Se elige el catálogo (SUNAT, ubigeo o entidades financieras) y se sube un `.txt` o `.csv` de hasta 5 MB.
+  - **«Revisar sin grabar»** muestra las filas válidas, cuántas son nuevas, cuántas cambian (con ejemplos de antes y después) y cuántas quedan igual, y los errores con su número de línea.
+  - Solo se importa si no hay errores, con motivo. Graba con la conexión del dueño de la base (la de las empresas no puede escribir ahí).
+  - Cada importación queda en la bitácora con cuántas filas eran nuevas o cambiaban, el nombre del archivo y su huella SHA-256.
+  - Solo la hace el administrador de plataforma.
+  - La lógica pasó del comando a `App\Modulos\Mae\Services\CatalogosGlobales`. El comando `mae:importar-global` y la pantalla hacen lo mismo; el comando ahora además lista todos los errores y dice cuántas filas son nuevas o cambian.
+- **Menú de la consola:** muestra todas sus pantallas. Ya no hay «próximas tandas».
+
+## Las empresas ya no ven pantallas de la consola (pendientes.md, punto 1.1)
+
+`lib/modulos.ts` tiene ahora la lista `SOLO_CONSOLA`: OPS-01 a 13, OPS-16, SUS-09 a 14 y ONB-16. Esas pantallas no salen en el sistema de ninguna empresa, tenga el rol que tenga.
+
+Revisado con el Gerente de Don Guando:
+
+| Módulo | Antes | Ahora | Lo que le queda |
+|---|---|---|---|
+| OPS | 16 pantallas | 2 | Sus accesos de soporte y sus tickets |
+| SUS | 14 | 8 | Su propia suscripción |
+| ONB | 16 | 15 | Su alta |
+
+## Pruebas
+
+3 pruebas nuevas en `OpsTest`:
+- la bitácora con filtros, con el detalle como datos;
+- los parámetros con motivo, historial, rangos, la regla de no dejarse afuera y quién puede cambiarlos;
+- los catálogos: revisar sin grabar, no importar con errores, importar y quién puede hacerlo.
+
+En total el sistema tiene 335 pruebas, todas correctas.
+
+Revisión en el navegador contra `aycha_test`:
+- un cambio de parámetro con su motivo;
+- la bitácora, donde se encontró y corrigió que el detalle salía letra por letra (el conocido `(array)$x + [...]`);
+- la revisión de un archivo de ubigeo con una fila nueva, un cambio y un error;
+- el menú del Gerente de Don Guando sin las pantallas de la consola.
+
+## Con esto, la consola queda así
+
+| Pantalla | Ruta |
+|---|---|
+| Ingreso con segundo factor y activación de cuentas | `/consola/ingreso`, `/consola/activar` |
+| OPS-02 Empresas y OPS-03 Ficha, con el alta de empresas | `/consola/empresas` |
+| SUS-11 Suscripciones y OPS-04 Suspender o reactivar | `/consola/suscripciones` y la ficha |
+| SUS-09 Catálogo de planes | `/consola/planes` |
+| OPS-12 Usuarios de plataforma | `/consola/usuarios` |
+| Catálogos globales | `/consola/catalogos` |
+| OPS-16 Parámetros de plataforma | `/consola/parametros` |
+| OPS-13 Bitácora | `/consola/bitacora` |
+
+Falta de la spec:
+- **OPS-05, 06 y 14:** accesos de soporte que aprueba la empresa.
+- **OPS-07 y 08:** salud de componentes e incidentes.
+- **OPS-09 y 15:** tickets.
+- **OPS-10:** métricas del negocio.
+- **OPS-11:** anuncios.
+- **SUS-12 a 14:** facturación, cobros y mora del SaaS.
+- **Cambio de plan con prorrateo.**
+- **Lo que ve la empresa de su suscripción:** SUS-01 a 08.
+- **ONB-01 a 15:** registro público y asistente de alta.

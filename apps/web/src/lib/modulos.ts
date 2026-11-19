@@ -39,11 +39,21 @@ const SOLO = menu.screenOnly as Record<string, Record<string, string[]>>;
 const FUERA_DEL_MENU = new Set(["SEG-01", "SEG-02", "SEG-03", "SEG-04", "SEG-05"]);
 
 /**
+ * Pantallas de la consola de Intelectalab (/consola): nunca salen en el sistema de una empresa, tenga el rol que
+ * tenga (pendientes.md, punto 1). La empresa ve de OPS solo sus accesos de soporte y sus tickets (OPS-14 y 15), de
+ * SUS su propia suscripción (SUS-01 a 08) y de ONB su alta (ONB-01 a 15).
+ */
+const SOLO_CONSOLA = new Set([
+  ...Array.from({ length: 13 }, (_, i) => `OPS-${String(i + 1).padStart(2, "0")}`), "OPS-16",
+  ...Array.from({ length: 6 }, (_, i) => `SUS-${String(i + 9).padStart(2, "0")}`), "ONB-16",
+]);
+
+/**
  * Si una pantalla se le muestra a una persona con uno o más roles: respeta las pantallas restringidas
  * por rol y las que la spec reserva a ciertos roles (gerencia y auditoría ven todas).
  */
 export function pantallaVisible(modulo: string, p: Pantalla, roles: string[]) {
-  if (FUERA_DEL_MENU.has(p.code)) return false;
+  if (FUERA_DEL_MENU.has(p.code) || SOLO_CONSOLA.has(p.code)) return false;
   return roles.some((rol) => {
     const solo = SOLO[rol]?.[modulo];
     if (solo && !solo.includes(p.code)) return false;

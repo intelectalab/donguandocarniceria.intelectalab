@@ -35,7 +35,7 @@ final class Consola
 
     private const ACCION = ['users.manage' => 'administrar usuarios de plataforma', 'params.manage' => 'cambiar parámetros de plataforma',
         'tenant.status' => 'cambiar el estado de una suscripción ni suspender o reactivar empresas', 'tenant.create' => 'dar de alta empresas',
-        'plans.manage' => 'administrar planes, pruebas ni descuentos'];
+        'plans.manage' => 'administrar planes, pruebas ni descuentos', 'catalogs.import' => 'importar catálogos globales'];
 
     /** Dominio de correo del personal de Intelectalab (como en el prototipo). */
     public const DOMINIO = 'intelectalab.com';
