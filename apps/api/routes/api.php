@@ -8,6 +8,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicoController;
 use App\Http\Controllers\TenantController;
 use App\Modulos\Cli\Http\Controllers\EnlaceController;
+use App\Modulos\Ops\Http\Controllers\ConsolaController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -27,6 +28,26 @@ Route::prefix('v1/publico')->group(function () {
     // CLI-07: el cliente abre su enlace de ubicación (de un solo uso) y marca su pin. La empresa sale del enlace.
     Route::get('/ubicacion/{token}', [EnlaceController::class, 'publico'])->middleware('throttle:30,1')->where('token', '[A-Za-z0-9]{32}');
     Route::post('/ubicacion/{token}', [EnlaceController::class, 'completar'])->middleware('throttle:10,1')->where('token', '[A-Za-z0-9]{32}');
+});
+
+// OPS · Consola de Intelectalab: sin empresa (no pasa por «tenant» ni por Sanctum). Usuarios de plataforma con
+// su propio ingreso, segundo factor obligatorio y sesión «gcc_…» (middleware «consola»). Ver docs/cambios.
+Route::prefix('v1/consola')->group(function () {
+    Route::post('/ingreso', [ConsolaController::class, 'ingresar'])->middleware('throttle:10,1');
+    Route::post('/activar/preparar', [ConsolaController::class, 'prepararActivacion'])->middleware('throttle:10,1');
+    Route::post('/activar', [ConsolaController::class, 'activar'])->middleware('throttle:10,1');
+
+    Route::middleware(['consola', 'throttle:120,1'])->group(function () {
+        Route::get('/yo', [ConsolaController::class, 'yo']);
+        Route::post('/salir', [ConsolaController::class, 'salir']);
+        // OPS-12 Usuarios de plataforma (solo PLATFORM_ADMIN cambia; lo valida el servicio, RN-OPS-10)
+        Route::get('/usuarios', [ConsolaController::class, 'usuarios']);
+        Route::post('/usuarios', [ConsolaController::class, 'crearUsuario'])->middleware('throttle:20,1');
+        Route::put('/usuarios/{id}', [ConsolaController::class, 'editarUsuario'])->whereUuid('id');
+        Route::post('/usuarios/{id}/estado', [ConsolaController::class, 'estadoUsuario'])->whereUuid('id');
+        Route::post('/usuarios/{id}/reiniciar-2fa', [ConsolaController::class, 'reiniciarSegundoFactor'])->whereUuid('id');
+        Route::post('/usuarios/{id}/reenviar', [ConsolaController::class, 'reenviarInvitacion'])->middleware('throttle:10,1')->whereUuid('id');
+    });
 });
 
 Route::prefix('v1')->middleware('tenant')->group(function () {

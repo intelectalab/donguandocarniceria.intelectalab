@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { TOKEN_COOKIE } from "@/lib/auth";
+import { CONSOLA_COOKIE, TOKEN_COOKIE } from "@/lib/auth";
 
 // Solo decide a dónde llevar a cada quien según tenga o no sesión: los permisos reales
 // los valida la API en cada petición.
@@ -12,6 +12,8 @@ const PAGINAS = ["/", "/precios"];
 const INICIO = "/inicio";
 // Lo que abre un cliente sin cuenta (el enlace de ubicación de CLI-07): con o sin sesión, en el dominio del sistema.
 const ABIERTAS = ["/u"];
+// Consola de Intelectalab: lo que se abre sin su sesión (ingreso y activación de la cuenta).
+const CONSOLA_PUBLICAS = ["/consola/ingreso", "/consola/activar"];
 
 // Dos dominios, como «aycha.pe» (página pública) y «app.aycha.pe» (el sistema), igual que erp-saas.
 // Se activa al definir SITE_URL y APP_URL; sin ellas todo vive en un solo dominio.
@@ -40,6 +42,14 @@ export function proxy(request: NextRequest) {
   }
   if (DOS_DOMINIOS && host === APP_HOST && PAGINAS.includes(pathname)) {
     return NextResponse.redirect(new URL(`${pathname}${search}`, SITE_URL));
+  }
+  // Consola de Intelectalab: su propia sesión (otra cookie), sin relación con la de las empresas.
+  if (coincide(pathname, ["/consola"])) {
+    const conConsola = Boolean(request.cookies.get(CONSOLA_COOKIE)?.value);
+    const abierta = coincide(pathname, CONSOLA_PUBLICAS);
+    if (!conConsola && !abierta) return NextResponse.redirect(new URL("/consola/ingreso", request.url));
+    if (conConsola && pathname === "/consola/ingreso") return NextResponse.redirect(new URL("/consola", request.url));
+    return NextResponse.next();
   }
   if (coincide(pathname, ABIERTAS)) return NextResponse.next();
   // Las páginas públicas, con o sin sesión.
