@@ -26,7 +26,7 @@ final class Consola
     /** RN-OPS-10: lo que hace cada rol. «*» es todo. */
     private const PUEDE = [
         'PLATFORM_ADMIN' => ['*'],
-        'BILLING' => ['tenant.status', 'metrics.freeze'],
+        'BILLING' => ['tenant.status', 'plans.manage', 'metrics.freeze'],
         'SUPPORT_L1' => ['ticket.manage', 'access.request_ro'],
         'SUPPORT_L2' => ['ticket.manage', 'access.request_ro', 'access.request_rw', 'reprocess'],
         'ENGINEER' => ['health.record', 'incident.manage', 'access.request_ro', 'access.request_rw', 'announce.manage', 'ticket.manage'],
@@ -34,7 +34,8 @@ final class Consola
     ];
 
     private const ACCION = ['users.manage' => 'administrar usuarios de plataforma', 'params.manage' => 'cambiar parámetros de plataforma',
-        'tenant.status' => 'suspender ni reactivar empresas', 'tenant.create' => 'dar de alta empresas'];
+        'tenant.status' => 'cambiar el estado de una suscripción ni suspender o reactivar empresas', 'tenant.create' => 'dar de alta empresas',
+        'plans.manage' => 'administrar planes, pruebas ni descuentos'];
 
     /** Dominio de correo del personal de Intelectalab (como en el prototipo). */
     public const DOMINIO = 'intelectalab.com';

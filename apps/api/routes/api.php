@@ -10,6 +10,7 @@ use App\Http\Controllers\TenantController;
 use App\Modulos\Cli\Http\Controllers\EnlaceController;
 use App\Modulos\Ops\Http\Controllers\ConsolaController;
 use App\Modulos\Ops\Http\Controllers\EmpresaController;
+use App\Modulos\Ops\Http\Controllers\PlanController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -53,6 +54,18 @@ Route::prefix('v1/consola')->group(function () {
         Route::get('/empresas/opciones', [EmpresaController::class, 'opciones']);
         Route::get('/empresas/{id}', [EmpresaController::class, 'show'])->whereUuid('id');
         Route::post('/empresas', [EmpresaController::class, 'store'])->middleware('throttle:10,1');
+        // SUS-09 Catálogo de planes, SUS-11 Suscripciones y OPS-04 Suspender o reactivar (roles: lo valida el servicio)
+        Route::get('/planes', [PlanController::class, 'catalogo']);
+        Route::post('/planes/borradores', [PlanController::class, 'nuevoBorrador']);
+        Route::put('/planes/borradores/{id}', [PlanController::class, 'editarBorrador'])->whereUuid('id');
+        Route::delete('/planes/borradores/{id}', [PlanController::class, 'borrarBorrador'])->whereUuid('id');
+        Route::post('/planes/borradores/{id}/publicar', [PlanController::class, 'publicar'])->whereUuid('id');
+        Route::post('/planes/{codigo}/retirar', [PlanController::class, 'retirar'])->where('codigo', '[A-Z][A-Z0-9_]{1,19}');
+        Route::get('/suscripciones', [PlanController::class, 'suscripciones']);
+        Route::get('/suscripciones/{id}', [PlanController::class, 'suscripcion'])->whereUuid('id');
+        Route::post('/suscripciones/{id}/estado', [PlanController::class, 'estado'])->whereUuid('id');
+        Route::post('/suscripciones/{id}/extender', [PlanController::class, 'extender'])->whereUuid('id');
+        Route::post('/suscripciones/{id}/descuento', [PlanController::class, 'descuento'])->whereUuid('id');
     });
 });
 
@@ -64,7 +77,8 @@ Route::prefix('v1')->middleware('tenant')->group(function () {
     Route::post('/auth/reset', [PasswordResetController::class, 'reset'])->middleware('throttle:10,1');
     Route::get('/auth/password-rule', [ProfileController::class, 'passwordRule']);
 
-    Route::middleware(['auth:sanctum', 'usuario'])->group(function () {
+    // suscripcion: en solo lectura o cancelada, la empresa no registra nada (RN-SUS-07).
+    Route::middleware(['auth:sanctum', 'usuario', 'suscripcion'])->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::get('/me', MeController::class);
         Route::post('/me/password', [ProfileController::class, 'password'])->middleware('throttle:10,1');

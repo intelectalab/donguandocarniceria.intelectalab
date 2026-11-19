@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Alert, Badge, DetailList, PageHeader, StatusBadge } from "@/components/ui";
+import { AccionesSuscripcion } from "@/components/consola/AccionesSuscripcion";
 import { BarraUso, ESTADOS_SUSCRIPCION, type Empresa } from "@/components/consola/empresas";
+import { useUsuarioConsola } from "@/components/consola/sesion";
 import { mensajeDe } from "@/lib/api";
 import { apiConsola } from "@/lib/consola";
 import { fecha, fechaHora, soles } from "@/lib/formato";
@@ -15,13 +17,15 @@ type Ficha = Empresa & {
   hostname: string; contact_name: string | null; contact_email: string | null; contact_phone: string | null; creada_por: string | null;
   dominios: { hostname: string; is_primary: boolean; status: string }[];
   suscripcion: null | { id: string; plan_code: string; status: string; status_name: string; started_at: string; status_changed_at: string;
-    trial_ends_at: string | null; trial_days_granted: number; historial: Evento[] };
+    trial_ends_at: string | null; trial_days_granted: number; historial: Evento[];
+    discount_pct: number; discount_reason: string | null; tenant_status: string; transiciones: string[]; efectos: Record<string, string> };
   modulos_encendidos: { module_code: string; name: string; phase: number; sus_source: string | null }[];
   acciones_consola: { action: string; actor_name: string; reason: string | null; occurred_at: string }[];
 };
 
-const ACCIONES: Record<string, string> = { TENANT_CREATED: "Alta de la empresa" };
-const EVENTOS: Record<string, string> = { CREATED: "Alta", STATUS_CHANGED: "Cambio de estado", TRIAL_EXTENDED: "Prueba extendida", PLAN_CHANGED: "Cambio de plan" };
+const ACCIONES: Record<string, string> = { TENANT_CREATED: "Alta de la empresa", TENANT_SUSPENDED: "Empresa suspendida", TENANT_REACTIVATED: "Empresa reactivada",
+  SUBSCRIPTION_STATUS: "Cambio de estado de la suscripción", TRIAL_EXTENDED: "Prueba extendida", SUBSCRIPTION_DISCOUNT: "Descuento pactado" };
+const EVENTOS: Record<string, string> = { CREATED: "Alta", STATUS_CHANGED: "Cambio de estado", TRIAL_EXTENDED: "Prueba extendida", DISCOUNT: "Descuento", PLAN_CHANGED: "Cambio de plan" };
 
 function Tarjeta({ titulo, children, extra }: { titulo: string; children: ReactNode; extra?: ReactNode }) {
   return (
@@ -38,12 +42,12 @@ function Tarjeta({ titulo, children, extra }: { titulo: string; children: ReactN
 /** OPS-03 Ficha de la empresa: suscripción e historial, uso por límite, módulos y acciones de la consola sobre ella. */
 function FichaEmpresa() {
   const id = useSearchParams().get("id");
+  const yo = useUsuarioConsola();
   const [f, setF] = useState<Ficha | null>(null);
   const [error, setError] = useState("");
+  const cargar = () => { if (id) apiConsola<Ficha>(`/empresas/${id}`).then(setF).catch((e) => setError(mensajeDe(e))); };
 
-  useEffect(() => {
-    if (id) apiConsola<Ficha>(`/empresas/${id}`).then(setF).catch((e) => setError(mensajeDe(e)));
-  }, [id]);
+  useEffect(cargar, [id]);
 
   const volver = <Link href="/consola/empresas" className="inline-flex items-center gap-1.5 text-[13px] font-medium text-primary hover:underline"><ArrowLeft size={14} />Empresas</Link>;
   if (!id || error) return <div className="grid gap-4">{volver}<Alert tone="bad">{error || "Falta la empresa."}</Alert></div>;
@@ -56,6 +60,7 @@ function FichaEmpresa() {
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="font-display text-[22px] font-bold text-ink">{f.short}</h1>
         {s ? <StatusBadge status={s.status} labels={ESTADOS_SUSCRIPCION} /> : <Badge>Sin suscripción · piloto</Badge>}
+        {f.tenant_status === "SUSPENDED" && <Badge tone="bad" dot>Acceso suspendido</Badge>}
       </div>
       <PageHeader code="OPS-03" description={`${f.name}${f.ruc ? ` · RUC ${f.ruc}` : ""}. La consola ve su suscripción, su uso y los módulos encendidos; sus datos de negocio, solo con un acceso de soporte que la empresa apruebe.`} />
 
@@ -72,15 +77,19 @@ function FichaEmpresa() {
           ]} />
         </Tarjeta>
 
-        <Tarjeta titulo="Suscripción">
+        <Tarjeta titulo="Suscripción" extra={<span className="font-mono text-[11px] text-accent">OPS-04</span>}>
           {s ? (
+            <div className="grid gap-4">
             <DetailList items={[
               { label: "Plan", value: f.plan_name },
               { label: "Estado", value: `${s.status_name} desde el ${fecha(s.status_changed_at)}` },
               { label: "Fin de la prueba", value: s.trial_ends_at ? `${fecha(s.trial_ends_at)} (${s.trial_days_granted} días)` : "—" },
               { label: "MRR", value: f.mrr ? soles(f.mrr) : "No suma mientras está en prueba" },
               { label: "Desde", value: fecha(s.started_at) },
+              { label: "Descuento pactado", value: s.discount_pct > 0 ? `${s.discount_pct} % · ${s.discount_reason ?? ""}` : "Sin descuento" },
             ]} />
+            <AccionesSuscripcion s={s} efectos={s.efectos} puedeEstado={yo.puede["tenant.status"]} puedePlanes={yo.puede["plans.manage"]} onCambio={cargar} />
+            </div>
           ) : (
             <p className="text-[13.5px] text-muted">Opera sin suscripción (piloto o empresa interna): no tiene límites, cobros ni bloqueos.</p>
           )}

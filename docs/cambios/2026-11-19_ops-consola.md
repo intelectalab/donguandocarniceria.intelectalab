@@ -219,3 +219,112 @@ Dos ajustes posteriores no se volvieron a revisar en pantalla: el error de RUC j
 - OPS-04 Suspender o reactivar con motivo.
 - Extender la prueba y cambiar de plan.
 - Reenviar la invitación del administrador desde la ficha.
+
+---
+
+# Tanda 3: planes con versiones, suscripciones y suspender o reactivar (SUS-09, SUS-11 y OPS-04)
+
+## Base de datos
+
+Migración `2026_11_19_000300_sus_versiones_de_planes_y_estados.php`. Después de `git pull`, correr `php artisan migrate --database=pgsql_owner`.
+
+- **`saas_plan_versions`** (versiones de cada plan):
+  - Una versión nace como borrador (DRAFT), se publica (PUBLISHED) y termina retirada (RETIRED).
+  - Hay una sola versión publicada y un solo borrador por plan.
+  - Un trigger impide cambiar una versión publicada, salvo para retirarla; tampoco deja tocar ni borrar una retirada, ni borrar nada que no sea un borrador (RN-SUS-02).
+  - Lo publicado necesita un precio mayor que cero.
+  - Cada plan existente queda como su versión 1 publicada.
+- **`subscriptions`** gana tres columnas:
+  - `plan_version_id`: la versión que contrató la empresa. La conserva hasta que cambie de plan.
+  - `discount_pct` y `discount_reason`: el descuento pactado, de 0 a 100 %.
+- **Funciones guardadas.** `saas_plans`, `saas_plan_modules` y `tenants` siguen siendo de solo lectura para la aplicación; solo las cambian estas funciones, y solo a nombre de un usuario de plataforma activo con rol Administración o Cobranza:
+
+  | Función | Qué hace |
+  |---|---|
+  | `platform_publish_plan_version` | Retira la versión publicada anterior y deja `saas_plans` y sus módulos como la nueva. De ahí leen la página pública y el alta. |
+  | `platform_retire_plan` | Deja de vender el plan. |
+  | `platform_set_tenant_status` | Suspende o reactiva el acceso de una empresa. |
+
+## Reglas
+
+- **RN-SUS-01:**
+  - Para publicar, el plan necesita precio, al menos un módulo y las dependencias de cada módulo, ya sea dentro del plan o en el núcleo.
+  - El borrador muestra en vivo qué falta.
+  - Los módulos del núcleo van siempre y no se cuentan como propios del plan.
+- **RN-SUS-02:**
+  - Un plan publicado no cambia: el cambio es una versión nueva.
+  - Las empresas conservan la versión que contrataron, con sus límites y su precio.
+  - Al retirar un plan, deja de verse en la página y en el alta.
+- **RN-SUS-04:**
+  - Solo se permiten los cambios de estado válidos, y Cancelada es final.
+  - Cada cambio deja un evento con quién lo hizo y su motivo, y también queda en la bitácora de la consola (`TENANT_SUSPENDED` y `TENANT_REACTIVATED` cuando se corta o devuelve el acceso).
+- **RN-SUS-07**, el efecto en la empresa:
+
+  | Estado | Qué pasa con la empresa |
+  |---|---|
+  | Suspendida | Nadie de la empresa entra: `tenants.status` pasa a SUSPENDED y `ResolveTenant` responde `TENANT_BLOCKED`. |
+  | Solo lectura o Cancelada | Cualquier petición que no sea una consulta responde **402 RN-SUS-07**. Sí puede consultar, exportar, cambiar su contraseña y cerrar sesión. Lo hace el middleware nuevo `suscripcion` (`SuscripcionVigente`), aplicado a todas las rutas de las empresas. |
+  | En prueba, Activa o Con deuda | Opera normal. |
+
+  Las empresas sin suscripción (piloto) no tienen bloqueos (RN-SUS-21).
+- **RN-SUS-15:** la prueba se extiende sin pasar `sus_trial_max_days` (30) días en total.
+- **MRR:** solo suman las suscripciones activas o con deuda, con el precio de su versión menos el descuento pactado y sin IGV.
+- **RN-OPS-10:** cambiar planes, pruebas y descuentos, y cambiar el estado de una suscripción, lo pueden hacer Administración y Cobranza. Los demás roles solo consultan.
+
+## Hallazgo: el plan Inicial no cumple RN-SUS-01
+
+El plan Inicial incluye ONB (Alta de empresas), que depende de CRM, DES, REC y CAL, y esos módulos no vienen en ese plan. La consola lo marca como advertencia en el catálogo. Para corregirlo hay que crear una versión nueva: quitar ONB o agregar esos módulos. Es una decisión de negocio y no se cambió.
+
+## API
+
+Rutas nuevas bajo `/api/v1/consola`:
+
+| Ruta | Qué hace |
+|---|---|
+| `GET /planes` | Catálogo de planes con sus versiones |
+| `POST /planes/borradores` | Crea un borrador |
+| `PUT /planes/borradores/{id}` | Edita un borrador |
+| `DELETE /planes/borradores/{id}` | Borra un borrador |
+| `POST /planes/borradores/{id}/publicar` | Publica un borrador |
+| `POST /planes/{codigo}/retirar` | Retira un plan |
+| `GET /suscripciones` y `GET /suscripciones/{id}` | Lista y detalle de suscripciones |
+| `POST /suscripciones/{id}/estado` | Cambia el estado |
+| `POST /suscripciones/{id}/extender` | Extiende la prueba |
+| `POST /suscripciones/{id}/descuento` | Fija el descuento pactado |
+
+## Pantallas
+
+- **SUS-09 Catálogo de planes** (`/consola/planes`):
+  - Cada plan con su versión publicada: precio, límites, cuántos módulos tiene, cuántas empresas usan esa versión y desde cuándo.
+  - Su borrador, sus versiones retiradas y la advertencia de dependencias.
+  - Acciones: «Nuevo plan», «Nueva versión» (copia la publicada), editar, publicar y borrar el borrador, y retirar el plan con motivo.
+  - Al editar se eligen los módulos agrupados por fase, cada uno con sus dependencias, y un aviso en vivo si así no se puede publicar.
+- **SUS-11 Suscripciones** (`/consola/suscripciones`):
+  - La lista muestra empresa, plan y versión, estado y días en el estado, fin de la prueba, MRR con su descuento y uso, con filtro por estado.
+  - El detalle trae su historial, acceso a la ficha de la empresa y las acciones.
+- **OPS-04 Suspender o reactivar**, en la ficha de la empresa:
+  - Las mismas acciones: cambiar estado, extender la prueba y descuento.
+  - Antes de guardar se explica qué le pasa a la empresa, y siempre se pide motivo.
+  - La ficha muestra «Acceso suspendido» mientras dure la suspensión.
+
+## Pruebas
+
+3 pruebas nuevas en `OpsTest`:
+- planes con versiones: publicar, conservar la versión de la empresa, el bloqueo en la base, las dependencias, la página pública y retirar;
+- la prueba, los estados, la solo lectura (402), la suspensión, la reactivación, el descuento en el MRR y que Cancelada es final;
+- que solo Administración y Cobranza pueden hacer cambios.
+
+En total el sistema tiene 332 pruebas, todas correctas.
+
+Revisión en el navegador contra `aycha_test`:
+- el catálogo y la advertencia del plan Inicial;
+- una versión 2 del plan Inicial, que dejó de mostrar la advertencia al marcar CRM, DES, REC y CAL, y luego se publicó;
+- la suspensión desde Suscripciones, con su aviso de efecto y su motivo;
+- la reactivación desde la ficha.
+
+## Pendiente
+
+- **Cambiar de plan** con prorrateo (RN-SUS-18).
+- **SUS-12 a SUS-14:** facturación del SaaS, cobros y mora, que esperan la pasarela y el RUC emisor.
+- **Lo que ve la empresa de su propia suscripción** (SUS-01 a SUS-08), incluida la franja de mora y solo lectura en el sistema.
+- **Tanda 4:** bitácora de la consola, parámetros de plataforma, importar catálogos y ocultar a las empresas las pantallas de la consola.

@@ -49,24 +49,28 @@ final class Empresas
     {
         $uso = collect(DB::select('SELECT * FROM platform_tenant_usage()'))->keyBy('tenant_id');
         $planes = DB::table('saas_plans')->get()->keyBy('code');
-        $subs = DB::table('subscriptions')->where('status', '<>', 'CANCELLED')->get()->keyBy('tenant_id');
+        $versiones = DB::table('saas_plan_versions')->get()->keyBy('id');
+        // La suscripción viva o, si ya no hay, la última cancelada.
+        $subs = DB::table('subscriptions')->orderByRaw("status = 'CANCELLED' DESC")->orderBy('started_at')->get()->keyBy('tenant_id');
         $modulos = collect(DB::select('SELECT tenant_id, count(*) AS n FROM platform_tenant_modules() WHERE enabled GROUP BY tenant_id'))->pluck('n', 'tenant_id');
 
-        return DB::table('tenants')->orderBy('name')->get()->map(function ($t) use ($uso, $planes, $subs, $modulos) {
+        return DB::table('tenants')->orderBy('name')->get()->map(function ($t) use ($uso, $planes, $versiones, $subs, $modulos) {
             $s = $subs[$t->id] ?? null;
-            $p = $s ? $planes[$s->plan_code] : null;
+            // Los límites y el precio son los de la versión que contrató (RN-SUS-02).
+            $p = $s ? ($versiones[$s->plan_version_id] ?? null) ?? $planes[$s->plan_code] : null;
             $u = $uso[$t->id] ?? null;
 
             return [
                 'id' => $t->id, 'name' => $t->name, 'short' => $t->short, 'ruc' => $t->ruc, 'tenant_status' => $t->status,
                 'business_type' => $t->business_type, 'business_type_name' => self::RUBROS[$t->business_type] ?? null,
                 'created_at' => $t->created_at,
-                'plan_code' => $p->code ?? null, 'plan_name' => $p->name ?? null,
+                'plan_code' => $s->plan_code ?? null, 'plan_name' => $p->name ?? null, 'plan_version' => $p->version ?? null,
                 // Sin suscripción: piloto o empresa interna, sin límites ni cobro (RN-SUS-21).
                 'subscription_status' => $s->status ?? null, 'subscription_status_name' => $s ? self::ESTADOS[$s->status] : 'Sin suscripción',
                 'days_in_status' => $s ? (int) now()->startOfDay()->diffInDays(Carbon::parse($s->status_changed_at)->startOfDay(), true) : null,
                 'trial_ends_at' => $s->trial_ends_at ?? null,
-                'mrr' => $s && in_array($s->status, ['ACTIVE', 'PAST_DUE'], true) ? (float) $p->price_pen : 0.0,
+                'mrr' => $s ? Suscripciones::mrr((object) ((array) $s + ['price_pen' => $p->price_pen ?? null])) : 0.0,
+                'discount_pct' => (float) ($s->discount_pct ?? 0), 'subscription_id' => $s->id ?? null,
                 'uso' => self::uso($u, $p),
                 'modulos' => (int) ($modulos[$t->id] ?? 0),
                 'last_login' => $u->last_login ?? null,
@@ -93,7 +97,8 @@ final class Empresas
             'suscripcion' => $sub ? [
                 'id' => $sub->id, 'plan_code' => $sub->plan_code, 'status' => $sub->status, 'status_name' => self::ESTADOS[$sub->status],
                 'started_at' => $sub->started_at, 'status_changed_at' => $sub->status_changed_at, 'trial_ends_at' => $sub->trial_ends_at,
-                'trial_days_granted' => $sub->trial_days_granted,
+                'trial_days_granted' => $sub->trial_days_granted, 'discount_pct' => (float) $sub->discount_pct, 'discount_reason' => $sub->discount_reason,
+                'tenant_status' => $t->status, 'transiciones' => Suscripciones::TRANSICIONES[$sub->status], 'efectos' => Suscripciones::EFECTO,
                 'historial' => DB::table('subscription_events')->where('subscription_id', $sub->id)->orderByDesc('occurred_at')
                     ->get(['event', 'from_status', 'to_status', 'reason', 'actor_name', 'actor_type', 'occurred_at']),
             ] : null,
@@ -193,8 +198,9 @@ final class Empresas
 
                 // Suscripción de prueba y su primer evento (RN-SUS-04, RN-SUS-15).
                 $sub = (string) Uuid::uuid4();
+                $version = $db->table('saas_plan_versions')->where('plan_code', $plan->code)->where('status', 'PUBLISHED')->value('id');
                 $db->table('subscriptions')->insert([
-                    'id' => $sub, 'tenant_id' => $id, 'plan_code' => $plan->code, 'status' => 'TRIAL', 'trial_ends_at' => $ahora->copy()->addDays($diasPrueba)->endOfDay(),
+                    'id' => $sub, 'tenant_id' => $id, 'plan_code' => $plan->code, 'plan_version_id' => $version, 'status' => 'TRIAL', 'trial_ends_at' => $ahora->copy()->addDays($diasPrueba)->endOfDay(),
                     'trial_days_granted' => $diasPrueba, 'started_at' => $ahora, 'status_changed_at' => $ahora, 'created_by' => $quien['id'], 'created_at' => $ahora, 'updated_at' => $ahora,
                 ]);
                 $db->table('subscription_events')->insert([

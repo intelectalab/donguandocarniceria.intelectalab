@@ -305,4 +305,113 @@ class OpsTest extends TestCase
         $this->assertSame('TENANT_CREATED', $f->json('acciones_consola.0.action'));
         $this->assertArrayNotHasKey('customers', $f->json());
     }
+
+    /* ------------------------------------------------------------------ tanda 3: planes, suscripciones y suspender */
+
+    /** Empresa nueva en prueba: [token de consola, id de la suscripción, id de la empresa, token de su administradora]. */
+    private function empresaEnPrueba(): array
+    {
+        [$token] = $this->admin();
+        $r = $this->consola($token)->postJson('/api/v1/consola/empresas', $this->datosAlta())->assertCreated();
+        $this->desde(self::DG)->postJson('/api/v1/auth/reset', ['email' => 'rosa.medina@carnesdelnorte.pe', 'code' => $r->json('codigo'), 'password' => 'Norte#Carnes2026'])->assertOk();
+        $tokenEmpresa = $this->ingresar(self::DG, 'rosa.medina@carnesdelnorte.pe', 'Norte#Carnes2026');
+
+        return [$token, DB::table('subscriptions')->where('tenant_id', $r->json('id'))->value('id'), $r->json('id'), $tokenEmpresa];
+    }
+
+    public function test_planes_con_versiones_publicar_y_retirar(): void
+    {
+        [$token, $sub] = $this->empresaEnPrueba();
+        $cat = collect($this->consola($token)->getJson('/api/v1/consola/planes')->assertOk()->json('planes'))->keyBy('code');
+        $this->assertSame(1, $cat['CRECIMIENTO']['publicada']['version']);
+        $this->assertSame(1, $cat['CRECIMIENTO']['publicada']['suscripciones'], 'La empresa nueva usa la versión 1');
+        $this->assertNotEmpty($cat['INICIAL']['publicada']['faltan'], 'Inicial trae ONB sin los módulos de los que depende (RN-SUS-01)');
+
+        // Versión 2 de Crecimiento: copia la publicada, se edita y se publica.
+        $v2 = $this->consola($token)->postJson('/api/v1/consola/planes/borradores', ['plan_code' => 'CRECIMIENTO'])->assertCreated()->json();
+        $this->assertSame(2, $v2['version']);
+        $edicion = ['name' => 'Crecimiento', 'description' => 'Para distribuidoras con varios canales.', 'price_pen' => 349, 'users_max' => 20,
+            'brands_max' => 3, 'sites_max' => 2, 'all_modules' => false, 'modules' => [...$v2['modules'], 'TEL'], 'highlights' => ['Hasta 20 usuarios']];
+        $this->consola($token)->putJson("/api/v1/consola/planes/borradores/{$v2['id']}", $edicion)->assertOk();
+        $this->consola($token)->postJson("/api/v1/consola/planes/borradores/{$v2['id']}/publicar")->assertOk();
+        $this->assertSame('349.00', DB::table('saas_plans')->where('code', 'CRECIMIENTO')->value('price_pen'));
+        $this->assertTrue(DB::table('saas_plan_modules')->where('plan_code', 'CRECIMIENTO')->where('module_code', 'TEL')->exists());
+        $this->assertSame('RETIRED', DB::table('saas_plan_versions')->where('plan_code', 'CRECIMIENTO')->where('version', 1)->value('status'));
+        // RN-SUS-02: la empresa conserva su versión (15 usuarios), y lo publicado no se puede cambiar ni en la base.
+        $lista = collect($this->consola($token)->getJson('/api/v1/consola/empresas')->json('data'))->firstWhere('subscription_id', $sub);
+        $this->assertSame(15, $lista['uso'][0]['limite']);
+        $this->consola($token)->putJson("/api/v1/consola/planes/borradores/{$v2['id']}", $edicion)->assertStatus(422)->assertJsonPath('code', 'RN-SUS-02');
+        DB::beginTransaction();
+        try {
+            DB::table('saas_plan_versions')->where('id', $v2['id'])->update(['price_pen' => 1]);
+            $this->fail('Una versión publicada no debe cambiar');
+        } catch (QueryException $e) {
+            $this->assertSame('23514', $e->getCode());
+        } finally {
+            DB::rollBack();
+        }
+
+        // Plan nuevo: sin las dependencias no se publica (RN-SUS-01); con ellas sí, y la página pública lo muestra.
+        $g = $this->consola($token)->postJson('/api/v1/consola/planes/borradores', ['plan_code' => 'GOURMET', 'name' => 'Gourmet', 'nuevo' => true])->assertCreated()->json();
+        $base = ['name' => 'Gourmet', 'description' => 'Para tiendas gourmet.', 'price_pen' => 199, 'users_max' => 5, 'brands_max' => 1, 'sites_max' => 1, 'all_modules' => false];
+        $this->consola($token)->putJson("/api/v1/consola/planes/borradores/{$g['id']}", $base + ['modules' => ['TEL']])->assertOk();
+        $this->consola($token)->postJson("/api/v1/consola/planes/borradores/{$g['id']}/publicar")->assertStatus(422)->assertJsonPath('code', 'RN-SUS-01');
+        $this->consola($token)->putJson("/api/v1/consola/planes/borradores/{$g['id']}", $base + ['modules' => ['TEL', 'CRM', 'CLI', 'PED', 'CAT']])->assertOk();
+        $this->consola($token)->postJson("/api/v1/consola/planes/borradores/{$g['id']}/publicar")->assertOk();
+        $this->assertContains('GOURMET', collect($this->consola()->getJson('/api/v1/publico/planes')->json())->flatten()->all());
+
+        // Retirar: deja de venderse y no se puede dar de alta con él.
+        $this->consola($token)->postJson('/api/v1/consola/planes/GOURMET/retirar', ['reason' => 'Se deja de vender'])->assertOk();
+        $this->assertSame('INACTIVE', DB::table('saas_plans')->where('code', 'GOURMET')->value('status'));
+        $this->consola($token)->postJson('/api/v1/consola/empresas', $this->datosAlta(['ruc' => '20131312955', 'plan_code' => 'GOURMET']))
+            ->assertStatus(422)->assertJsonPath('code', 'RN-SUS-05');
+    }
+
+    public function test_suscripcion_prueba_estados_solo_lectura_y_suspension(): void
+    {
+        [$token, $sub, , $tokenEmpresa] = $this->empresaEnPrueba();
+        // RN-SUS-15: 14 + 10 = 24 días sí; 10 más pasarían de 30.
+        $this->consola($token)->postJson("/api/v1/consola/suscripciones/{$sub}/extender", ['days' => 10, 'reason' => 'Pidió más tiempo'])->assertOk()
+            ->assertJsonPath('trial_days_granted', 24);
+        $this->consola($token)->postJson("/api/v1/consola/suscripciones/{$sub}/extender", ['days' => 10, 'reason' => 'Otra vez'])->assertStatus(422)->assertJsonPath('code', 'RN-SUS-15');
+
+        // RN-SUS-04: transiciones válidas.
+        $estado = fn (string $a) => $this->consola($token)->postJson("/api/v1/consola/suscripciones/{$sub}/estado", ['status' => $a, 'reason' => "Pasa a {$a}"]);
+        $estado('ACTIVE')->assertOk();
+        $estado('READ_ONLY')->assertStatus(422)->assertJsonPath('code', 'RN-SUS-04');
+        $estado('PAST_DUE')->assertOk();
+        // Con deuda opera normal (la regla de negocio responde, no el bloqueo).
+        $this->desde(self::DG, $tokenEmpresa)->postJson('/api/v1/plt/marcas', [])->assertStatus(422);
+        $estado('READ_ONLY')->assertOk();
+        // RN-SUS-07: en solo lectura consulta pero no registra.
+        $this->desde(self::DG, $tokenEmpresa)->postJson('/api/v1/plt/marcas', [])->assertStatus(402)->assertJsonPath('code', 'RN-SUS-07');
+        $this->desde(self::DG, $tokenEmpresa)->getJson('/api/v1/me')->assertOk();
+        // Suspendida: nadie de la empresa entra; reactivada, vuelve a operar.
+        $estado('SUSPENDED')->assertOk();
+        $this->desde(self::DG, $tokenEmpresa)->getJson('/api/v1/me')->assertStatus(403)->assertJsonPath('code', 'TENANT_BLOCKED');
+        $estado('ACTIVE')->assertOk();
+        $this->desde(self::DG, $tokenEmpresa)->postJson('/api/v1/plt/marcas', [])->assertStatus(422);
+        $this->assertSame(5, DB::table('subscription_events')->where('subscription_id', $sub)->where('event', 'STATUS_CHANGED')->count(), 'Cada cambio de estado deja su evento');
+        $this->assertDatabaseHas('platform_audit_log', ['action' => 'TENANT_SUSPENDED']);
+        $this->assertDatabaseHas('platform_audit_log', ['action' => 'TENANT_REACTIVATED']);
+
+        // Descuento pactado: entra al MRR (299 − 10 % = 269,10).
+        $this->consola($token)->postJson("/api/v1/consola/suscripciones/{$sub}/descuento", ['pct' => 10, 'reason' => 'Cliente fundador'])->assertOk()->assertJsonPath('mrr', 269.1);
+
+        // Cancelada es final y queda en solo lectura.
+        $estado('CANCELLED')->assertOk();
+        $estado('ACTIVE')->assertStatus(422)->assertJsonPath('code', 'RN-SUS-04');
+        $this->desde(self::DG, $tokenEmpresa)->postJson('/api/v1/plt/marcas', [])->assertStatus(402);
+    }
+
+    public function test_solo_administracion_y_cobranza_cambian_planes_y_suscripciones(): void
+    {
+        [$token, $sub] = $this->empresaEnPrueba();
+        [, $tokenL1] = $this->cuenta($token, 'karen.vilchez@intelectalab.com', 'SUPPORT_L1');
+        $this->consola($tokenL1)->postJson("/api/v1/consola/suscripciones/{$sub}/estado", ['status' => 'ACTIVE', 'reason' => 'Intento'])->assertStatus(422)->assertJsonPath('code', 'RN-OPS-10');
+        $this->consola($tokenL1)->postJson('/api/v1/consola/planes/borradores', ['plan_code' => 'INICIAL'])->assertStatus(422)->assertJsonPath('code', 'RN-OPS-10');
+        $this->consola($tokenL1)->getJson('/api/v1/consola/suscripciones')->assertOk();   // consultar sí
+        [, $tokenCobranza] = $this->cuenta($token, 'oscar.delgado@intelectalab.com', 'BILLING');
+        $this->consola($tokenCobranza)->postJson("/api/v1/consola/suscripciones/{$sub}/estado", ['status' => 'ACTIVE', 'reason' => 'Pagó la primera cuota'])->assertOk();
+    }
 }

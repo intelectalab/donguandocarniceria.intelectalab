@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Building2, CreditCard, Loader2, LogOut, ScrollText, Settings2, ShieldCheck, Users } from "lucide-react";
+import { Building2, CreditCard, Layers, Loader2, LogOut, ScrollText, Settings2, ShieldCheck, Users } from "lucide-react";
 import { UiHost } from "@/components/ui";
 import { SesionConsola } from "@/components/consola/sesion";
 import { apiConsola, clearTokenConsola, type UsuarioConsola } from "@/lib/consola";
@@ -11,10 +11,11 @@ import { apiConsola, clearTokenConsola, type UsuarioConsola } from "@/lib/consol
 // Lo que ya existe de la consola; lo demás aparece en la tanda que le toca.
 const MENU = [
   { href: "/consola/empresas", label: "Empresas", code: "OPS-02", icon: Building2 },
+  { href: "/consola/suscripciones", label: "Suscripciones", code: "SUS-11", icon: CreditCard },
+  { href: "/consola/planes", label: "Catálogo de planes", code: "SUS-09", icon: Layers },
   { href: "/consola/usuarios", label: "Usuarios de plataforma", code: "OPS-12", icon: Users },
 ];
 const PROXIMAMENTE = [
-  { label: "Planes y suscripciones", icon: CreditCard },
   { label: "Bitácora de la consola", icon: ScrollText },
   { label: "Parámetros de plataforma", icon: Settings2 },
 ];
