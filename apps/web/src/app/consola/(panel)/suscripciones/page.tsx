@@ -44,8 +44,7 @@ export default function Suscripciones() {
 
   return (
     <div className="grid gap-5">
-      <h1 className="font-display text-[22px] font-bold text-ink">Suscripciones</h1>
-      <PageHeader code="SUS-11" description="La suscripción de cada empresa cliente con su plan y versión, el estado y los días que lleva, su MRR y su uso. Abre una para ver su historial, extender la prueba, pactar un descuento o cambiar su estado." />
+      <PageHeader description="La suscripción de cada empresa cliente con su plan y versión, el estado y los días que lleva, su MRR y su uso. Abre una para ver su historial, extender la prueba, pactar un descuento o cambiar su estado." />
       {error && <Alert tone="bad">{error}</Alert>}
       <DataTable columns={columnas} rows={visibles} loading={!filas && !error} onRowClick={(s) => abrir(s.id)}
         empty="Aún no hay suscripciones: las empresas que se dan de alta desde la consola aparecen aquí."

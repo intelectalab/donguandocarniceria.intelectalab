@@ -132,8 +132,8 @@ return new class extends Migration
             SQL);
 
         foreach ([
-            'sus_trial_days_default' => [14, 'Días de prueba gratuita de una empresa nueva (D-SUS-04)'],
-            'sus_trial_max_days' => [30, 'Tope de días de prueba contando extensiones (RN-SUS-15)'],
+            'sus_trial_days_default' => [14, 'Días de prueba gratuita de una empresa nueva'],
+            'sus_trial_max_days' => [30, 'Tope de días de prueba contando extensiones'],
         ] as $key => [$valor, $descripcion]) {
             DB::table('platform_parameters')->insert(['key' => $key, 'value' => json_encode($valor), 'description' => $descripcion, 'updated_at' => now()]);
         }

@@ -86,8 +86,7 @@ export default function CatalogosGlobales() {
 
   return (
     <div className="grid gap-5">
-      <h1 className="font-display text-[22px] font-bold text-ink">Catálogos globales</h1>
-      <PageHeader code="RN-MAE-11" description="Los catálogos de SUNAT, el ubigeo y las entidades financieras son de toda la plataforma: las empresas solo los consultan en Maestros. Sube el archivo, revisa qué cambia y recién entonces impórtalo." />
+      <PageHeader description="Los catálogos de SUNAT, el ubigeo y las entidades financieras son de toda la plataforma: las empresas solo los consultan en Maestros. Sube el archivo, revisa qué cambia y recién entonces impórtalo." />
 
       <form onSubmit={revisar} className="grid gap-4 rounded-xl border border-line bg-surface p-5 shadow-card sm:grid-cols-2">
         <Field label="Catálogo" required>

@@ -42,8 +42,7 @@ export default function BitacoraConsola() {
 
   return (
     <div className="grid gap-5">
-      <h1 className="font-display text-[22px] font-bold text-ink">Bitácora de la consola</h1>
-      <PageHeader code="OPS-13" description="Todo lo que se hace en la consola: ingresos, altas y cambios de empresas, suscripciones, planes, usuarios, parámetros y catálogos, con quién, el motivo y la IP. Nadie la puede cambiar ni borrar." />
+      <PageHeader description="Todo lo que se hace en la consola: ingresos, altas y cambios de empresas, suscripciones, planes, usuarios, parámetros y catálogos, con quién, el motivo y la IP. Nadie la puede cambiar ni borrar." />
       <DataTable columns={columnas} rows={r?.data ?? []} loading={!r && !error} error={error} empty="No hay acciones con esos filtros."
         search={{ value: f.search, onChange: (v) => poner("search", v), placeholder: "Buscar por persona, motivo, empresa o IP" }}
         toolbar={

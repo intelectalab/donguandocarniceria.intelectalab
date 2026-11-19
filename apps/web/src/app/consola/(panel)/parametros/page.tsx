@@ -28,8 +28,7 @@ export default function ParametrosPlataforma() {
 
   return (
     <div className="grid gap-5">
-      <h1 className="font-display text-[22px] font-bold text-ink">Parámetros de plataforma</h1>
-      <PageHeader code="OPS-16" description="Valores que valen para toda la plataforma: la sesión de la consola, las redes permitidas, la invitación y la prueba gratuita. Cada cambio pide un motivo y queda en su historial." />
+      <PageHeader description="Valores que valen para toda la plataforma: la sesión de la consola, las redes permitidas, la invitación y la prueba gratuita. Cada cambio pide un motivo y queda en su historial." />
       {error && <Alert tone="bad">{error}</Alert>}
       {!yo.puede["params.manage"] && lista && <p className="text-[13px] text-muted">Solo un administrador de plataforma los cambia. Tú puedes consultarlos.</p>}
       <div className="grid gap-3">

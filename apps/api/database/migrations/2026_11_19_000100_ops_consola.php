@@ -15,8 +15,8 @@ return new class extends Migration
 {
     /** Parámetros de plataforma de OPS que usa la consola desde la tanda 1 (la pantalla OPS-16 va en la tanda 4). */
     private const PARAMETROS = [
-        'ops_console_session_minutes' => [30, 'Minutos de inactividad antes de cerrar la sesión de la consola (RN-OPS-16)'],
-        'ops_console_ip_allowlist' => [[], 'Redes desde las que se acepta la consola; vacía acepta todas (RN-OPS-16)'],
+        'ops_console_session_minutes' => [30, 'Minutos de inactividad antes de cerrar la sesión de la consola'],
+        'ops_console_ip_allowlist' => [[], 'Redes desde las que se acepta la consola; vacía acepta todas'],
         'ops_console_session_max_hours' => [12, 'Horas máximas de una sesión de la consola aunque se use'],
         'ops_platform_user_invite_hours' => [48, 'Horas que dura el código para activar una cuenta de la consola'],
     ];

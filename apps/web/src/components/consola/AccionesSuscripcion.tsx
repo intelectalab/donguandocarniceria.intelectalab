@@ -78,7 +78,7 @@ export function AccionesSuscripcion({ s, puedeEstado, puedePlanes, onCambio, efe
               </>
             )}
             {accion === "extender" && (
-              <Field label="Días más" required error={errores.days} hint={`Ya tiene ${s.trial_days_granted} días; el total no pasa de 30 (RN-SUS-15).`}>
+              <Field label="Días más" required error={errores.days} hint={`Ya tiene ${s.trial_days_granted} días; el total no pasa de 30.`}>
                 <Input type="number" min={1} max={30} value={dias} onChange={(e) => setDias(e.target.value)} />
               </Field>
             )}

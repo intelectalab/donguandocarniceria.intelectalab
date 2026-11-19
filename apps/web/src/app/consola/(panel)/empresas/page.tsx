@@ -71,8 +71,7 @@ export default function Empresas() {
 
   return (
     <div className="grid gap-5">
-      <h1 className="font-display text-[22px] font-bold text-ink">Empresas</h1>
-      <PageHeader code="OPS-02"
+      <PageHeader
         description="Los clientes de la plataforma con su plan, el estado de su suscripción, cuánto aportan al mes (MRR) y cuánto usan de sus límites. La consola ve solo estos totales, nunca sus pedidos ni sus clientes."
         actions={yo.puede["tenant.create"] ? <Link href="/consola/empresas/nueva" className={buttonClass("primary", "md")}><Plus size={16} />Nueva empresa</Link> : undefined} />
 

@@ -58,11 +58,11 @@ function FichaEmpresa() {
     <div className="grid gap-5">
       {volver}
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="font-display text-[22px] font-bold text-ink">{f.short}</h1>
+        <h2 className="font-display text-[22px] font-bold text-ink">{f.short}</h2>
         {s ? <StatusBadge status={s.status} labels={ESTADOS_SUSCRIPCION} /> : <Badge>Sin suscripción · piloto</Badge>}
         {f.tenant_status === "SUSPENDED" && <Badge tone="bad" dot>Acceso suspendido</Badge>}
       </div>
-      <PageHeader code="OPS-03" description={`${f.name}${f.ruc ? ` · RUC ${f.ruc}` : ""}. La consola ve su suscripción, su uso y los módulos encendidos; sus datos de negocio, solo con un acceso de soporte que la empresa apruebe.`} />
+      <PageHeader description={`${f.name}${f.ruc ? ` · RUC ${f.ruc}` : ""}. La consola ve su suscripción, su uso y los módulos encendidos; sus datos de negocio, solo con un acceso de soporte que la empresa apruebe.`} />
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Tarjeta titulo="Datos de la empresa">
@@ -77,7 +77,7 @@ function FichaEmpresa() {
           ]} />
         </Tarjeta>
 
-        <Tarjeta titulo="Suscripción" extra={<span className="font-mono text-[11px] text-accent">OPS-04</span>}>
+        <Tarjeta titulo="Suscripción">
           {s ? (
             <div className="grid gap-4">
             <DetailList items={[

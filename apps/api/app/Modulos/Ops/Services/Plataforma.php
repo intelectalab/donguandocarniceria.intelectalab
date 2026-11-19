@@ -86,7 +86,7 @@ final class Plataforma
         $nombres = DB::table('platform_users')->pluck('full_name', 'id');
 
         return DB::table('platform_parameters')->orderBy('key')->get()->map(fn ($p) => [
-            'key' => $p->key, 'value' => json_decode($p->value, true), 'description' => $p->description, 'updated_at' => $p->updated_at,
+            'key' => $p->key, 'value' => json_decode($p->value, true), 'description' => trim(preg_replace('/\s*\((RN|D)-[A-Z]+-\d+\)/', '', $p->description)), 'updated_at' => $p->updated_at,
             'updated_by' => $p->updated_by ? ($nombres[$p->updated_by] ?? null) : null, 'regla' => self::REGLAS[$p->key] ?? null,
             'historial' => DB::table('platform_parameter_history')->where('key', $p->key)->orderByDesc('changed_at')->limit(10)
                 ->get(['old_value', 'new_value', 'reason', 'changed_by_name', 'changed_at'])

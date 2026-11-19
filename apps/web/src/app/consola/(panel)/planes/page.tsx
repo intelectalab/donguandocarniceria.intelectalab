@@ -20,6 +20,9 @@ type Catalogo = { planes: Plan[]; modulos: Modulo[] };
 const FASES = ["Núcleo", "Ventas y operación", "Producción y abastecimiento", "Nuevos canales y control", "Producto SaaS"];
 
 /** Dependencias que faltan, como texto corto. */
+/** «1 marca», «3 marcas». */
+const cuantos = (n: number, uno: string, varios = `${uno}s`) => `${n} ${n === 1 ? uno : varios}`;
+
 const textoFaltan = (f: Version["faltan"]) => f.map((x) => `${x.modulo} necesita ${x.faltan.join(", ")}`).join(" · ");
 
 /**
@@ -83,8 +86,7 @@ export default function CatalogoPlanes() {
 
   return (
     <div className="grid gap-5">
-      <h1 className="font-display text-[22px] font-bold text-ink">Catálogo de planes</h1>
-      <PageHeader code="SUS-09"
+      <PageHeader
         description="Los planes que vende la plataforma, con sus módulos, límites y precio mensual (más IGV). Un plan publicado no cambia: el cambio es una versión nueva, y las empresas conservan la versión que contrataron."
         actions={puede ? <Button variant="primary" icon={Plus} onClick={() => setNuevo(true)}>Nuevo plan</Button> : undefined} />
       {error && <Alert tone="bad">{error}</Alert>}
@@ -97,7 +99,6 @@ export default function CatalogoPlanes() {
             <section key={p.code} className="grid gap-3 rounded-xl border border-line bg-surface p-5 shadow-card">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
-                  <p className="font-mono text-[11.5px] text-accent">{p.code}</p>
                   <h2 className="font-display text-[17px] font-bold text-ink">{p.name}</h2>
                 </div>
                 {v ? <Badge tone="ok" dot>Publicado · versión {v.version}</Badge> : <Badge tone="neutral" dot>Sin versión publicada</Badge>}
@@ -105,12 +106,12 @@ export default function CatalogoPlanes() {
               {v ? (
                 <>
                   <p className="text-[13.5px] text-muted">{v.description}</p>
-                  <p className="text-[14px] text-ink"><b>{soles(v.price_pen)}</b> al mes · {v.users_max} usuarios · {v.brands_max} marcas · {v.sites_max} locales</p>
+                  <p className="text-[14px] text-ink"><b>{soles(v.price_pen)}</b> al mes · {cuantos(v.users_max, "usuario")} · {cuantos(v.brands_max, "marca")} · {cuantos(v.sites_max, "local", "locales")}</p>
                   <p className="text-[13px] text-muted">{v.all_modules ? "Todos los módulos" : `${v.modules.length} módulos además del núcleo`} · {v.suscripciones} empresa{v.suscripciones === 1 ? "" : "s"} con esta versión · desde {fecha(v.published_at)}</p>
                   {v.faltan.length > 0 && (
                     <p className="flex gap-1.5 rounded-lg border border-warn/30 bg-warn-soft px-3 py-2 text-[12.5px] text-warn">
                       <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-                      <span>Le faltan dependencias (RN-SUS-01): {textoFaltan(v.faltan)}. Corrígelo en una versión nueva.</span>
+                      <span>Le faltan módulos de los que dependen otros del plan: {textoFaltan(v.faltan)}. Corrígelo en una versión nueva.</span>
                     </p>
                   )}
                 </>
@@ -246,7 +247,7 @@ function EditarBorrador({ version, modulos, onClose, onGuardado }: { version: Ve
                 </div>
               </fieldset>
             ))}
-            {faltan.length > 0 && <Alert tone="warn" title="Así no se puede publicar (RN-SUS-01)">{textoFaltan(faltan)}</Alert>}
+            {faltan.length > 0 && <Alert tone="warn" title="Así no se puede publicar">{textoFaltan(faltan)}</Alert>}
           </div>
         )}
         <Field label="Lo que incluye (una línea por punto, para la página)" error={errores.highlights}>

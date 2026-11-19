@@ -101,8 +101,7 @@ export default function NuevaEmpresa() {
   return (
     <div className="grid gap-5">
       {volver}
-      <h1 className="font-display text-[22px] font-bold text-ink">Nueva empresa</h1>
-      <PageHeader code="OPS-02 · Alta"
+      <PageHeader
         description="Crea la empresa con su RUC, le enciende los módulos del plan elegido, invita a su administrador y abre su prueba gratuita. Las marcas, locales y lo demás los registra la empresa con su asistente." />
       {!op ? (general ? <Alert tone="bad">{general}</Alert> : <div className="grid place-items-center py-16 text-muted"><Loader2 className="animate-spin" /></div>) : (
         <form onSubmit={guardar} className="grid gap-5" noValidate>

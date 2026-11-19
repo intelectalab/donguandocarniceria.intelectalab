@@ -98,8 +98,7 @@ export default function UsuariosPlataforma() {
 
   return (
     <div className="grid gap-5">
-      <h1 className="font-display text-[22px] font-bold text-ink">Usuarios de plataforma</h1>
-      <PageHeader code="OPS-12"
+      <PageHeader
         description="Personal de Intelectalab en la consola. Cada cuenta se activa con su contraseña y el segundo factor obligatorio; el rol define lo que hace (administrador, cobranza, soporte, ingeniería o solo consulta)."
         actions={puede ? <Button variant="primary" icon={Plus} onClick={() => setEditando("nuevo")}>Nuevo usuario</Button> : undefined} />
       {!puede && datos && (
