@@ -519,4 +519,35 @@ class OpsTest extends TestCase
         $this->assertContains('gmail.com', json_decode(DB::table('platform_parameters')->where('key', 'ops_platform_email_domains')->value('value'), true));
         $this->assertDatabaseHas('platform_parameter_history', ['key' => 'ops_platform_email_domains', 'changed_by_name' => 'Servidor (ops:crear-admin)']);
     }
+
+    /* ------------------------------------------------------------------ tanda 5: registros y pedidos de demo */
+
+    public function test_registros_y_pedidos_de_demo_en_la_consola(): void
+    {
+        [$token] = $this->admin();
+        // Un registro desde la página y un pedido de demo.
+        $this->flushHeaders();
+        $this->withHeaders(['Accept' => 'application/json'])->postJson('/api/v1/publico/registro', ['ruc' => '20100047218', 'legal_name' => 'Distribuidora del Norte SAC',
+            'trade_name' => 'Carnes del Norte', 'business_type' => 'DISTRIBUIDORA', 'tax_regime' => 'MYPE', 'fiscal_address' => 'Av. Industrial 123, Trujillo',
+            'plan_code' => 'INICIAL', 'contact_name' => 'Rosa Medina Paz', 'email' => 'rosa@carnesdelnorte.pe', 'phone' => '987654321',
+            'password' => 'Norte#Carnes2026', 'password_confirmation' => 'Norte#Carnes2026', 'terms' => true])->assertCreated();
+        $this->withHeaders(['Accept' => 'application/json'])->postJson('/api/v1/publico/demo', ['name' => 'Luis Pérez', 'phone' => '999888777',
+            'business_type' => 'CARNICERIA', 'consent' => true])->assertCreated();
+
+        $registros = $this->consola($token)->getJson('/api/v1/consola/registros')->assertOk()->json('data');
+        $this->assertSame('Por verificar', $registros[0]['status_name']);
+        $demos = $this->consola($token)->getJson('/api/v1/consola/demos')->assertOk()->json('data');
+        $this->assertSame('Luis Pérez', $demos[0]['name']);
+        $this->assertNull($demos[0]['attended_at']);
+
+        $this->consola($token)->postJson("/api/v1/consola/demos/{$demos[0]['id']}/atender", ['attended' => true, 'note' => 'Demo agendada el lunes'])->assertNoContent();
+        $this->assertSame('Demo agendada el lunes', $this->consola($token)->getJson('/api/v1/consola/demos')->json('data.0.attended_note'));
+
+        // Rechazar un registro libera el RUC y deja constancia; solo el administrador.
+        [, $tokenL1] = $this->cuenta($token, 'karen.vilchez@intelectalab.com', 'SUPPORT_L1');
+        $this->consola($tokenL1)->postJson("/api/v1/consola/registros/{$registros[0]['id']}/rechazar", ['reason' => 'Datos falsos'])->assertStatus(422)->assertJsonPath('code', 'RN-OPS-10');
+        $this->consola($token)->postJson("/api/v1/consola/registros/{$registros[0]['id']}/rechazar", ['reason' => 'RUC de otra persona'])->assertNoContent();
+        $this->assertSame('REJECTED', DB::table('tenant_signups')->value('status'));
+        $this->assertDatabaseHas('platform_audit_log', ['action' => 'SIGNUP_REJECTED']);
+    }
 }

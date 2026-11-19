@@ -71,7 +71,7 @@ export default function PaginaPrecios() {
 }
 
 function Contenido() {
-  const { planes, pruebaDias, cargando, pedirDemo } = useMarco();
+  const { planes, pruebaDias, cargando, pedirDemo, probar } = useMarco();
   return (
     <>
       <section className="mx-auto max-w-[1200px] px-4 pt-14 pb-16 sm:px-6">
@@ -82,11 +82,11 @@ function Contenido() {
             Prueba {pruebaDias} días gratis con todos los módulos. Sin tarjeta, sin contrato de permanencia y sin comisiones por venta.
           </p>
         </div>
-        <div className="mt-14"><Planes planes={planes} cargando={cargando} pruebaDias={pruebaDias} onElegir={pedirDemo} /></div>
+        <div className="mt-14"><Planes planes={planes} cargando={cargando} pruebaDias={pruebaDias} onElegir={probar} /></div>
         <p className="mt-8 text-center text-[13.5px] text-muted">Precios en soles, sin IGV. El cobro es recurrente y lo puedes cancelar cuando quieras.</p>
       </section>
 
-      {planes.length > 0 && <Calculadora planes={planes} onProbar={pedirDemo} />}
+      {planes.length > 0 && <Calculadora planes={planes} onProbar={(codigo) => (codigo ? probar(codigo) : pedirDemo())} />}
       {planes.length > 0 && <Comparar planes={planes} />}
 
       <section className="mx-auto max-w-[860px] px-4 py-20 sm:px-6">

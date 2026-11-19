@@ -8,6 +8,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicoController;
 use App\Http\Controllers\TenantController;
 use App\Modulos\Cli\Http\Controllers\EnlaceController;
+use App\Modulos\Onb\Http\Controllers\RegistroController;
 use App\Modulos\Ops\Http\Controllers\ConsolaController;
 use App\Modulos\Ops\Http\Controllers\EmpresaController;
 use App\Modulos\Ops\Http\Controllers\PlanController;
@@ -28,6 +29,9 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1/publico')->group(function () {
     Route::get('/planes', [PublicoController::class, 'planes'])->middleware('throttle:60,1');
     Route::post('/demo', [PublicoController::class, 'demo'])->middleware('throttle:5,1');
+    // ONB-01: registro de una empresa desde la página (código al correo y alta en prueba al verificarlo).
+    Route::post('/registro', [RegistroController::class, 'registrar'])->middleware('throttle:5,1');
+    Route::post('/registro/verificar', [RegistroController::class, 'verificar'])->middleware('throttle:10,1');
     // CLI-07: el cliente abre su enlace de ubicación (de un solo uso) y marca su pin. La empresa sale del enlace.
     Route::get('/ubicacion/{token}', [EnlaceController::class, 'publico'])->middleware('throttle:30,1')->where('token', '[A-Za-z0-9]{32}');
     Route::post('/ubicacion/{token}', [EnlaceController::class, 'completar'])->middleware('throttle:10,1')->where('token', '[A-Za-z0-9]{32}');
@@ -73,6 +77,11 @@ Route::prefix('v1/consola')->group(function () {
         Route::put('/parametros/{key}', [PlataformaController::class, 'cambiarParametro'])->where('key', '[a-z0-9_]{3,60}');
         Route::post('/catalogos/revisar', [PlataformaController::class, 'revisarCatalogo'])->middleware('throttle:20,1');
         Route::post('/catalogos/importar', [PlataformaController::class, 'importarCatalogo'])->middleware('throttle:10,1');
+        // ONB-16 Registros y altas, y pedidos de demo de la página
+        Route::get('/registros', [RegistroController::class, 'lista']);
+        Route::post('/registros/{id}/rechazar', [RegistroController::class, 'rechazar'])->whereUuid('id');
+        Route::get('/demos', [RegistroController::class, 'demos']);
+        Route::post('/demos/{id}/atender', [RegistroController::class, 'atenderDemo'])->whereUuid('id');
     });
 });
 

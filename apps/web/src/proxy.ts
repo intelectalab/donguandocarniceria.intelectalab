@@ -8,7 +8,7 @@ import { CONSOLA_COOKIE, TOKEN_COOKIE } from "@/lib/auth";
 //  - El inicio del sistema es «/inicio».
 const PUBLICAS = ["/login", "/forgot-password", "/reset-password"];
 // Páginas públicas de GestionCarnica (landing): se ven con o sin sesión; con dos dominios, en el de la página.
-const PAGINAS = ["/", "/precios"];
+const PAGINAS = ["/", "/precios", "/registro"];
 const INICIO = "/inicio";
 // Lo que abre un cliente sin cuenta (el enlace de ubicación de CLI-07): con o sin sesión, en el dominio del sistema.
 const ABIERTAS = ["/u"];

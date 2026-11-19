@@ -162,51 +162,17 @@ final class Empresas
         try {
             $id = $db->transaction(function () use ($db, $d, $ruc, $plan, $diasPrueba, $dominio, $email, $codigo, $quien) {
                 $id = (string) Uuid::uuid4();
-                $ahora = now();
-                $actor = 'Consola: '.$quien['full_name'];
                 // tenants es de solo lectura para la aplicación: la fila la crea platform_create_tenant().
                 $db->select('SELECT platform_create_tenant(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
                     $id, mb_strtoupper(trim($d['legal_name'])), trim($d['trade_name']), $plan->code, $dominio ?? Str::slug($d['trade_name']).'.gestioncarnica',
                     $ruc, $d['business_type'], trim($d['admin_name']), $email, $d['admin_phone'] ?? null, $quien['id'],
                 ]);
-                // Desde aquí, todo lo que se crea es de la empresa nueva y pasa por RLS.
-                TenantContext::set(TenantContext::find($id));
-                if ($dominio) {
-                    $db->table('tenant_hostnames')->insert(['tenant_id' => $id, 'hostname' => $dominio, 'is_primary' => true, 'status' => 'ACTIVE', 'created_at' => $ahora]);
-                }
-                $db->table('tenant_branding')->insert(['tenant_id' => $id, 'changed_by' => $actor, 'created_at' => $ahora]);
-                $db->table('companies')->insert([
-                    'tenant_id' => $id, 'legal_name' => mb_strtoupper(trim($d['legal_name'])), 'ruc' => $ruc, 'trade_name' => trim($d['trade_name']),
-                    'tax_regime' => $d['tax_regime'], 'fiscal_address' => trim($d['fiscal_address']), 'status' => 'ACTIVE',
-                    'default_currency' => 'PEN', 'timezone' => 'America/Lima', 'created_at' => $ahora,
-                ]);
-
-                $roles = self::rolesYPermisos($db, $id);
-                self::modulosDelPlan($db, $id, $plan, $actor);
-
-                // Administrador de la empresa: invitado, con el código para crear su contraseña (como SEG-08).
-                $usuario = (string) Uuid::uuid4();
-                $db->table('users')->insert([
-                    'id' => $usuario, 'tenant_id' => $id, 'name' => trim($d['admin_name']), 'email' => $email, 'role' => self::ROL_ADMIN, 'status' => 'INVITED',
-                    'password' => Hash::make(Str::random(40)), 'failed_logins' => 0, 'invited_at' => $ahora, 'created_at' => $ahora,
-                ]);
-                $db->table('user_roles')->insert(['tenant_id' => $id, 'user_id' => $usuario, 'role_id' => $roles[self::ROL_ADMIN], 'created_at' => $ahora]);
-                $db->table('password_reset_tokens')->insert([
-                    'tenant_id' => $id, 'user_id' => $usuario, 'token_hash' => Hash::make($codigo), 'kind' => 'INVITE',
-                    'expires_at' => $ahora->copy()->addHours(Usuarios::INVITACION_HORAS), 'requested_at' => $ahora, 'requested_ip' => request()?->ip(), 'created_at' => $ahora,
-                ]);
-
-                // Suscripción de prueba y su primer evento (RN-SUS-04, RN-SUS-15).
-                $sub = (string) Uuid::uuid4();
-                $version = $db->table('saas_plan_versions')->where('plan_code', $plan->code)->where('status', 'PUBLISHED')->value('id');
-                $db->table('subscriptions')->insert([
-                    'id' => $sub, 'tenant_id' => $id, 'plan_code' => $plan->code, 'plan_version_id' => $version, 'status' => 'TRIAL', 'trial_ends_at' => $ahora->copy()->addDays($diasPrueba)->endOfDay(),
-                    'trial_days_granted' => $diasPrueba, 'started_at' => $ahora, 'status_changed_at' => $ahora, 'created_by' => $quien['id'], 'created_at' => $ahora, 'updated_at' => $ahora,
-                ]);
-                $db->table('subscription_events')->insert([
-                    'subscription_id' => $sub, 'tenant_id' => $id, 'event' => 'CREATED', 'to_status' => 'TRIAL',
-                    'reason' => "Alta desde la consola con el plan {$plan->name} y {$diasPrueba} días de prueba", 'actor_type' => 'PLATFORM_USER',
-                    'actor_id' => $quien['id'], 'actor_name' => $quien['full_name'], 'detail' => json_encode(['plan' => $plan->code, 'trial_days' => $diasPrueba]), 'occurred_at' => $ahora,
+                self::poblar($db, $id, [
+                    'legal_name' => $d['legal_name'], 'ruc' => $ruc, 'trade_name' => $d['trade_name'], 'tax_regime' => $d['tax_regime'],
+                    'fiscal_address' => $d['fiscal_address'], 'dominio' => $dominio, 'plan' => $plan, 'dias' => $diasPrueba,
+                    'admin_name' => $d['admin_name'], 'email' => $email, 'codigo' => $codigo, 'password_hash' => null,
+                    'actor' => 'Consola: '.$quien['full_name'], 'actor_type' => 'PLATFORM_USER', 'actor_id' => $quien['id'], 'actor_name' => $quien['full_name'],
+                    'created_by' => $quien['id'], 'motivo' => "Alta desde la consola con el plan {$plan->name} y {$diasPrueba} días de prueba",
                 ]);
 
                 return $id;
@@ -226,6 +192,58 @@ final class Empresas
         );
 
         return ['id' => $id, 'codigo' => $codigo, 'admin_email' => $email];
+    }
+
+    /**
+     * Todo lo de adentro de una empresa nueva, cuya fila en tenants ya existe: fija su contexto (RLS), crea su razón
+     * social, roles y permisos, módulos del plan, su administrador y la suscripción de prueba. Lo usan el alta desde la
+     * consola (administrador invitado con código) y el registro público (administrador activo con la contraseña que eligió).
+     * Corre dentro de la transacción de quien llama; quien llama deja el contexto en null al terminar.
+     */
+    public static function poblar($db, string $id, array $e): void
+    {
+        $ahora = now();
+        TenantContext::set(TenantContext::find($id));
+        if ($e['dominio']) {
+            $db->table('tenant_hostnames')->insert(['tenant_id' => $id, 'hostname' => $e['dominio'], 'is_primary' => true, 'status' => 'ACTIVE', 'created_at' => $ahora]);
+        }
+        $db->table('tenant_branding')->insert(['tenant_id' => $id, 'changed_by' => mb_substr($e['actor'], 0, 80), 'created_at' => $ahora]);
+        $db->table('companies')->insert([
+            'tenant_id' => $id, 'legal_name' => mb_strtoupper(trim($e['legal_name'])), 'ruc' => $e['ruc'], 'trade_name' => trim($e['trade_name']),
+            'tax_regime' => $e['tax_regime'], 'fiscal_address' => trim($e['fiscal_address']), 'status' => 'ACTIVE',
+            'default_currency' => 'PEN', 'timezone' => 'America/Lima', 'created_at' => $ahora,
+        ]);
+        $roles = self::rolesYPermisos($db, $id);
+        self::modulosDelPlan($db, $id, $e['plan'], $e['actor']);
+
+        // Administrador: activo con su contraseña (registro público) o invitado con un código (consola, como SEG-08).
+        $usuario = (string) Uuid::uuid4();
+        $db->table('users')->insert([
+            'id' => $usuario, 'tenant_id' => $id, 'name' => trim($e['admin_name']), 'email' => $e['email'], 'role' => self::ROL_ADMIN,
+            'status' => $e['password_hash'] ? 'ACTIVE' : 'INVITED', 'password' => $e['password_hash'] ?? Hash::make(Str::random(40)),
+            'password_changed_at' => $e['password_hash'] ? $ahora : null, 'failed_logins' => 0, 'invited_at' => $e['password_hash'] ? null : $ahora, 'created_at' => $ahora,
+        ]);
+        $db->table('user_roles')->insert(['tenant_id' => $id, 'user_id' => $usuario, 'role_id' => $roles[self::ROL_ADMIN], 'created_at' => $ahora]);
+        if ($e['codigo']) {
+            $db->table('password_reset_tokens')->insert([
+                'tenant_id' => $id, 'user_id' => $usuario, 'token_hash' => Hash::make($e['codigo']), 'kind' => 'INVITE',
+                'expires_at' => $ahora->copy()->addHours(Usuarios::INVITACION_HORAS), 'requested_at' => $ahora, 'requested_ip' => request()?->ip(), 'created_at' => $ahora,
+            ]);
+        }
+
+        // Suscripción de prueba y su primer evento (RN-SUS-04, RN-SUS-15).
+        $sub = (string) Uuid::uuid4();
+        $version = $db->table('saas_plan_versions')->where('plan_code', $e['plan']->code)->where('status', 'PUBLISHED')->value('id');
+        $db->table('subscriptions')->insert([
+            'id' => $sub, 'tenant_id' => $id, 'plan_code' => $e['plan']->code, 'plan_version_id' => $version, 'status' => 'TRIAL',
+            'trial_ends_at' => $ahora->copy()->addDays($e['dias'])->endOfDay(), 'trial_days_granted' => $e['dias'], 'started_at' => $ahora,
+            'status_changed_at' => $ahora, 'created_by' => $e['created_by'], 'created_at' => $ahora, 'updated_at' => $ahora,
+        ]);
+        $db->table('subscription_events')->insert([
+            'subscription_id' => $sub, 'tenant_id' => $id, 'event' => 'CREATED', 'to_status' => 'TRIAL', 'reason' => $e['motivo'],
+            'actor_type' => $e['actor_type'], 'actor_id' => $e['actor_id'], 'actor_name' => $e['actor_name'],
+            'detail' => json_encode(['plan' => $e['plan']->code, 'trial_days' => $e['dias']]), 'occurred_at' => $ahora,
+        ]);
     }
 
     /* ------------------------------------------------------------------ internos */

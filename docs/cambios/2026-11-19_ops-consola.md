@@ -435,3 +435,79 @@ Antes, las cuentas de la consola tenían que ser `@intelectalab.com`, fijo en el
   Sin esa opción, el comando rechaza el correo y explica cómo usarla.
 
 Se agregaron 2 pruebas; en total el sistema tiene 337. Se revisó en el navegador agregando `gmail.com` desde OPS-16.
+
+---
+
+# Tanda 5: registro desde la página pública y registros y pedidos de demo en la consola (ONB-01 y ONB-16)
+
+## Base de datos
+
+Migración `2026_11_19_000500_onb_registro_publico.php`. Después de `git pull`, correr `php artisan migrate --database=pgsql_owner`.
+
+- **`tenant_signups`** (tabla global): cada registro desde la página. Guarda RUC, razón social, nombre comercial, rubro, régimen, domicilio fiscal, plan, contacto y correo, y además:
+  - el código de 6 caracteres con hash, su vencimiento y los intentos;
+  - la contraseña que eligió, con hash, que se borra al crear la empresa;
+  - su estado: PENDING (por verificar), PROVISIONED (empresa creada), EXPIRED o REJECTED, y la empresa creada.
+
+  Reglas en la base:
+  - **Un solo registro vivo por RUC** (RN-ONB-02).
+  - El RUC debe tener formato válido.
+  - El correo se guarda en minúsculas.
+- **`demo_requests`** gana quién atendió el pedido, cuándo y su nota. La aplicación sigue sin poder leer esa tabla: la consola usa `platform_demo_requests()` y `platform_attend_demo_request()`, que exigen un usuario de plataforma activo.
+- **`platform_create_tenant_from_signup()`** crea la fila de la empresa solo para un registro con el correo verificado y sin empresa. `tenants` sigue siendo de solo lectura para la aplicación.
+- **Parámetros de plataforma** (también se cambian en Parámetros de plataforma):
+  - `onb_signup_code_hours` (48): cuánto dura el código.
+  - `onb_signup_expire_days` (7): a los cuántos días vence un registro sin verificar, lo que libera el RUC.
+
+## Cómo funciona el registro
+
+1. **«Pruébalo gratis»** en la cabecera, en la portada, en las tarjetas de planes y en la calculadora de precios lleva a **`/registro`**, con el plan si se eligió uno. **«Agenda una demo»** sigue abriendo el pedido de demo.
+2. **El formulario** pide:
+   - la empresa: RUC, razón social, nombre comercial, rubro, régimen y domicilio fiscal;
+   - el plan;
+   - los datos de acceso: nombre, celular, correo y contraseña dos veces, con el ojito;
+   - aceptar los términos.
+
+   También tiene una trampa invisible contra robots.
+3. **La API revisa todo antes de guardar:**
+   - el dígito verificador del RUC (RN-ONB-01);
+   - que el RUC no sea ya cliente (RN-ONB-02);
+   - que no haya otro registro en curso con otro correo;
+   - la contraseña, con la misma política de SEG.
+
+   Si todo está bien, envía **un código de 6 caracteres al correo**. Si la persona se vuelve a registrar con el mismo RUC y el mismo correo, recibe un código nuevo.
+4. **Con el código correcto** se crea la empresa en una sola operación (RN-ONB-17): razón social, roles y permisos, módulos del plan, la administradora **ya activa con la contraseña que eligió** (rol Gerencia) y la suscripción **en prueba** por `sus_trial_days_default` días. Desde ahí ingresa al sistema normal.
+5. **Límites del código:**
+   - Hay 5 intentos; al quinto fallo el registro vence y hay que registrarse de nuevo.
+   - El código vence a las 48 horas.
+
+El alta desde la consola y el registro público usan el mismo paso interno (`Empresas::poblar`), así crean exactamente lo mismo.
+
+## Consola: Registros y demos
+
+Va en el menú «Clientes» de la consola y tiene dos pestañas:
+
+- **Registros:** empresa, RUC, contacto, plan y rubro, estado (por verificar con sus intentos fallidos, empresa creada con enlace a su ficha, vencido o rechazado) y fecha. El administrador puede **rechazar** un registro por verificar, con motivo; eso libera el RUC.
+- **Pedidos de demo:** quién, WhatsApp, rubro, plan e intereses, y la fecha. Se marcan **atendidos** con una nota (qué se coordinó) o se reabren.
+
+Cada pestaña cuenta lo pendiente. Las altas por registro, los rechazos y los pedidos atendidos quedan en la bitácora de la consola.
+
+## Pruebas
+
+4 pruebas nuevas:
+- en `OnbTest`: registro, verificación y alta en prueba, con ingreso al sistema; las validaciones, la trampa contra robots y el RUC en curso; los 5 intentos y el vencimiento;
+- en `OpsTest`: registros y pedidos de demo en la consola.
+
+En total el sistema tiene 341 pruebas, todas correctas.
+
+Revisión en el navegador contra `aycha_test`:
+- el registro completo de «Pollos San Martín» desde `/registro`: formulario, código del correo y cuenta lista;
+- la consola con el registro convertido en empresa y un pedido de demo por atender.
+
+## Pendiente
+
+- **Consulta del RUC a SUNAT** para traer la razón social, el estado y el domicilio (D-ONB-01): hoy se valida el dígito verificador y la persona escribe los datos.
+- **Correo:** el código llega por correo. En local queda en el log; en el servidor hay que configurar el correo antes de abrir el registro al público.
+- **Términos del servicio y política de privacidad:** el registro pide aceptarlos, pero todavía no hay una página con esos textos.
+- **Segundo factor** para el administrador de la empresa: pendiente con el de SEG.
+- **ONB-02 a 15:** el asistente de alta con plantillas por rubro e importadores.

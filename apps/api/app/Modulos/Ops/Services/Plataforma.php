@@ -27,6 +27,7 @@ final class Plataforma
         'SUBSCRIPTION_STATUS' => 'Cambio de estado de suscripción', 'TRIAL_EXTENDED' => 'Prueba extendida', 'SUBSCRIPTION_DISCOUNT' => 'Descuento pactado',
         'PLAN_DRAFT_CREATED' => 'Borrador de plan', 'PLAN_DRAFT_DELETED' => 'Borrador de plan borrado', 'PLAN_PUBLISHED' => 'Plan publicado',
         'PLAN_RETIRED' => 'Plan retirado', 'PARAMETER_CHANGED' => 'Parámetro cambiado', 'CATALOG_IMPORTED' => 'Catálogo global importado',
+        'TENANT_SIGNUP' => 'Empresa creada por registro', 'SIGNUP_REJECTED' => 'Registro rechazado', 'DEMO_ATTENDED' => 'Pedido de demo atendido', 'DEMO_REOPENED' => 'Pedido de demo reabierto',
     ];
 
     /** Reglas de cada parámetro de plataforma: tipo y rango, para no guardar un valor que rompa la consola. */
@@ -36,6 +37,8 @@ final class Plataforma
         'ops_platform_user_invite_hours' => ['entero', 1, 168],
         'ops_console_ip_allowlist' => ['redes'],
         'ops_platform_email_domains' => ['dominios'],
+        'onb_signup_code_hours' => ['entero', 1, 168],
+        'onb_signup_expire_days' => ['entero', 1, 30],
         'sus_trial_days_default' => ['entero', 1, 30],
         'sus_trial_max_days' => ['entero', 1, 90],
     ];

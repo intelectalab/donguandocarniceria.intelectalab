@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Building2, ChevronDown, CreditCard, Database, Layers, Loader2, LogOut, Menu, Moon, ScrollText, Settings2, ShieldCheck, Sun, Users, type LucideIcon,
+  Building2, ChevronDown, CreditCard, Database, Inbox, Layers, Loader2, LogOut, Menu, Moon, ScrollText, Settings2, ShieldCheck, Sun, Users, type LucideIcon,
 } from "lucide-react";
 import { UiHost } from "@/components/ui";
 import { Franja } from "@/components/ui/Franja";
@@ -20,6 +20,7 @@ const GRUPOS: { name: string; items: Item[] }[] = [
   { name: "Clientes", items: [
     { href: "/consola/empresas", label: "Empresas", icon: Building2 },
     { href: "/consola/suscripciones", label: "Suscripciones", icon: CreditCard },
+    { href: "/consola/registros", label: "Registros y demos", icon: Inbox },
   ] },
   { name: "Producto", items: [
     { href: "/consola/planes", label: "Catálogo de planes", icon: Layers },
