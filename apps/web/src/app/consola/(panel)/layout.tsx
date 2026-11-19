@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FocusEvent, type MouseEvent as EventoMouse, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -114,6 +115,14 @@ function BarraLateral({ compacta, ruta, usuario, saliendo, onSalir, onNavegar }:
   compacta: boolean; ruta: string; usuario: UsuarioConsola; saliendo: boolean; onSalir: () => void; onNavegar: () => void;
 }) {
   const titulo = "px-[22px] pt-2.5 pb-1.5 text-[10.5px] font-semibold tracking-[0.1em] text-white/55 uppercase";
+  // Barra en íconos: el nombre aparece en una burbuja flotante (fuera del menú, para que su scroll no la corte).
+  const [tip, setTip] = useState<{ texto: string; top: number; left: number } | null>(null);
+  const mostrar = (texto: string) => (e: EventoMouse<HTMLElement> | FocusEvent<HTMLElement>) => {
+    if (!compacta) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    setTip({ texto, top: r.top + r.height / 2, left: r.right + 10 });
+  };
+  const ocultar = () => setTip(null);
   return (
     <div className="relative flex h-full flex-col text-white" style={{ background: FONDO }}>
       <Franja className="h-2 w-full shrink-0" />
@@ -147,13 +156,13 @@ function BarraLateral({ compacta, ruta, usuario, saliendo, onSalir, onNavegar }:
             {g.items.map((it) => {
               const activa = ruta === it.href || ruta.startsWith(`${it.href}/`);
               return (
-                <Link key={it.href} href={it.href} onClick={onNavegar} aria-current={activa ? "page" : undefined} aria-label={compacta ? it.label : undefined}
+                <Link key={it.href} href={it.href} onClick={() => { ocultar(); onNavegar(); }} aria-current={activa ? "page" : undefined} aria-label={compacta ? it.label : undefined}
+                  onMouseEnter={mostrar(it.label)} onMouseLeave={ocultar} onFocus={mostrar(it.label)} onBlur={ocultar}
                   className={`group relative flex w-full items-center text-[13.5px] font-medium transition-colors ${compacta ? "h-10 justify-center rounded-lg" : "gap-3 px-[22px] py-2.5"} ${
                     activa ? "bg-white/[.14] text-white" : "text-white/85 hover:bg-white/[.07] hover:text-white"}`}>
                   {activa && !compacta && <span className="absolute inset-y-0 left-0 w-1 bg-primary" />}
                   <it.icon size={18} strokeWidth={2} className="shrink-0 opacity-90" />
                   {!compacta && <span className="min-w-0 break-words">{it.label}</span>}
-                  {compacta && <Tip>{it.label}</Tip>}
                 </Link>
               );
             })}
@@ -164,10 +173,10 @@ function BarraLateral({ compacta, ruta, usuario, saliendo, onSalir, onNavegar }:
       <div className={`shrink-0 border-t border-white/[0.12] ${compacta ? "p-2" : "pt-1 pb-2.5"}`}>
         {!compacta && <div className={titulo}>Cuenta</div>}
         <button onClick={onSalir} disabled={saliendo} aria-label={compacta ? "Cerrar sesión" : undefined}
+          onMouseEnter={mostrar("Cerrar sesión")} onMouseLeave={ocultar} onFocus={mostrar("Cerrar sesión")} onBlur={ocultar}
           className={`group relative flex w-full cursor-pointer items-center text-[13.5px] font-medium text-white/85 transition-colors hover:bg-white/[.07] hover:text-white disabled:opacity-60 ${compacta ? "h-10 justify-center rounded-lg" : "gap-3 px-[22px] py-2"}`}>
           <LogOut size={18} className="shrink-0 opacity-90" />
           {!compacta && (saliendo ? "Saliendo…" : "Cerrar sesión")}
-          {compacta && <Tip>Cerrar sesión</Tip>}
         </button>
         {!compacta && (
           <div className="mx-3.5 mt-2 flex items-center justify-center gap-1.5 rounded-lg bg-black/[0.25] px-2.5 py-1.5 text-[10.5px] text-white/70">
@@ -176,6 +185,7 @@ function BarraLateral({ compacta, ruta, usuario, saliendo, onSalir, onNavegar }:
           </div>
         )}
       </div>
+      {compacta && tip && <Burbuja {...tip} />}
     </div>
   );
 }
@@ -258,10 +268,13 @@ function Cabecera({ abierta, titulo, grupo, usuario, onAlternar, onSalir }: {
   );
 }
 
-function Tip({ children }: { children: ReactNode }) {
-  return (
-    <span className="pointer-events-none invisible absolute top-1/2 left-full z-50 ml-3 -translate-x-2 -translate-y-1/2 rounded-lg bg-tooltip px-2.5 py-1.5 text-xs font-medium whitespace-nowrap text-tooltip-text opacity-0 shadow-lg transition-all duration-150 group-hover:visible group-hover:translate-x-0 group-hover:opacity-100">
-      {children}
-    </span>
+/** Burbuja con el nombre de la opción cuando la barra está en íconos (como la del sistema). */
+function Burbuja({ texto, top, left }: { texto: string; top: number; left: number }) {
+  return createPortal(
+    <span role="tooltip" className="pointer-events-none fixed z-50 -translate-y-1/2 rounded-lg bg-tooltip px-2.5 py-1.5 text-xs font-medium whitespace-nowrap text-tooltip-text shadow-lg" style={{ top, left }}>
+      <span className="absolute top-1/2 right-full -translate-y-1/2 border-[5px] border-transparent" style={{ borderRightColor: "var(--tooltip)" }} />
+      {texto}
+    </span>,
+    document.body,
   );
 }
