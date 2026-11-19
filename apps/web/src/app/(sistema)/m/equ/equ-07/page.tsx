@@ -52,7 +52,7 @@ export default function ReporteFalla() {
     } finally { setEnviando(false); }
   }
 
-  if (op && !reporta) return <Alert tone="info" title="Sin permiso para reportar fallas">Reportar fallas pide el permiso equ.failure.report (operarios, almacén y caja).</Alert>;
+  if (op && !reporta) return <Alert tone="info" title="Sin permiso para reportar fallas">Tu usuario no tiene permiso para reportar fallas de equipos. Pídeselo al administrador del sistema.</Alert>;
 
   return (
     <div className="grid gap-5 lg:grid-cols-[420px_minmax(0,1fr)]">
@@ -62,7 +62,7 @@ export default function ReporteFalla() {
           <p className="text-[12.5px] text-muted">Escanea el QR pegado en el equipo con la cámara del celular, o escribe su código.</p>
         </div>
         {hecho && <Alert tone={hecho.created ? "warn" : "info"} title={hecho.created ? `Orden ${hecho.order.number} abierta` : `Sumado a ${hecho.order.number}`}>
-          {hecho.created ? `${hecho.order.equipment_code} queda fuera de servicio hasta que se repare (RN-EQU-05). Se avisó al jefe de producción.`
+          {hecho.created ? `${hecho.order.equipment_code} queda fuera de servicio hasta que se repare. Se avisó al jefe de producción.`
             : `${hecho.order.equipment_code} ya tenía esa orden correctiva abierta: tu reporte se agregó a ella.`}
         </Alert>}
         <Field label="Código del QR" hint="EQ-SEL-L1-01 o SEL-L1-01">

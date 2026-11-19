@@ -68,7 +68,7 @@ export default function FichaEquipo() {
       {error && <Alert tone="bad">{error}</Alert>}
       {e && <>
         {e.not_usable
-          ? <Alert tone="bad" title={`${e.not_usable.rule}: no se usa`}>{e.not_usable.msg}</Alert>
+          ? <Alert tone="bad" title="No se usa">{e.not_usable.msg}</Alert>
           : <Alert tone="ok" title="Apto para usarse hoy">{e.requires_calibration && e.calibration.calibration ? `Calibración conforme vigente hasta el ${fecha(e.calibration.calibration.valid_until)}.` : `${e.code} está activo.`}</Alert>}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <CifraLink destacada titulo="Costo acumulado" valor={soles(e.totals.accumulated_cost)} detalle={`Mantenimiento ${soles(e.totals.maintenance_cost)} · calibración ${soles(e.totals.calibration_cost)}`} icono={Wrench} />
@@ -94,8 +94,8 @@ export default function FichaEquipo() {
               { label: "Vida útil", value: e.useful_life_months ? `${e.useful_life_months} meses` : "—" },
               { label: "Carga por hora", value: soles(e.hourly_rate) }, { label: "Centro de costo", value: e.cost_center_code ? `${e.cost_center_code} · ${e.cost_center_name}` : "—" },
               { label: "Exige calibración", value: e.requires_calibration ? "Sí" : "No" },
-              ...(e.category === "COLD_ROOM" || e.category === "FREEZER" ? [{ label: "Punto de temperatura (CAL-04)", value: e.temperature_point
-                ? `${e.temperature_point.code} · ${numero(e.temperature_point.min_c, 0)} a ${numero(e.temperature_point.max_c, 0)} °C` : <span className="text-bad">Sin punto: no pasa a activo (RN-EQU-11)</span> }] : []),
+              ...(e.category === "COLD_ROOM" || e.category === "FREEZER" ? [{ label: "Punto de temperatura", value: e.temperature_point
+                ? `${e.temperature_point.code} · ${numero(e.temperature_point.min_c, 0)} a ${numero(e.temperature_point.max_c, 0)} °C` : <span className="text-bad">Sin punto: no pasa a activo</span> }] : []),
               { label: "Manual", value: e.manual_url ?? "—" }, { label: "Fotos", value: e.photos.length ? e.photos.join(", ") : "—" },
               ...(e.notes ? [{ label: "Notas", value: e.notes }] : []),
             ]} />
@@ -104,7 +104,7 @@ export default function FichaEquipo() {
             <button type="button" className="cursor-pointer" onClick={() => setQr(true)} aria-label="Ver QR grande"><Qr texto={urlDelQr(e.qr_code)} tamano={140} titulo={`QR de ${e.code}`} /></button>
             <span className="font-mono text-[13px] font-semibold">{e.qr_code}</span>
             <div className="mt-2 w-full border-t border-line pt-3 text-left text-[12.5px]">
-              <p className="font-medium">Carga por hora sugerida (RN-EQU-09)</p>
+              <p className="font-medium">Carga por hora sugerida</p>
               <p className="text-[18px] font-semibold tabular-nums">{e.suggested_rate.rate ? soles(e.suggested_rate.rate) : "—"}</p>
               <p className="text-muted">({e.suggested_rate.monthly_depreciation ? soles(e.suggested_rate.monthly_depreciation) : "sin compra"} al mes + {soles(e.suggested_rate.monthly_maintenance)} de mantenimiento) / {numero(e.suggested_rate.monthly_hours, 1)} h de uso al mes, últimos 90 días.</p>
               {gestiona && e.suggested_rate.rate && Number(e.suggested_rate.rate) !== Number(e.hourly_rate) &&

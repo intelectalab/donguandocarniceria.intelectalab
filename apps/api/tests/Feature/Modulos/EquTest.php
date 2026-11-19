@@ -25,6 +25,8 @@ class EquTest extends TestCase
 
     private const OPERARIO = 'npoma@donguando.pe';      // OPERARIO_PRODUCCION: reporta fallas
 
+    private const ALMACENERO = 'mtorres@donguando.pe'; // ALMACENERO: entra al módulo y reporta fallas
+
     private const GERENTE = 'rquispe@donguando.pe';
 
     protected function setUp(): void
@@ -337,6 +339,25 @@ class EquTest extends TestCase
             ->assertStatus(422)->assertJsonPath('code', 'RN-EQU-06');
         $this->como(self::OPERARIO)->postJson('/api/v1/equ/equipos', ['code' => 'X', 'name' => 'X', 'category' => 'OTHER', 'establishment_id' => $plan->equipment_id])->assertForbidden();
         $this->como(self::JEFE)->getJson('/api/v1/equ/equipos/codigo?code=NO-EXISTE')->assertNotFound()->assertJsonPath('code', 'RN-EQU-05');
+    }
+
+    public function test_registrar_uso_y_reportar_fallas_piden_su_propio_permiso(): void
+    {
+        $emb = $this->equipo('EMB-L2-01');
+        $uso = ['equipment_id' => $emb->id, 'order_ref' => 'OP01-0500', 'hours' => 1.5, 'used_on' => '2026-10-10'];
+        // El operario tiene equ.usage.record: registra horas y lecturas de horómetro.
+        $this->como(self::OPERARIO)->postJson('/api/v1/equ/uso', $uso)->assertCreated();
+        $this->como(self::OPERARIO)->getJson('/api/v1/equ/opciones')->assertJsonPath('can.usage', true);
+        // El almacenero entra al módulo y reporta fallas, pero no registra uso. El mensaje no muestra códigos internos.
+        $r = $this->como(self::ALMACENERO)->postJson('/api/v1/equ/uso', $uso)->assertForbidden()->json();
+        $this->assertSame('No tienes permiso para esta acción: registrar horas de uso y lecturas de horómetro.', $r['message']);
+        $this->como(self::ALMACENERO)->postJson("/api/v1/equ/equipos/{$emb->id}/horometro", ['hours' => 9999])->assertForbidden();
+        $this->como(self::ALMACENERO)->getJson('/api/v1/equ/opciones')->assertJsonPath('can.usage', false);
+        // Calidad registra calibraciones, pero no reporta fallas ni abre órdenes.
+        $falla = ['equipment_id' => $emb->id, 'description' => 'No arranca'];
+        $this->como(self::CALIDAD)->postJson('/api/v1/equ/fallas', $falla)->assertForbidden();
+        $this->como(self::CALIDAD)->postJson('/api/v1/equ/ordenes', $falla + ['kind' => 'CORRECTIVE'])->assertForbidden();
+        $this->como(self::JEFE)->postJson('/api/v1/equ/fallas', $falla)->assertCreated();
     }
 
     public function test_kpi_equ_01_a_04_del_mes(): void

@@ -103,7 +103,7 @@ export function FormEquipo({ e, op, onClose, onGuardado }: { e?: Equipo | null; 
   const set = (k: keyof typeof f, v: string | boolean) => setF((x) => ({ ...x, [k]: v }));
   return (
     <Dialogo titulo={e ? `Editar ${e.code}` : "Nuevo equipo"} boton={e ? "Guardar" : "Crear equipo"} onClose={onClose}
-      aviso={FRIO.includes(f.category) ? "Una cámara o congeladora activa necesita su punto de temperatura en Calidad (CAL-04). Sin él, guárdala como fuera de servicio (RN-EQU-11)." : undefined}
+      aviso={FRIO.includes(f.category) ? "Una cámara o congeladora activa necesita su punto de temperatura registrado en Calidad. Sin él, guárdala como fuera de servicio." : undefined}
       enviar={async () => {
         const body = {
           ...f, requires_calibration: balanza || f.requires_calibration, warehouse_id: f.warehouse_id || null, cost_center_id: f.cost_center_id || null,
@@ -128,12 +128,12 @@ export function FormEquipo({ e, op, onClose, onGuardado }: { e?: Equipo | null; 
         <Field label="Almacén asociado" error={err.warehouse_id} hint="Para cámaras, congeladoras y balanzas de mostrador">
           <Select value={f.warehouse_id} placeholder="Ninguno" options={almacenes.map((w) => ({ value: w.id, label: `${w.code} · ${w.name}` }))} onChange={(x) => set("warehouse_id", x.target.value)} />
         </Field>
-        <Field label="Centro de costo" error={err.cost_center_id} hint="Ahí se cargan sus mantenimientos (RN-EQU-06)">
+        <Field label="Centro de costo" error={err.cost_center_id} hint="Ahí se cargan sus mantenimientos">
           <Select value={f.cost_center_id} placeholder="El de producción del local" options={centros.map((c) => ({ value: c.id, label: `${c.code} · ${c.name}` }))} onChange={(x) => set("cost_center_id", x.target.value)} />
         </Field>
         <div className="sm:col-span-2">
           <Checkbox checked={balanza || f.requires_calibration} disabled={balanza} onChange={(v) => set("requires_calibration", v)} label="Exige calibración"
-            hint={balanza ? "Toda balanza exige calibración (RN-EQU-01)." : "Por ejemplo, termómetros de olla. Sin calibración vigente no se usa (RN-EQU-03)."} />
+            hint={balanza ? "Toda balanza exige calibración." : "Por ejemplo, termómetros de olla. Sin calibración vigente no se usa."} />
         </div>
         <Field label="Marca" error={err.brand_name}><Input value={f.brand_name} maxLength={40} onChange={(x) => set("brand_name", x.target.value)} /></Field>
         <Field label="Modelo" error={err.model}><Input value={f.model} maxLength={40} onChange={(x) => set("model", x.target.value)} /></Field>
@@ -143,7 +143,7 @@ export function FormEquipo({ e, op, onClose, onGuardado }: { e?: Equipo | null; 
         <Field label="Costo de compra" error={err.purchase_cost}><Input inputMode="decimal" prefix="S/" value={f.purchase_cost} onChange={(x) => set("purchase_cost", x.target.value)} /></Field>
         <Field label="Vida útil" error={err.useful_life_months}><Input inputMode="numeric" suffix="meses" value={f.useful_life_months} onChange={(x) => set("useful_life_months", x.target.value.replace(/\D/g, ""))} /></Field>
         <Field label="Potencia" error={err.power_kw}><Input inputMode="decimal" suffix="kW" value={f.power_kw} onChange={(x) => set("power_kw", x.target.value)} /></Field>
-        <Field label="Carga por hora" error={err.hourly_rate} hint="La fija el jefe de producción (RN-EQU-09)"><Input inputMode="decimal" prefix="S/" value={f.hourly_rate} onChange={(x) => set("hourly_rate", x.target.value)} /></Field>
+        <Field label="Carga por hora" error={err.hourly_rate} hint="La fija el jefe de producción"><Input inputMode="decimal" prefix="S/" value={f.hourly_rate} onChange={(x) => set("hourly_rate", x.target.value)} /></Field>
         <Field label="Estado" error={err.status}><Select value={f.status} options={ESTADOS} onChange={(x) => set("status", x.target.value)} /></Field>
         <Field label="Manual" error={err.manual_url} className="sm:col-span-2" hint="Ruta o enlace del PDF"><Input value={f.manual_url} maxLength={255} onChange={(x) => set("manual_url", x.target.value)} /></Field>
         <Field label="Notas" error={err.notes} className="sm:col-span-2"><Textarea value={f.notes} rows={2} onChange={(x) => set("notes", x.target.value)} /></Field>
@@ -166,7 +166,7 @@ export function FormCalibracion({ op, equipoId, onClose, onGuardado }: { op: Opc
   const set = (k: keyof typeof f, v: string) => setF((x) => ({ ...x, [k]: v }));
   return (
     <Dialogo titulo="Registrar calibración" boton="Registrar" onClose={onClose}
-      aviso="Las calibraciones no se editan ni se borran: si hay un error, registra otra (RN-EQU-12)."
+      aviso="Las calibraciones no se editan ni se borran: si hay un error, registra otra."
       enviar={async () => {
         await api("/v1/equ/calibraciones", { method: "POST", body: { ...f, provider_supplier_id: f.provider_supplier_id || null, max_error_g: num(f.max_error_g), cost: num(f.cost) ?? 0 } });
         toast.ok(`Calibración de ${eq?.code ?? "equipo"} registrada`);
@@ -180,20 +180,20 @@ export function FormCalibracion({ op, equipoId, onClose, onGuardado }: { op: Opc
         {eq && apto && <div className="sm:col-span-2">
           <Alert tone={f.result === "FAIL" ? "bad" : apto.usable ? "ok" : "warn"}>
             {apto.usable ? `${eq.code} está apto hoy.` : apto.message}{" "}
-            {f.result === "FAIL" ? "Un resultado no conforme lo deja fuera de servicio hasta una nueva calibración conforme (RN-EQU-10)."
+            {f.result === "FAIL" ? "Un resultado no conforme lo deja fuera de servicio hasta una nueva calibración conforme."
               : `Con esta calibración conforme quedará apto hasta el ${fecha(f.valid_until)}.`}
           </Alert>
         </div>}
         <Field label="Fecha de calibración" required error={err.calibrated_on}><Input type="date" value={f.calibrated_on} max={op.today} onChange={(x) => set("calibrated_on", x.target.value)} /></Field>
-        <Field label="Vigente hasta" required error={err.valid_until} hint={`Sugerido: ${op.params.scale_calibration_months} meses (D-EQU-01)`}>
+        <Field label="Vigente hasta" required error={err.valid_until} hint={`Sugerido: ${op.params.scale_calibration_months} meses`}>
           <Input type="date" value={f.valid_until} onChange={(x) => set("valid_until", x.target.value)} />
         </Field>
         <Field label="Proveedor registrado" error={err.provider_supplier_id}>
           <Select value={f.provider_supplier_id} placeholder="Ninguno" searchable options={op.suppliers.map((s) => ({ value: s.id, label: s.legal_name }))} onChange={(x) => set("provider_supplier_id", x.target.value)} />
         </Field>
         <Field label="Proveedor (nombre)" error={err.provider_name} hint="Laboratorio que entrega el certificado"><Input value={f.provider_name} maxLength={255} onChange={(x) => set("provider_name", x.target.value)} /></Field>
-        <Field label="N.º de certificado" required error={err.certificate_number} hint="Obligatorio (RN-EQU-02)"><Input value={f.certificate_number} maxLength={40} onChange={(x) => set("certificate_number", x.target.value.toUpperCase())} /></Field>
-        <Field label="Archivo del certificado" required error={err.certificate_url} hint="Ruta o enlace del PDF (RN-EQU-02)"><Input value={f.certificate_url} maxLength={255} placeholder="certificados/CC-2026-118.pdf" onChange={(x) => set("certificate_url", x.target.value)} /></Field>
+        <Field label="N.º de certificado" required error={err.certificate_number} hint="Obligatorio"><Input value={f.certificate_number} maxLength={40} onChange={(x) => set("certificate_number", x.target.value.toUpperCase())} /></Field>
+        <Field label="Archivo del certificado" required error={err.certificate_url} hint="Ruta o enlace del PDF"><Input value={f.certificate_url} maxLength={255} placeholder="certificados/CC-2026-118.pdf" onChange={(x) => set("certificate_url", x.target.value)} /></Field>
         <Field label="Resultado" required error={err.result}>
           <Select value={f.result} options={[{ value: "PASS", label: "Conforme" }, { value: "FAIL", label: "No conforme" }]} onChange={(x) => set("result", x.target.value)} />
         </Field>
@@ -231,7 +231,7 @@ export function FichaOrden({ id, op, onClose, onCambio }: { id: string; op: Opci
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={o.kind} labels={TIPO_ORDEN} /><StatusBadge status={o.status} labels={ESTADO_ORDEN} />
           <StatusBadge status={o.urgency} labels={URGENCIA} />
-          {o.kind === "CORRECTIVE" && abierta && <Badge tone="bad">{o.equipment_code} fuera de servicio (RN-EQU-05)</Badge>}
+          {o.kind === "CORRECTIVE" && abierta && <Badge tone="bad">{o.equipment_code} fuera de servicio</Badge>}
         </div>
         <DetailList items={[
           { label: "Equipo", value: `${o.equipment_code} · ${o.equipment_name}` }, { label: o.kind === "CORRECTIVE" ? "Falla" : "Actividad", value: o.description },
@@ -244,7 +244,7 @@ export function FichaOrden({ id, op, onClose, onCambio }: { id: string; op: Opci
           ...(o.status === "VOIDED" ? [{ label: "Motivo de anulación", value: o.void_reason ?? "—" }] : []),
         ]} />
         {(o.status === "DONE" || (o.parts?.length ?? 0) > 0) && <section className="space-y-2">
-          <h2 className="text-[14px] font-semibold">Costo (RN-EQU-06)</h2>
+          <h2 className="text-[14px] font-semibold">Costo</h2>
           {(o.parts?.length ?? 0) > 0 && <ul className="divide-y divide-line rounded-[9px] border border-line text-[13px]">
             {o.parts!.map((p, i) => <li key={i} className="flex items-center justify-between gap-3 px-3 py-2">
               <span className="min-w-0 flex-1">{p.description}</span><span className="tabular-nums text-muted">{numero(p.qty)} × {soles(p.unit_cost)}</span>
@@ -275,7 +275,7 @@ function TerminarOrden({ o, op, onClose, onGuardado }: { o: Orden; op: Opciones;
   const set = (k: keyof typeof f, v: string) => setF((x) => ({ ...x, [k]: v }));
   return (
     <Dialogo titulo={`Terminar ${o.number}`} boton="Terminar orden" onClose={onClose}
-      aviso={o.kind === "CORRECTIVE" ? `Al terminar, ${o.equipment_code} vuelve a activo si no tiene otra correctiva abierta (RN-EQU-05).` : "Al terminar, el plan corre su próxima fecha u horas de uso."}
+      aviso={o.kind === "CORRECTIVE" ? `Al terminar, ${o.equipment_code} vuelve a activo si no tiene otra correctiva abierta.` : "Al terminar, el plan corre su próxima fecha u horas de uso."}
       enviar={async () => {
         await api(`/v1/equ/ordenes/${o.id}/terminar`, { method: "POST", body: {
           diagnosis: f.diagnosis || null, labor_hours: num(f.labor_hours) ?? 0, labor_cost: num(f.labor_cost) ?? 0, external_cost: num(f.external_cost) ?? 0,
@@ -324,7 +324,7 @@ export function NuevaOrden({ op, onClose, onCreada }: { op: Opciones; onClose: (
   const set = (k: keyof typeof f, v: string) => setF((x) => ({ ...x, [k]: v }));
   return (
     <Dialogo titulo="Nueva orden de mantenimiento" boton="Abrir orden" onClose={onClose}
-      aviso={f.kind === "CORRECTIVE" ? "Una orden correctiva deja el equipo fuera de servicio hasta cerrarla (RN-EQU-05)." : undefined}
+      aviso={f.kind === "CORRECTIVE" ? "Una orden correctiva deja el equipo fuera de servicio hasta cerrarla." : undefined}
       enviar={async () => {
         const o = await api<Orden>("/v1/equ/ordenes", { method: "POST", body: { ...f, plan_id: f.plan_id || null } });
         toast.ok(`Orden ${o.number} abierta`);

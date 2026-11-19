@@ -26,7 +26,7 @@ export default function UsoEquipo() {
   const barras = useDatos<{ label: string; value: Num }[]>(`/v1/equ/uso/por-equipo${qs({ site: local })}`);
   const [registrar, setRegistrar] = useState(false);
   const [lectura, setLectura] = useState(false);
-  const registra = puede("EQU", "C");
+  const registra = Boolean(op?.can.usage) && puede("EQU", "C");
   const cambio = () => { lista.recargar(); c.recargar(); barras.recargar(); olvidarOpcionesEqu(); };
 
   const columnas: Column<Uso>[] = [
@@ -41,14 +41,14 @@ export default function UsoEquipo() {
 
   return (
     <div className="space-y-5">
-      <PageHeader description="Las horas de cada equipo en una orden de producción entran al costo de la orden con la carga por hora del equipo. Solo se registran equipos aptos: ni fuera de servicio (RN-EQU-04) ni con la calibración vencida (RN-EQU-03)."
+      <PageHeader description="Las horas de cada equipo en una orden de producción entran al costo de la orden con la carga por hora del equipo. Solo se registran equipos aptos: ni fuera de servicio ni con la calibración vencida."
         actions={registra && <>
           <Button icon={Gauge} disabled={!op} onClick={() => setLectura(true)}>Lectura de horómetro</Button>
           <Button variant="primary" icon={Plus} disabled={!op} onClick={() => setRegistrar(true)}>Registrar horas</Button>
         </>} />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <CifraLink destacada titulo="Horas del mes" valor={c.datos ? `${numero(c.datos.hours, 1)} h` : undefined} detalle={c.datos ? `Desde el ${fecha(c.datos.from)}` : undefined} icono={Clock} />
-        <CifraLink titulo="Costo de equipos cargado" valor={c.datos ? soles(c.datos.cost) : undefined} detalle="Entra al costo de las órdenes (PRO)" icono={CircleDollarSign} />
+        <CifraLink titulo="Costo de equipos cargado" valor={c.datos ? soles(c.datos.cost) : undefined} detalle="Va al costo de producción" icono={CircleDollarSign} />
         <CifraLink titulo="Órdenes con equipos" valor={c.datos ? numero(c.datos.orders) : undefined} detalle="Este mes" icono={Factory} />
         <CifraLink titulo="Equipos usados" valor={c.datos ? numero(c.datos.equipment) : undefined} detalle="Este mes" icono={Wrench} />
       </div>
@@ -81,9 +81,9 @@ function RegistrarHoras({ op, onClose, onGuardado }: { op: Opciones; onClose: ()
           <Select value={f.equipment_id} placeholder="Elegir" searchable options={opcionesEquipo(op, (e) => !SIN_HORAS.includes(e.category))} onChange={(x) => set("equipment_id", x.target.value)} />
         </Field>
         {eq && apto && <div className="sm:col-span-2">
-          <Alert tone={apto.usable ? "ok" : "bad"}>{apto.usable ? `${eq.code} apto · ${soles(apto.hourly_rate)} por hora · horómetro ${numero(apto.hour_meter, 1)} h` : `${apto.rule}: ${apto.message}`}</Alert>
+          <Alert tone={apto.usable ? "ok" : "bad"}>{apto.usable ? `${eq.code} apto · ${soles(apto.hourly_rate)} por hora · horómetro ${numero(apto.hour_meter, 1)} h` : apto.message}</Alert>
         </div>}
-        <Field label="Orden de producción" required error={err.order_ref} hint="Número de la orden (PRO)"><Input value={f.order_ref} maxLength={40} placeholder="OP01-0420" onChange={(x) => set("order_ref", x.target.value.toUpperCase())} /></Field>
+        <Field label="Orden de producción" required error={err.order_ref} hint="Número de la orden de producción"><Input value={f.order_ref} maxLength={40} placeholder="OP01-0420" onChange={(x) => set("order_ref", x.target.value.toUpperCase())} /></Field>
         <Field label="Horas" required error={err.hours}><Input inputMode="decimal" suffix="h" value={f.hours} onChange={(x) => set("hours", x.target.value)} /></Field>
         <Field label="Fecha" required error={err.used_on}><Input type="date" value={f.used_on} max={op.today} onChange={(x) => set("used_on", x.target.value)} /></Field>
         {eq && num(f.hours) && <p className="self-end text-[13px] text-muted">Costo: <b className="text-ink">{soles((num(f.hours) ?? 0) * Number(eq.hourly_rate ?? 0))}</b></p>}
@@ -96,7 +96,7 @@ function LecturaHorometro({ op, onClose, onGuardado }: { op: Opciones; onClose: 
   const [f, setF] = useState({ equipment_id: "", hours: "" });
   const eq = op.equipment.find((e) => e.id === f.equipment_id);
   return (
-    <Dialogo titulo="Lectura de horómetro" boton="Guardar lectura" onClose={onClose} aviso="La lectura no puede ser menor que la acumulada. Si un plan por horas ya toca, se avisa (RN-EQU-07)."
+    <Dialogo titulo="Lectura de horómetro" boton="Guardar lectura" onClose={onClose} aviso="La lectura no puede ser menor que la acumulada. Si un plan por horas ya toca, se avisa."
       enviar={async () => {
         const r = await api<{ equipment: { code: string; hour_meter: Num }; due_plans: string[] }>(`/v1/equ/equipos/${f.equipment_id}/horometro`, { method: "POST", body: { hours: num(f.hours) } });
         if (r.due_plans.length) toast.info(`Horómetro de ${r.equipment.code}: ${numero(r.equipment.hour_meter, 1)} h · toca «${r.due_plans[0]}»`);

@@ -5,17 +5,29 @@ namespace App\Http\Middleware;
 use App\Support\Access;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
-/** Ruta que exige un permiso especial de la spec: ->middleware('permiso:ped.discount.approve'). */
+/**
+ * Ruta que exige un permiso especial de la spec: ->middleware('permiso:ped.discount.approve').
+ * Con varios separados por | basta uno: ->middleware('permiso:equ.failure.report|equ.maintenance.manage').
+ */
 class CheckPermission
 {
     public function handle(Request $request, Closure $next, string $permission): Response
     {
-        if (! Access::can($request->user(), $permission)) {
-            return response()->json(['message' => "No tienes el permiso {$permission}.", 'code' => 'PERMISSION_DENIED'], 403);
+        $permisos = explode('|', $permission);
+        foreach ($permisos as $p) {
+            if (Access::can($request->user(), $p)) {
+                return $next($request);
+            }
         }
+        // El mensaje dice qué acción falta, sin el código interno del permiso.
+        $accion = DB::table('permissions')->where('code', $permisos[0])->value('description');
 
-        return $next($request);
+        return response()->json([
+            'message' => $accion ? 'No tienes permiso para esta acción: '.mb_strtolower(mb_substr($accion, 0, 1)).mb_substr($accion, 1).'.' : 'No tienes permiso para esta acción.',
+            'code' => 'PERMISSION_DENIED', 'permission' => $permission,
+        ], 403);
     }
 }

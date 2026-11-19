@@ -45,13 +45,13 @@ export default function CalendarioCalibraciones() {
 
   return (
     <div className="space-y-5">
-      <PageHeader description={`Balanzas y termómetros que exigen calibración. Se avisa ${s?.alert_days ?? 15} días antes del vencimiento (RN-EQU-08); con la calibración vencida no pesan ventas ni lotes, ni se usan en producción (RN-EQU-03).`} />
+      <PageHeader description={`Balanzas y termómetros que exigen calibración. Se avisa ${s?.alert_days ?? 15} días antes del vencimiento; con la calibración vencida no pesan ventas ni lotes, ni se usan en producción.`} />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <CifraLink titulo="Vencidas o bloqueadas" valor={s ? String(s.blocked) : undefined} detalle="No se usan hasta calibrarlas" icono={ShieldX} tono={s?.blocked ? "bad" : "ok"} onClick={() => setTab("BLOCKED")} />
         <CifraLink titulo="Vencen en 30 días" valor={s ? String(s.expiring) : undefined} detalle="Programa su calibración" icono={CalendarClock} tono={s?.expiring ? "warn" : "ok"} onClick={() => setTab("EXPIRING")} />
         <CifraLink titulo={`Con aviso (≤ ${s?.alert_days ?? 15} días)`} valor={s ? String(s.alert) : undefined} detalle="Avisados a Calidad y al jefe" icono={BellRing} tono={s?.alert ? "warn" : undefined} />
         <CifraLink destacada titulo="Balanzas con calibración vigente" valor={s?.scales_pct != null ? porcentaje(s.scales_pct, 1) : undefined}
-          detalle={s ? `${s.scales_ok} de ${s.scales} · KPI-EQU-02 · meta 100 %` : undefined} icono={Scale} tono={s && s.scales_ok === s.scales ? "ok" : "bad"} />
+          detalle={s ? `${s.scales_ok} de ${s.scales} · meta 100 %` : undefined} icono={Scale} tono={s && s.scales_ok === s.scales ? "ok" : "bad"} />
       </div>
       {error && <Alert tone="bad">{error}</Alert>}
       <Tabs value={tab} onChange={setTab} tabs={[

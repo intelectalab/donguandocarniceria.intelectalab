@@ -160,7 +160,7 @@ final class EquiposService
      */
     public static function guardarEquipo(array $d, ?string $id, User $quien): object
     {
-        Access::can($quien, 'equ.equipment.manage') || RuleError::fail('RN-EQU-01', 'Crear y editar equipos pide el permiso equ.equipment.manage (jefe de producción).');
+        Access::can($quien, 'equ.equipment.manage') || RuleError::fail('RN-EQU-01', 'No tienes permiso para crear ni editar equipos. Lo hace el jefe de producción.');
 
         return self::base(fn () => DB::transaction(function () use ($d, $id, $quien) {
             $antes = $id ? (DB::table('equipment')->where('id', $id)->lockForUpdate()->first() ?? RuleError::fail('RN-EQU-01', 'Equipo no encontrado.')) : null;
@@ -240,7 +240,7 @@ final class EquiposService
             }
             // RN-EQU-11: una cámara o congeladora activa necesita su punto de temperatura en CAL-04.
             if (in_array($cat, self::FRIO, true) && $estado === 'ACTIVE' && ! self::puntoDeTemperatura($antes?->id, $almacen)) {
-                RuleError::fail('RN-EQU-11', 'Toda cámara y congeladora necesita su punto de temperatura en Calidad (CAL-04) antes de quedar activa. Créalo, o guarda el equipo como fuera de servicio.');
+                RuleError::fail('RN-EQU-11', 'Toda cámara y congeladora necesita su punto de temperatura registrado en Calidad antes de quedar activa. Créalo, o guarda el equipo como fuera de servicio.');
             }
 
             if ($antes) {
@@ -295,7 +295,7 @@ final class EquiposService
     /** RN-EQU-02, RN-EQU-10 y RN-EQU-12. Una calibración no se edita: un error se corrige registrando otra. */
     public static function registrarCalibracion(array $d, User $quien): object
     {
-        Access::can($quien, 'equ.calibration.record') || RuleError::fail('RN-EQU-02', 'Registrar calibraciones pide el permiso equ.calibration.record (Calidad o jefe de producción).');
+        Access::can($quien, 'equ.calibration.record') || RuleError::fail('RN-EQU-02', 'No tienes permiso para registrar calibraciones. Lo hacen Calidad o el jefe de producción.');
 
         return self::base(fn () => DB::transaction(function () use ($d, $quien) {
             $e = DB::table('equipment')->where('id', $d['equipment_id'] ?? null)->lockForUpdate()->first() ?? RuleError::fail('RN-EQU-02', 'Elige el equipo.');
@@ -331,7 +331,7 @@ final class EquiposService
                 // RN-EQU-10: queda fuera de servicio hasta una nueva calibración conforme.
                 DB::table('equipment')->where('id', $e->id)->update(['status' => 'OUT_OF_SERVICE', 'oos_reason' => $e->status === 'OUT_OF_SERVICE' && $e->oos_reason === 'CORRECTIVE' ? 'CORRECTIVE' : 'CALIBRATION',
                     'oos_since' => $e->status === 'OUT_OF_SERVICE' ? $e->oos_since : now(), 'updated_at' => now()]);
-                self::avisar(['role' => 'JEFE_PRODUCCION'], "{$e->code} fuera de servicio: calibración no conforme", "Certificado {$cert}. No se usa hasta una nueva calibración conforme (RN-EQU-10).", 'EQU-02', $e->id, 'bad');
+                self::avisar(['role' => 'JEFE_PRODUCCION'], "{$e->code} fuera de servicio: calibración no conforme", "Certificado {$cert}. No se usa hasta una nueva calibración conforme.", 'EQU-02', $e->id, 'bad');
                 Events::emit('equipment.out_of_service', 'equipment', $e->id, ['code' => $e->code, 'reason' => 'CALIBRATION', 'certificate' => $cert]);
             } elseif ($e->status === 'OUT_OF_SERVICE' && $e->oos_reason === 'CALIBRATION' && self::correctivasAbiertas($e->id)->isEmpty()) {
                 DB::table('equipment')->where('id', $e->id)->update(['status' => 'ACTIVE', 'oos_reason' => null, 'oos_since' => null, 'updated_at' => now()]);
@@ -361,8 +361,8 @@ final class EquiposService
         in_array($tipo, ['PREVENTIVE', 'CORRECTIVE'], true) || RuleError::fail('RN-EQU-06', 'Tipo de orden no válido.');
         if ($tipo === 'PREVENTIVE' || ! Access::can($quien, 'equ.failure.report')) {
             Access::can($quien, 'equ.maintenance.manage') || RuleError::fail('RN-EQU-06', $tipo === 'PREVENTIVE'
-                ? 'Abrir órdenes preventivas pide el permiso equ.maintenance.manage (jefe de producción).'
-                : 'Reportar fallas pide el permiso equ.failure.report.');
+                ? 'No tienes permiso para abrir órdenes preventivas. Lo hace el jefe de producción.'
+                : 'No tienes permiso para reportar fallas.');
         }
 
         return self::base(fn () => DB::transaction(function () use ($d, $tipo, $quien) {
@@ -382,7 +382,7 @@ final class EquiposService
     public static function reportarFalla(array $d, User $quien): array
     {
         (Access::can($quien, 'equ.failure.report') || Access::can($quien, 'equ.maintenance.manage'))
-            || RuleError::fail('RN-EQU-05', 'Reportar fallas pide el permiso equ.failure.report.');
+            || RuleError::fail('RN-EQU-05', 'No tienes permiso para reportar fallas.');
         $desc = trim((string) ($d['description'] ?? ''));
         $desc !== '' || RuleError::fail('RN-EQU-05', 'Describe la falla.');
 
@@ -444,7 +444,7 @@ final class EquiposService
             }
             $prov = ($d['external_supplier_id'] ?? null) ?: $m->external_supplier_id;
             if ($externo > 0 && ! $prov) {
-                RuleError::fail('RN-EQU-06', 'El servicio externo necesita el proveedor (su compra va por COM o su gasto por GAS).');
+                RuleError::fail('RN-EQU-06', 'El servicio externo necesita el proveedor (su compra va por Compras o su gasto por Gastos).');
             }
             if ($prov && ! DB::table('suppliers')->where('id', $prov)->exists()) {
                 RuleError::fail('RN-EQU-06', 'Proveedor no encontrado.');
@@ -607,7 +607,7 @@ final class EquiposService
                 $clave = 'overdue:'.$fecha;
                 if (! self::yaAvisado($clave)) {
                     $dias = (int) Params::get('equ_preventive_overdue_days');
-                    self::avisar(['role' => 'JEFE_PRODUCCION'], count($vencidos).' preventivo(s) con más de '.$dias.' días de atraso', implode(' · ', $vencidos).' (RN-EQU-07)', 'EQU-05', null, 'warn', $clave);
+                    self::avisar(['role' => 'JEFE_PRODUCCION'], count($vencidos).' preventivo(s) con más de '.$dias.' días de atraso', implode(' · ', $vencidos).'.', 'EQU-05', null, 'warn', $clave);
                 }
             }
             if ($creadas) {
@@ -638,7 +638,7 @@ final class EquiposService
                     $d = self::dias($fecha, $v->valid_until);
                     foreach (['CALIDAD', 'JEFE_PRODUCCION'] as $rol) {
                         self::avisar(['role' => $rol], "Calibración de {$e->code} vence ".($d === 0 ? 'hoy' : "en {$d} día(s)"),
-                            "{$e->name}: certificado {$v->certificate_number} vigente hasta el ".self::dmy($v->valid_until).'. Programa la calibración (RN-EQU-08).', 'EQU-04', $e->id, 'warn', $clave);
+                            "{$e->name}: certificado {$v->certificate_number} vigente hasta el ".self::dmy($v->valid_until).'. Programa la calibración.', 'EQU-04', $e->id, 'warn', $clave);
                     }
                     $porVencer++;
                 }
@@ -647,7 +647,7 @@ final class EquiposService
             }
         }
         if ($vencidas && ! self::yaAvisado('blocked:'.$fecha)) {
-            self::avisar(['role' => 'CALIDAD'], count($vencidas).' equipo(s) con calibración vencida', implode(', ', $vencidas).': no se usan hasta calibrarlos (RN-EQU-03).', 'EQU-04', null, 'bad', 'blocked:'.$fecha);
+            self::avisar(['role' => 'CALIDAD'], count($vencidas).' equipo(s) con calibración vencida', implode(', ', $vencidas).': no se usan hasta calibrarlos.', 'EQU-04', null, 'bad', 'blocked:'.$fecha);
         }
 
         return ['expiring' => $porVencer, 'blocked' => count($vencidas)];
@@ -663,6 +663,9 @@ final class EquiposService
      */
     public static function registrarUso(array $d, User $quien): object
     {
+        // Desde EQU pide equ.usage.record; PRO registra las horas de sus órdenes con su propio permiso.
+        (($d['source'] ?? 'EQU') === 'PRO' || Access::can($quien, 'equ.usage.record'))
+            || RuleError::fail('RN-EQU-04', 'No tienes permiso para registrar horas de uso.');
         return self::base(fn () => DB::transaction(function () use ($d, $quien) {
             $e = DB::table('equipment')->where('id', $d['equipment_id'] ?? null)->lockForUpdate()->first() ?? RuleError::fail('RN-EQU-04', 'Elige el equipo.');
             self::localEnAlcance($quien, $e->establishment_id);
@@ -690,6 +693,7 @@ final class EquiposService
     /** Lectura del horómetro: no puede bajar. Devuelve el equipo y los planes por horas que ya tocan (RN-EQU-07). */
     public static function lecturaHorometro(string $id, mixed $horas, User $quien): array
     {
+        Access::can($quien, 'equ.usage.record') || RuleError::fail('RN-EQU-07', 'No tienes permiso para registrar lecturas de horómetro.');
         return DB::transaction(function () use ($id, $horas, $quien) {
             $e = DB::table('equipment')->where('id', $id)->lockForUpdate()->first() ?? RuleError::fail('RN-EQU-07', 'Elige el equipo.');
             self::localEnAlcance($quien, $e->establishment_id);
@@ -902,7 +906,7 @@ final class EquiposService
 
     private static function gestor(User $quien): void
     {
-        Access::can($quien, 'equ.maintenance.manage') || RuleError::fail('RN-EQU-06', 'Abrir, cerrar y costear órdenes pide el permiso equ.maintenance.manage (jefe de producción).');
+        Access::can($quien, 'equ.maintenance.manage') || RuleError::fail('RN-EQU-06', 'No tienes permiso para gestionar órdenes de mantenimiento. Lo hace el jefe de producción.');
     }
 
     private static function bloquearOrden(string $id, User $quien): object

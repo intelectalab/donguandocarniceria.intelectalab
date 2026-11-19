@@ -40,14 +40,14 @@ export default function Calibraciones() {
 
   return (
     <div className="space-y-5">
-      <PageHeader description="Cada calibración con su certificado. No se editan ni se borran: un error se corrige registrando otra (RN-EQU-12). Un resultado no conforme deja el equipo fuera de servicio (RN-EQU-10)."
+      <PageHeader description="Cada calibración con su certificado. No se editan ni se borran: un error se corrige registrando otra. Un resultado no conforme deja el equipo fuera de servicio."
         actions={registra && <Button variant="primary" icon={Plus} disabled={!op} onClick={() => setNueva({ equipo: null })}>Registrar calibración</Button>} />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <CifraLink destacada titulo={`Calibraciones ${c.datos?.year ?? ""}`} valor={c.datos ? numero(c.datos.this_year) : undefined} detalle="Registradas en el año" icono={ShieldCheck} />
         <CifraLink titulo="No conformes" valor={c.datos ? numero(c.datos.failed) : undefined} detalle="Dejaron el equipo fuera de servicio" icono={ShieldX} tono={c.datos?.failed ? "bad" : "ok"}
           onClick={() => setRes("FAIL")} />
         <CifraLink titulo="Costo del año" valor={c.datos ? soles(c.datos.cost) : undefined} detalle="Laboratorios y certificados" icono={CircleDollarSign} />
-        <CifraLink titulo="Vigencia sugerida" valor={c.datos ? `${c.datos.scale_months} meses` : undefined} detalle="Balanzas · D-EQU-01" icono={CalendarClock} href="/m/equ/equ-04" />
+        <CifraLink titulo="Vigencia sugerida" valor={c.datos ? `${c.datos.scale_months} meses` : undefined} detalle="Balanzas" icono={CalendarClock} href="/m/equ/equ-04" />
       </div>
       <DataTable {...lista.tabla} columns={columnas} onRowClick={(x) => router.push(`/m/equ/equ-02?id=${x.equipment_id}`)}
         search={{ ...lista.tabla.search, placeholder: "Buscar equipo, certificado o proveedor…" }} empty="No hay calibraciones con esos filtros."
