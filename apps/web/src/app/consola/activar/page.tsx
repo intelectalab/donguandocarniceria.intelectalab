@@ -3,13 +3,27 @@
 import { useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { CheckCircle2, Copy, Loader2 } from "lucide-react";
+import { CheckCircle2, Copy, Eye, EyeOff, Loader2 } from "lucide-react";
 import qrcode from "qrcode-generator";
 import AuthShell, { authButton, authError, authInput, authLabel, item } from "@/components/auth/AuthShell";
 import { mensajeDe } from "@/lib/api";
 import { apiConsola } from "@/lib/consola";
 
 type Preparada = { secreto: string; enlace: string; nombre: string };
+
+/** Contraseña con el botón del ojo para mostrarla u ocultarla, como en el ingreso. */
+function CampoClave({ id, value, onChange }: { id: string; value: string; onChange: (v: string) => void }) {
+  const [ver, setVer] = useState(false);
+  return (
+    <div className="relative">
+      <input id={id} type={ver ? "text" : "password"} required autoComplete="new-password" value={value} onChange={(e) => onChange(e.target.value)} className={authInput} />
+      <button type="button" onClick={() => setVer((v) => !v)} aria-label={ver ? "Ocultar contraseña" : "Mostrar contraseña"}
+        className="absolute top-1/2 right-1 flex size-[34px] -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-muted transition-colors hover:text-ink">
+        {ver ? <EyeOff size={17} /> : <Eye size={17} />}
+      </button>
+    </div>
+  );
+}
 
 /** Código QR como trazos SVG (sin imágenes externas: el secreto no sale del navegador). */
 function Qr({ texto }: { texto: string }) {
@@ -103,12 +117,12 @@ export default function ActivarCuenta() {
           </motion.div>
           <motion.div variants={item}>
             <label htmlFor="password" className={authLabel}>Contraseña nueva</label>
-            <input id="password" type="password" required autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} className={authInput} />
+            <CampoClave id="password" value={password} onChange={setPassword} />
             <p className="mt-1 text-[12px] text-muted">12 caracteres o más, con mayúsculas, minúsculas y un número, sin tu correo ni tu nombre.</p>
           </motion.div>
           <motion.div variants={item}>
             <label htmlFor="confirmar" className={authLabel}>Repite la contraseña</label>
-            <input id="confirmar" type="password" required autoComplete="new-password" value={confirmar} onChange={(e) => setConfirmar(e.target.value)} className={authInput} />
+            <CampoClave id="confirmar" value={confirmar} onChange={setConfirmar} />
           </motion.div>
           {error && <div role="alert" className={authError}>{error}</div>}
           <motion.button variants={item} type="submit" disabled={cargando || !email || !codigo || !password} aria-busy={cargando} className={authButton}>
