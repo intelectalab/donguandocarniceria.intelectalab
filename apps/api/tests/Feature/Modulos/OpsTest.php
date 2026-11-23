@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Modulos;
 
+use App\Modulos\Ops\Services\Tickets;
 use App\Modulos\Ops\Services\UsuariosPlataforma;
 use App\Support\RuleError;
 use App\Support\TenantContext;
@@ -549,5 +550,128 @@ class OpsTest extends TestCase
         $this->consola($token)->postJson("/api/v1/consola/registros/{$registros[0]['id']}/rechazar", ['reason' => 'RUC de otra persona'])->assertNoContent();
         $this->assertSame('REJECTED', DB::table('tenant_signups')->value('status'));
         $this->assertDatabaseHas('platform_audit_log', ['action' => 'SIGNUP_REJECTED']);
+    }
+
+    /* ---------------------------------------------------------------- tanda 6: tickets de soporte */
+
+    private function ticket(string $token, array $cambios = []): array
+    {
+        return $this->desde(self::DG, $token)->postJson('/api/v1/soporte/tickets', $cambios + [
+            'subject' => 'No sale la boleta del pedido', 'description' => 'Al emitir la boleta del pedido de ayer sale un error.', 'category' => 'EINVOICE', 'priority' => 'NORMAL',
+        ])->assertCreated()->json();
+    }
+
+    public function test_tickets_de_la_empresa_y_bandeja_de_la_consola(): void
+    {
+        $contadora = $this->ingresar(self::DG, 'mcardenas@donguando.pe');
+        $gerente = $this->ingresar(self::DG, 'rquispe@donguando.pe');
+        $cajero = $this->ingresar(self::DG, 'jsalas@donguando.pe');
+
+        // Sin los permisos de soporte, no entra; abrir valida los datos.
+        $this->desde(self::DG, $cajero)->getJson('/api/v1/soporte/tickets')->assertStatus(403);
+        $this->desde(self::DG, $contadora)->postJson('/api/v1/soporte/tickets', ['subject' => 'x', 'category' => 'NADA', 'priority' => 'YA'])
+            ->assertStatus(422)->assertJsonValidationErrors(['subject', 'description', 'category', 'priority']);
+
+        // Jueves 10:00 en Lima, prioridad normal (8 horas hábiles): vence a las 18:00 del mismo día.
+        $t = $this->ticket($contadora);
+        $this->assertMatchesRegularExpression('/^TK-\d{4}$/', $t['number']);
+        $this->assertSame('OPEN', $t['status']);
+        $this->assertSame('2026-11-19 18:00', Carbon::parse($t['plazo']['vence'])->timezone('America/Lima')->format('Y-m-d H:i'));
+        $this->ticket($gerente, ['subject' => 'Duda con el plan', 'category' => 'BILLING', 'priority' => 'LOW']);
+
+        // Cada quien ve los suyos; con «ver todos» (gerencia), los de toda la empresa.
+        $this->assertCount(1, $this->desde(self::DG, $contadora)->getJson('/api/v1/soporte/tickets')->assertOk()->json('data'));
+        $this->assertCount(2, $this->desde(self::DG, $gerente)->getJson('/api/v1/soporte/tickets')->assertOk()->json('data'));
+        TenantContext::platform();
+        $deGerente = DB::table('support_tickets')->where('subject', 'Duda con el plan')->value('id');
+        TenantContext::set(null);
+        $this->desde(self::DG, $contadora)->getJson("/api/v1/soporte/tickets/{$deGerente}")->assertStatus(404);
+
+        // La consola ve los de todas las empresas; solo un rol de soporte responde.
+        [$admin] = $this->admin();
+        [, $soporte] = $this->cuenta($admin, 'luis.soporte@intelectalab.com', 'SUPPORT_L1');
+        [, $lectura] = $this->cuenta($admin, 'eva.lectura@intelectalab.com', 'READ_ONLY');
+        $b = $this->consola($lectura)->getJson('/api/v1/consola/tickets')->assertOk();
+        $this->assertSame(2, $b->json('cifras.abiertos'));
+        $this->assertSame(2, $b->json('cifras.sin_asignar'));
+        $this->assertNotEmpty($b->json('data.0.tenant_short'));
+        $this->consola($lectura)->postJson("/api/v1/consola/tickets/{$t['id']}/responder", ['body' => 'Hola', 'status' => 'RESOLVED'])
+            ->assertStatus(422)->assertJsonPath('code', 'RN-OPS-10');
+        $this->consola($soporte)->getJson('/api/v1/consola/tickets?status=OPEN&priority=LOW')->assertOk()->assertJsonCount(1, 'data');
+
+        // Soporte responde a las 10:20: a tiempo, queda asignado y le avisa en la campana a quien lo abrió.
+        $this->travelTo(Carbon::parse('2026-11-19 10:20:00', 'America/Lima'));
+        $r = $this->consola($soporte)->postJson("/api/v1/consola/tickets/{$t['id']}/responder", ['body' => 'Ya corregimos la serie, prueba de nuevo.', 'status' => 'RESOLVED'])->assertOk();
+        $this->assertSame('RESOLVED', $r->json('status'));
+        $this->assertSame('CUMPLIDO', $r->json('plazo.estado'));
+        $this->assertSame('Persona de Prueba', $r->json('assigned_name'));
+        $this->assertDatabaseHas('platform_audit_log', ['action' => 'TICKET_ANSWERED', 'entity_id' => $t['id']]);
+        $campana = $this->desde(self::DG, $contadora)->getJson('/api/v1/me/notifications')->assertOk()->json('data');
+        $this->assertStringContainsString($t['number'], $campana[0]['title']);
+        $this->assertSame("/soporte?ticket={$t['id']}", $campana[0]['link']);
+
+        // El cliente escribe de nuevo: se reabre. Resuelto otra vez, lo cierra y califica.
+        $this->desde(self::DG, $contadora)->postJson("/api/v1/soporte/tickets/{$t['id']}/responder", ['body' => 'Sigue saliendo el error.'])->assertOk()->assertJsonPath('status', 'IN_PROGRESS');
+        $this->desde(self::DG, $contadora)->postJson("/api/v1/soporte/tickets/{$t['id']}/cerrar", ['satisfaction' => 5])->assertStatus(422)->assertJsonPath('code', 'RN-OPS-15');
+        $this->consola($soporte)->postJson("/api/v1/consola/tickets/{$t['id']}/responder", ['body' => 'Era el certificado: renovado.', 'status' => 'RESOLVED'])->assertOk();
+        $c = $this->desde(self::DG, $contadora)->postJson("/api/v1/soporte/tickets/{$t['id']}/cerrar", ['satisfaction' => 5])->assertOk();
+        $this->assertSame(['CLOSED', 5], [$c->json('status'), $c->json('satisfaction')]);
+        $this->assertSame(['PLATFORM', 'CUSTOMER', 'PLATFORM', 'SYSTEM'], array_column($c->json('mensajes'), 'author_type'));
+        $this->desde(self::DG, $contadora)->postJson("/api/v1/soporte/tickets/{$t['id']}/responder", ['body' => 'Otra cosa'])->assertStatus(422);
+        $this->consola($soporte)->postJson("/api/v1/consola/tickets/{$t['id']}/responder", ['body' => 'Hola', 'status' => 'IN_PROGRESS'])->assertStatus(422);
+
+        // Asignar a alguien del equipo; la conversación no se puede cambiar en la base.
+        $ana = DB::table('platform_users')->where('email', 'ana.rios@intelectalab.com')->value('id');
+        $this->consola($soporte)->postJson("/api/v1/consola/tickets/{$deGerente}/asignar", ['platform_user_id' => $ana])
+            ->assertOk()->assertJsonPath('assigned_name', 'Ana Ríos Paredes');
+        $this->expectException(QueryException::class);
+        DB::table('support_ticket_messages')->update(['body' => 'cambiado']);
+    }
+
+    public function test_tickets_aislados_entre_empresas_y_en_solo_lectura_igual_pide_ayuda(): void
+    {
+        [$admin, $sub, $norte, $tokenNorte] = $this->empresaEnPrueba();
+        foreach (['ACTIVE' => 'Pagó la prueba', 'PAST_DUE' => 'Tiene deuda', 'READ_ONLY' => 'Sigue debiendo'] as $estado => $motivo) {
+            $this->consola($admin)->postJson("/api/v1/consola/suscripciones/{$sub}/estado", ['status' => $estado, 'reason' => $motivo])->assertOk();
+        }
+        // En solo lectura no registra nada, pero sí puede pedir ayuda.
+        $deNorte = $this->ticket($tokenNorte, ['category' => 'BILLING', 'subject' => 'Quiero regularizar el pago']);
+        $gerente = $this->ingresar(self::DG, 'rquispe@donguando.pe');
+        $this->ticket($gerente);
+
+        TenantContext::set(TenantContext::find($norte));
+        $this->assertSame(['Quiero regularizar el pago'], DB::table('support_tickets')->pluck('subject')->all(), 'Cada empresa ve solo sus tickets');
+        TenantContext::set(null);
+        $this->assertSame(0, DB::table('support_tickets')->count(), 'Sin empresa ni consola, ninguno');
+        $this->desde(self::DG, $gerente)->getJson("/api/v1/soporte/tickets/{$deNorte['id']}")->assertStatus(404);
+        $this->assertCount(2, $this->consola($admin)->getJson('/api/v1/consola/tickets')->assertOk()->json('data'));
+    }
+
+    public function test_plazo_en_horario_habil_y_cierre_automatico_de_resueltos(): void
+    {
+        $lima = fn (Carbon $t) => $t->timezone('America/Lima')->format('D H:i');
+        // Sábado 17:00, normal (8 h): 1 h el sábado, el domingo no cuenta, 7 h el lunes desde las 9 → lunes 16:00.
+        $this->assertSame('Mon 16:00', $lima(Tickets::vencimiento(Carbon::parse('2026-11-21 17:00', 'America/Lima'), 'NORMAL')));
+        // Abierto de noche, alta (4 h): empieza a contar a las 9 del día siguiente.
+        $this->assertSame('Fri 13:00', $lima(Tickets::vencimiento(Carbon::parse('2026-11-19 22:00', 'America/Lima'), 'HIGH')));
+        // Urgente cuenta las 24 horas.
+        $this->assertSame('Sun 00:30', $lima(Tickets::vencimiento(Carbon::parse('2026-11-21 23:30', 'America/Lima'), 'URGENT')));
+
+        $t = $this->ticket($this->ingresar(self::DG, 'mcardenas@donguando.pe'));
+        [$admin] = $this->admin();
+        $this->consola($admin)->postJson("/api/v1/consola/tickets/{$t['id']}/responder", ['body' => 'Listo, ya quedó.', 'status' => 'RESOLVED'])->assertOk();
+        $estado = function () use ($t) {
+            TenantContext::platform();
+            $s = DB::table('support_tickets')->where('id', $t['id'])->value('status');
+            TenantContext::set(null);
+
+            return $s;
+        };
+        $this->travel(6)->days();
+        $this->artisan('ops:cerrar-tickets')->assertSuccessful();
+        $this->assertSame('RESOLVED', $estado(), 'A los 6 días sigue resuelto');
+        $this->travel(2)->days();
+        $this->artisan('ops:cerrar-tickets')->expectsOutput('1 ticket cerrado.')->assertSuccessful();
+        $this->assertSame('CLOSED', $estado());
     }
 }

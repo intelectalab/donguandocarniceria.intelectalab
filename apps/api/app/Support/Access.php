@@ -16,6 +16,9 @@ final class Access
 {
     private static array $cache = [];
 
+    /** Permisos del servicio (pedir ayuda a soporte): valen aunque el plan no tenga su módulo (OPS). */
+    public const DEL_SERVICIO = ['ops.ticket.create', 'ops.ticket.view_all', 'ops.support_access.approve', 'ops.support_access.revoke', 'ops.support_access.view_log'];
+
     public static function for(User $user): array
     {
         return self::$cache[$user->id] ??= self::load($user);
@@ -31,7 +34,7 @@ final class Access
     {
         $a = self::for($user);
         $modulo = $a['permission_modules'][$permission] ?? null;
-        if ($modulo !== null && ! in_array($modulo, $a['enabled_modules'], true)) {
+        if ($modulo !== null && ! in_array($modulo, $a['enabled_modules'], true) && ! in_array($permission, self::DEL_SERVICIO, true)) {
             return false;
         }
 

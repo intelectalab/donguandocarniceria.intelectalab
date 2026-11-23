@@ -64,7 +64,7 @@ class MeController extends Controller
             'roles' => $access['roles'],
             // Sin los permisos de los módulos apagados (RN-PLT-07): la web los oculta igual que la API.
             'permissions' => collect($access['all_permissions'] ? array_keys($access['permission_modules']) : $access['permissions'])
-                ->filter(fn ($p) => ($m = $access['permission_modules'][$p] ?? null) === null || in_array($m, $access['enabled_modules'], true))
+                ->filter(fn ($p) => ($m = $access['permission_modules'][$p] ?? null) === null || in_array($m, $access['enabled_modules'], true) || in_array($p, Access::DEL_SERVICIO, true))
                 ->values(),
             'modules' => $modules,
             'brands' => $brands,

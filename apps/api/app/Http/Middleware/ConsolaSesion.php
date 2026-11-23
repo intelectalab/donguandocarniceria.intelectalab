@@ -26,6 +26,7 @@ class ConsolaSesion
         if (! Consola::ipPermitida($request->ip(), (array) Consola::param('ops_console_ip_allowlist', []))) {
             return response()->json(['message' => 'La consola no acepta conexiones desde tu red.', 'code' => 'RN-OPS-16'], 403);
         }
+        TenantContext::platform();   // RN-OPS-06: tablas de soporte de todas las empresas; datos de negocio, ninguno
         $request->attributes->set('consola_sesion', $s['sesion_id']);
         $request->attributes->set('consola_usuario', $s['usuario']);
 

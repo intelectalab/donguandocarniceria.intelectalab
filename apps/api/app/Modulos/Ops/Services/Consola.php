@@ -35,7 +35,7 @@ final class Consola
 
     private const ACCION = ['users.manage' => 'administrar usuarios de plataforma', 'params.manage' => 'cambiar parámetros de plataforma',
         'tenant.status' => 'cambiar el estado de una suscripción ni suspender o reactivar empresas', 'tenant.create' => 'dar de alta empresas',
-        'plans.manage' => 'administrar planes, pruebas ni descuentos', 'catalogs.import' => 'importar catálogos globales'];
+        'plans.manage' => 'administrar planes, pruebas ni descuentos', 'catalogs.import' => 'importar catálogos globales', 'ticket.manage' => 'responder ni asignar tickets de soporte'];
 
     /** Dominios de correo permitidos para las cuentas de la consola (parámetro de plataforma; vacío = cualquiera). */
     public static function dominios(): array

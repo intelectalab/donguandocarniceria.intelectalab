@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, Home, KeyRound, LogOut, Menu, Moon, RotateCcw, Sun, User as UserIcon } from "lucide-react";
+import { ChevronDown, Home, KeyRound, LifeBuoy, LogOut, Menu, Moon, RotateCcw, Sun, User as UserIcon } from "lucide-react";
 import GlobalSearch, { type SearchScreen } from "./GlobalSearch";
 import ChangePasswordModal from "./ChangePasswordModal";
 import { api } from "@/lib/api";
@@ -25,13 +25,15 @@ type HeaderProps = {
   ready: boolean;
   /** Módulos del día a día de la persona (los de su menú corto), para las notificaciones importantes. */
   modulosDelDia?: string[];
+  /** Puede abrir o ver tickets de soporte: muestra «Ayuda y soporte» en su menú. */
+  soporte?: boolean;
 };
 
 // Botón de ícono de la barra: color de la marca, igual en tema claro y oscuro.
 const ICON_BUTTON =
   "relative flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-[10px] text-primary transition-colors hover:bg-primary-soft active:scale-95";
 
-export default function Header({ open, currentSection, crumbs = [], onToggle, user, onLogout, tenantName, screens, ready, modulosDelDia = [] }: HeaderProps) {
+export default function Header({ open, currentSection, crumbs = [], onToggle, user, onLogout, tenantName, screens, ready, modulosDelDia = [], soporte }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -127,6 +129,12 @@ export default function Header({ open, currentSection, crumbs = [], onToggle, us
                   <UserIcon size={16} className="shrink-0" />
                   Mi perfil y seguridad
                 </Link>
+                {soporte && (
+                  <Link href="/soporte" role="menuitem" onClick={() => setMenuOpen(false)} className={menuItem}>
+                    <LifeBuoy size={16} className="shrink-0" />
+                    Ayuda y soporte
+                  </Link>
+                )}
                 <button role="menuitem" onClick={() => { setMenuOpen(false); setChangingPassword(true); }} className={menuItem}>
                   <KeyRound size={16} className="shrink-0" />
                   Cambiar contraseña

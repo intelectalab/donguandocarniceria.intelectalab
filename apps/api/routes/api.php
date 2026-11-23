@@ -9,6 +9,7 @@ use App\Http\Controllers\PublicoController;
 use App\Http\Controllers\TenantController;
 use App\Modulos\Cli\Http\Controllers\EnlaceController;
 use App\Modulos\Onb\Http\Controllers\RegistroController;
+use App\Modulos\Ops\Http\Controllers\BandejaController;
 use App\Modulos\Ops\Http\Controllers\ConsolaController;
 use App\Modulos\Ops\Http\Controllers\EmpresaController;
 use App\Modulos\Ops\Http\Controllers\PlanController;
@@ -82,6 +83,11 @@ Route::prefix('v1/consola')->group(function () {
         Route::post('/registros/{id}/rechazar', [RegistroController::class, 'rechazar'])->whereUuid('id');
         Route::get('/demos', [RegistroController::class, 'demos']);
         Route::post('/demos/{id}/atender', [RegistroController::class, 'atenderDemo'])->whereUuid('id');
+        // OPS-09 Bandeja de tickets de todas las empresas (responder y asignar: rol de soporte; lo valida el servicio)
+        Route::get('/tickets', [BandejaController::class, 'index']);
+        Route::get('/tickets/{id}', [BandejaController::class, 'show'])->whereUuid('id');
+        Route::post('/tickets/{id}/responder', [BandejaController::class, 'responder'])->whereUuid('id');
+        Route::post('/tickets/{id}/asignar', [BandejaController::class, 'asignar'])->whereUuid('id');
     });
 });
 

@@ -34,6 +34,7 @@ const CUENTA = [
   { href: "/perfil", label: "Mi perfil" },
   { href: "/perfil/sesiones", label: "Mis sesiones y dispositivos" },
   { href: "/notificaciones", label: "Notificaciones" },
+  { href: "/soporte", label: "Soporte" },
 ];
 // Páginas fuera del menú y del buscador, solo para el título de la cabecera.
 const OTRAS = [...CUENTA, { href: "/componentes", label: "Componentes" }];
@@ -219,7 +220,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <Header open={sidebarOpen || mobileOpen} currentSection={currentSection} crumbs={crumbs} onToggle={toggleSidebar}
-          user={user} onLogout={handleLogout} tenantName={tenantName} screens={searchScreens} ready={Boolean(sesion)} modulosDelDia={modulosDelDia} />
+          user={user} onLogout={handleLogout} tenantName={tenantName} screens={searchScreens} ready={Boolean(sesion)} modulosDelDia={modulosDelDia}
+          soporte={Boolean(sesion && (sesion.can("ops.ticket.create") || sesion.can("ops.ticket.view_all")))} />
 
         <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 md:p-10">
           {error ? (

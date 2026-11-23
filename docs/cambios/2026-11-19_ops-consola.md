@@ -511,3 +511,42 @@ Revisión en el navegador contra `aycha_test`:
 - **Términos del servicio y política de privacidad:** el registro pide aceptarlos, pero todavía no hay una página con esos textos.
 - **Segundo factor** para el administrador de la empresa: pendiente con el de SEG.
 - **ONB-02 a 15:** el asistente de alta con plantillas por rubro e importadores.
+
+# Tanda 6 (23/11): tickets de soporte (OPS-15 Mis tickets y OPS-09 Bandeja de tickets)
+
+## Base de datos
+
+Migración `2026_11_23_000100_ops_tickets_de_soporte`:
+- `support_tickets`: número único en toda la plataforma (`TK-0101`, `TK-0102`…), asunto, detalle, tema, prioridad, estado (abierto, en proceso, espera respuesta del cliente, resuelto, cerrado), quién lo abrió, a quién del equipo está asignado, plazo y hora de la primera respuesta, resuelto, cerrado y calificación (1 a 5).
+- `support_ticket_messages`: la conversación. Solo se agregan mensajes; la base no deja cambiarlos ni borrarlos.
+- Las dos tablas son de cada empresa (RLS). La consola ve las de todas porque su middleware abre una **sesión de plataforma** (`app.platform = on`, función `app_is_platform()`), y solo después de validar al usuario de la consola. Esa sesión ve tickets, no datos de negocio: clientes, pedidos y demás siguen sin verse (RN-OPS-06). Al fijar una empresa, la sesión de plataforma se apaga (`TenantContext::set`).
+- Parámetros de plataforma: `ops_ticket_first_response_hours` (urgente 1, alta 4, normal 8, baja 24) y `ops_ticket_auto_close_days` (7).
+
+## Reglas
+
+- **Plazo de la primera respuesta:** urgente cuenta las 24 horas; las demás prioridades, el horario de soporte (lunes a sábado de 9 a 18, hora de Lima). Ejemplo: abierto el sábado a las 17:00 con prioridad normal, vence el lunes a las 16:00.
+- Cuando soporte responde: cuenta como primera respuesta, el ticket queda asignado a quien respondió si no lo tenía nadie, y a quien lo abrió le llega un **aviso en la campana**, con enlace al ticket.
+- Si el cliente escribe en un ticket resuelto, se **reabre** (en proceso). Un ticket resuelto se cierra con la calificación del cliente o, si no responde en 7 días, solo (tarea `ops:cerrar-tickets`, cada mañana a las 5:30). Un ticket cerrado no recibe más mensajes: se abre uno nuevo.
+- **Quién:** en la empresa abre tickets quien tiene el permiso «Abrir tickets» y ve los de toda la empresa quien tiene «Ver todos los tickets» (gerencia, administración); los demás ven solo los suyos. En la consola todos ven la bandeja; responden y asignan administración, soporte nivel 1 y 2 e ingeniería.
+- **Soporte es parte del servicio:** los permisos de tickets y de accesos de soporte valen aunque el plan de la empresa no tenga el módulo OPS (`Access::DEL_SERVICIO`, también en `/me`). Una empresa en solo lectura o con la suscripción cancelada también puede pedir ayuda.
+
+## API
+
+- Empresa: `GET/POST /api/v1/soporte/tickets`, `GET /soporte/tickets/{id}`, `POST /soporte/tickets/{id}/responder`, `POST /soporte/tickets/{id}/cerrar` (con calificación opcional).
+- Consola: `GET /api/v1/consola/tickets` (filtros: estado, prioridad, tema, empresa, asignado y búsqueda; trae las cifras de la bandeja), `GET /consola/tickets/{id}`, `POST /consola/tickets/{id}/responder`, `POST /consola/tickets/{id}/asignar`.
+- Responder y asignar quedan en la bitácora de la consola.
+
+## Pantallas
+
+- **Empresa · Ayuda y soporte** (`/soporte`, en el menú de la persona y en el buscador; también es la pantalla «Mis tickets» del módulo): lista de tickets, nuevo ticket (asunto, tema, prioridad y detalle) y el ticket con su conversación, para responder, cerrarlo («Ya no necesito ayuda») o calificarlo con estrellas.
+- **Consola · Bandeja de tickets** (grupo Clientes): cifras (abiertos, sin primera respuesta, plazo vencido, sin asignar), filtros, y cada ticket con su plazo, asignación («Tomarlo» o elegir a alguien) y la respuesta con el estado en que queda.
+
+## Pruebas
+
+3 pruebas nuevas en `OpsTest`: el recorrido completo empresa ↔ consola (permisos, plazo, aviso, reapertura, calificación, cierre y asignación); el aislamiento entre empresas y el ticket en solo lectura; el plazo en horario hábil y el cierre automático.
+
+## Pendiente
+
+- Adjuntar capturas a un ticket.
+- Correo al cliente además de la campana.
+- Tanda siguiente: accesos de soporte (OPS-05, OPS-06 y OPS-14).

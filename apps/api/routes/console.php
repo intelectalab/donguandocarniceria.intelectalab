@@ -22,3 +22,6 @@ Schedule::command('equ:diario')->dailyAt('06:10')->timezone('America/Lima')->wit
 
 // PED · RN-PED-18: cancela los borradores sin actividad (ped_draft_expiry_hours, 48 h por defecto), cada hora.
 Schedule::command('ped:vencer-borradores')->hourly()->withoutOverlapping();
+
+// OPS · RN-OPS-15: cierra los tickets resueltos sin respuesta del cliente (ops_ticket_auto_close_days), cada mañana.
+Schedule::command('ops:cerrar-tickets')->dailyAt('05:30')->timezone('America/Lima')->withoutOverlapping();
