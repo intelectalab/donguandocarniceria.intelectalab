@@ -211,7 +211,7 @@ class SegRolesTest extends TestCase
 
         // Queda en la bitácora; quien no ve Seguridad no exporta.
         $this->contexto();
-        $this->assertTrue(DB::table('access_log')->where('event', 'EXPORT_DOWNLOADED')->where('detail', 'like', '%Matriz de roles%')->exists());
+        $this->assertTrue(DB::table('access_log')->where('event', 'REPORT_EXPORTED')->where('detail', 'like', '%Matriz de roles%')->exists());
         $this->como('jsalas@donguando.pe')->get('/api/v1/seg/matriz/exportar', ['Accept' => 'application/json'])->assertForbidden();
     }
 

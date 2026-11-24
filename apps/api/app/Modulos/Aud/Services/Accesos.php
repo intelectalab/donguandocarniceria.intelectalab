@@ -16,7 +16,10 @@ use Illuminate\Support\Facades\DB;
 final class Accesos
 {
     /** Eventos de AUD-04 (datos sensibles): no se listan aquí. */
-    public const SENSIBLES = ['SENSITIVE_VIEW', 'EXPORT_DOWNLOADED', 'FILE_DOWNLOADED', 'RECORDING_PLAYED'];
+    public const SENSIBLES = ['FILE_DOWNLOADED', 'RECORDING_PLAYED', 'EXPORT_DOWNLOADED', 'SENSITIVE_VIEW'];
+
+    /** Descargas antiguas de un botón «Exportar» común anotadas como EXPORT_DOWNLOADED (traen el archivo en details): no son sensibles. */
+    private const EXPORTACION_COMUN = "(event = 'EXPORT_DOWNLOADED' AND details IS NOT NULL AND jsonb_exists(details, 'file'))";
 
     /** Tono de cada evento en la pantalla. */
     public const TONOS = [
@@ -39,13 +42,16 @@ final class Accesos
     {
         $hasta = ! empty($f['hasta']) ? Carbon::parse($f['hasta'], 'America/Lima')->endOfDay() : now('America/Lima')->endOfDay();
         $desde = ! empty($f['desde']) ? Carbon::parse($f['desde'], 'America/Lima')->startOfDay() : $hasta->copy()->subDays(13)->startOfDay();
-        $q = DB::table('access_log')->whereNotIn('event', self::SENSIBLES)->whereBetween('at', [$desde, $hasta]);
+        $q = DB::table('access_log')->where(fn ($w) => $w->whereNotIn('event', self::SENSIBLES)->orWhereRaw(self::EXPORTACION_COMUN))->whereBetween('at', [$desde, $hasta]);
         if (! empty($f['evento'])) {
             $q->where('event', $f['evento']);
         }
         if (! empty($f['usuario'])) {
             $q->where('user_id', $f['usuario']);
             Bitacora::registrar('AUDIT_VIEWED', ['user' => $quien, 'detail' => 'Bitácora de accesos filtrada por usuario: '.(DB::table('users')->where('id', $f['usuario'])->value('name') ?? '?')]);
+        }
+        if ($p = self::patron($f)) {
+            $q->where(fn ($w) => $w->where('user_name', 'ilike', $p)->orWhere('detail', 'ilike', $p)->orWhereRaw('ip::text ILIKE ?', [$p]));
         }
         if (! empty($f['ip'])) {
             $q->where('ip', 'like', addcslashes(trim($f['ip']), '%_\\').'%');
@@ -87,12 +93,15 @@ final class Accesos
      */
     public static function sensibles(array $f, User $quien): array
     {
-        $q = DB::table('access_log')->whereIn('event', self::SENSIBLES);
+        $q = DB::table('access_log')->whereIn('event', self::SENSIBLES)->whereRaw('NOT '.self::EXPORTACION_COMUN);
         if (! empty($f['desde'])) {
             $q->where('at', '>=', Carbon::parse($f['desde'], 'America/Lima')->startOfDay());
         }
         if (! empty($f['hasta'])) {
             $q->where('at', '<=', Carbon::parse($f['hasta'], 'America/Lima')->endOfDay());
+        }
+        if ($p = self::patron($f)) {
+            $q->where(fn ($w) => $w->where('user_name', 'ilike', $p)->orWhere('detail', 'ilike', $p)->orWhereRaw('ip::text ILIKE ?', [$p]));
         }
         if (! empty($f['evento'])) {
             $q->where('event', $f['evento']);
@@ -126,5 +135,13 @@ final class Accesos
             'ip' => $x->ip, 'device' => $x->device, 'session_id' => $x->session_id,
             'detalle' => $x->detail ?: (is_array($detalles) && $detalles ? collect($detalles)->map(fn ($v, $k) => "{$k}: ".(is_scalar($v) ? (is_bool($v) ? ($v ? 'sí' : 'no') : $v) : json_encode($v)))->implode(' · ') : null),
         ];
+    }
+
+    /** «%texto%» para ILIKE, con los comodines escapados; null si no se busca nada. */
+    private static function patron(array $f): ?string
+    {
+        $t = trim((string) ($f['buscar'] ?? ''));
+
+        return mb_strlen($t) >= 2 ? '%'.addcslashes($t, '%_\\').'%' : null;
     }
 }

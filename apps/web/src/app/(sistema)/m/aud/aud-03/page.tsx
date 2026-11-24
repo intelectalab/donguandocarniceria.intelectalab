@@ -27,17 +27,16 @@ type Lista = Pagina<Acceso> & {
 export default function BitacoraDeAccesos() {
   const { can } = useSesion();
   const permitido = Boolean(can("aud.access_log.view"));
-  const [f, setF] = useState({ evento: "", usuario: "", resultado: "", desde: "", hasta: "", ip: "" });
-  const [ip, setIp] = useState("");
+  const [f, setF] = useState({ evento: "", usuario: "", resultado: "", desde: "", hasta: "", buscar: "" });
+  const [buscar, setBuscar] = useState("");
   const [lista, setLista] = useState<Lista | null>(null);
   const [error, setError] = useState("");
   const pag = usePagina(JSON.stringify(f));
 
   useEffect(() => {
-    // Solo dígitos, puntos y dos puntos: una IP o su comienzo.
-    const t = setTimeout(() => setF((x) => { const v = ip.replace(/[^0-9a-fA-F.:]/g, ""); return x.ip === v ? x : { ...x, ip: v }; }), 400);
+    const t = setTimeout(() => setF((x) => (x.buscar === buscar.trim() ? x : { ...x, buscar: buscar.trim() })), 400);
     return () => clearTimeout(t);
-  }, [ip]);
+  }, [buscar]);
 
   const cargar = useCallback(() => {
     if (!permitido) return;
@@ -80,7 +79,7 @@ export default function BitacoraDeAccesos() {
         </div>
       )}
       <DataTable {...pag.orden} columns={columnas} rows={lista?.data ?? []} pagination={pag.props(lista)} loading={!lista && !error} error={error} onRetry={cargar}
-        empty="No hay accesos con estos filtros." search={{ value: ip, onChange: setIp, placeholder: "IP (por ejemplo 190.42.10.5)…" }}
+        empty="No hay accesos con estos filtros." search={{ value: buscar, onChange: setBuscar, placeholder: "Buscar persona, detalle o IP…" }}
         toolbar={<>
           <FiltroSelect etiqueta="Evento" ancho={210} value={f.evento} onChange={(v) => setF({ ...f, evento: v })} options={lista?.eventos ?? []} />
           <FiltroSelect etiqueta="Usuario" ancho={200} value={f.usuario} onChange={(v) => setF({ ...f, usuario: v })} options={lista?.usuarios ?? []} />

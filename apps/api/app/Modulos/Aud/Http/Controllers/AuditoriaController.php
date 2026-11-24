@@ -51,7 +51,7 @@ class AuditoriaController extends Controller
     public function accesos(Request $request)
     {
         $f = $request->validate([
-            'evento' => ['nullable', 'string', 'max:80', 'regex:/^[A-Z_]+$/'], 'usuario' => ['nullable', 'uuid'], 'ip' => ['nullable', 'string', 'max:40', 'regex:/^[0-9a-fA-F.:]+$/'],
+            'evento' => ['nullable', 'string', 'max:80', 'regex:/^[A-Z_]+$/'], 'usuario' => ['nullable', 'uuid'], 'ip' => ['nullable', 'string', 'max:40', 'regex:/^[0-9a-fA-F.:]+$/'], 'buscar' => ['nullable', 'string', 'max:100'],
             'resultado' => ['nullable', Rule::in(['OK', 'DENIED'])], 'desde' => ['nullable', 'date_format:Y-m-d'], 'hasta' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:desde'],
         ]);
 
@@ -61,7 +61,7 @@ class AuditoriaController extends Controller
     public function sensibles(Request $request)
     {
         $f = $request->validate([
-            'evento' => ['nullable', Rule::in(Accesos::SENSIBLES)], 'usuario' => ['nullable', 'uuid'],
+            'evento' => ['nullable', Rule::in(Accesos::SENSIBLES)], 'usuario' => ['nullable', 'uuid'], 'buscar' => ['nullable', 'string', 'max:100'],
             'desde' => ['nullable', 'date_format:Y-m-d'], 'hasta' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:desde'],
         ]);
 
@@ -71,7 +71,7 @@ class AuditoriaController extends Controller
     public function exportaciones(Request $request)
     {
         $f = $request->validate(['scope' => ['nullable', Rule::in(['mine', 'pending', 'all'])], 'status' => ['nullable', Rule::in(array_keys(Exportaciones::ESTADOS))],
-            'report' => ['nullable', Rule::in(array_keys(Exportaciones::REPORTES))]]);
+            'report' => ['nullable', Rule::in(array_keys(Exportaciones::REPORTES))], 'buscar' => ['nullable', 'string', 'max:100']]);
 
         return response()->json(Exportaciones::lista($f, $request->user()));
     }

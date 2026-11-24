@@ -244,7 +244,7 @@ En `AudTest` hay 2 casos nuevos, 5 en total:
   - otra persona no la ve ni la descarga;
   - el enlace firmado descarga el Excel y alterado se rechaza;
   - a las 25 horas venció;
-  - la descarga aparece en AUD-04, y administración no ve AUD-04.
+  - la descarga se anota como «Exportó un reporte» (AUD-03), no en AUD-04, y administración no ve AUD-04.
 - **datos personales:**
   - sin el permiso, el pedido va a aprobación y avisa a quienes aprueban;
   - no se descarga antes de aprobarse;
@@ -252,4 +252,15 @@ En `AudTest` hay 2 casos nuevos, 5 en total:
   - con el umbral en 1, aun la gerencia necesita aprobación y no puede aprobar la suya;
   - el rechazo pide motivo y queda en la bitácora.
 
-En total el sistema tiene 385 pruebas, todas correctas. Revisado en el navegador contra `aycha_test`: se solicitó una exportación desde la pantalla, se descargó a través de la web y el Excel trae los 945 cobros de septiembre con la marca de agua.
+En total el sistema tiene 385 pruebas, todas correctas. Revisado en el navegador contra `aycha_test`: se solicitó una exportación desde la pantalla, se descargó a través de la web y el Excel trae los 945 cobros de septiembre con la marca de agua.
+
+## Ajuste: cifras de datos sensibles y buscadores
+
+- **AUD-04 con las cifras del prototipo.** El botón «Exportar» común de cualquier pantalla (por ejemplo la matriz de roles) ya no cuenta como acceso a datos sensibles:
+  - se anota como «Exportó un reporte» (`REPORT_EXPORTED`) y se ve en la bitácora de accesos (AUD-03);
+  - las exportaciones de AUD-05 sin datos personales también;
+  - solo las que traen datos personales quedan como «Descargó una exportación con datos personales» y cuentan en AUD-04;
+  - las descargas antiguas del botón común que ya estaban en la base (traen el nombre del archivo) también se reconocen como reporte común.
+- **Las cuatro cifras** van en el orden y con los nombres del prototipo: descargas de archivos sensibles, grabaciones reproducidas, exportaciones con datos personales y vistas de datos sensibles.
+- **Buscadores.** AUD-03 busca por persona, detalle o IP (antes solo por IP); AUD-04 busca por persona, archivo o IP; AUD-05 busca por número, reporte, persona o motivo. Todos se hacen en el servidor, desde 2 letras.
+- Pruebas: AUD y roles en verde (14 pruebas, 246 comprobaciones).

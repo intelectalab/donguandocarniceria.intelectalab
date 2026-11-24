@@ -28,7 +28,7 @@ final class Bitacora
         'FILE_DOWNLOADED' => 'Descargó un archivo confidencial', 'RECORDING_PLAYED' => 'Reprodujo una grabación', 'PASSWORD_RESET' => 'Contraseña restablecida',
         'PASSWORD_RESET_REQUESTED' => 'Pidió restablecer contraseña', 'PASSWORD_CHANGED' => 'Contraseña cambiada', 'PROFILE_UPDATED' => 'Preferencias cambiadas',
         'PERMISSION_DENIED' => 'Permiso denegado', 'MODULE_DISABLED' => 'Módulo apagado', 'DEVICE_PENDING' => 'Celular por aprobar',
-        'ROLE_CHANGED' => 'Rol o permisos cambiados', 'EXPORT_DOWNLOADED' => 'Exportó un reporte', 'DEVICE_APPROVED' => 'Dispositivo aprobado', 'DEVICE_REVOKED' => 'Dispositivo revocado', 'LOGIN_DENIED_DEVICE' => 'Celular no aprobado',
+        'ROLE_CHANGED' => 'Rol o permisos cambiados', 'EXPORT_DOWNLOADED' => 'Descargó una exportación con datos personales', 'REPORT_EXPORTED' => 'Exportó un reporte', 'DEVICE_APPROVED' => 'Dispositivo aprobado', 'DEVICE_REVOKED' => 'Dispositivo revocado', 'LOGIN_DENIED_DEVICE' => 'Celular no aprobado',
     ];
 
     /**

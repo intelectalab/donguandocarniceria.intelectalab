@@ -46,12 +46,18 @@ function Exportaciones() {
   const router = useRouter();
   const params = useSearchParams();
   const [scope, setScope] = useState<"mine" | "pending" | "all">((params.get("scope") as "pending") ?? "mine");
-  const [f, setF] = useState({ status: "", report: "" });
+  const [f, setF] = useState({ status: "", report: "", buscar: "" });
+  const [buscar, setBuscar] = useState("");
   const [lista, setLista] = useState<Lista | null>(null);
   const [error, setError] = useState("");
   const [nueva, setNueva] = useState(false);
   const [abierta, setAbierta] = useState<string | null>(null);
   const pag = usePagina(JSON.stringify({ ...f, scope }));
+
+  useEffect(() => {
+    const t = setTimeout(() => setF((x) => (x.buscar === buscar.trim() ? x : { ...x, buscar: buscar.trim() })), 400);
+    return () => clearTimeout(t);
+  }, [buscar]);
 
   const cargar = useCallback(() => {
     const q = new URLSearchParams(Object.entries({ ...f, scope }).filter(([, v]) => v)).toString();
@@ -109,7 +115,8 @@ function Exportaciones() {
         <Tabs value={scope} onChange={(s) => { setScope(s); router.replace(`/m/aud/aud-05${s === "mine" ? "" : `?scope=${s}`}`, { scroll: false }); }} tabs={pestanas} />
       )}
       <DataTable {...pag.orden} columns={columnas} rows={lista?.data ?? []} pagination={pag.props(lista)} loading={!lista && !error} error={error} onRetry={cargar}
-        onRowClick={(x) => setAbierta(x.id)} empty={scope === "mine" ? "No has solicitado exportaciones." : scope === "pending" ? "Nada pendiente de aprobar." : "No hay exportaciones."}
+        onRowClick={(x) => setAbierta(x.id)} empty={f.buscar ? "Ninguna exportación coincide con la búsqueda." : scope === "mine" ? "No has solicitado exportaciones." : scope === "pending" ? "Nada pendiente de aprobar." : "No hay exportaciones."}
+        search={{ value: buscar, onChange: setBuscar, placeholder: "Buscar número, persona o motivo…" }}
         toolbar={<>
           <FiltroSelect etiqueta="Estado" ancho={170} value={f.status} onChange={(v) => setF({ ...f, status: v })} options={Object.entries(lista?.estados ?? {}).map(([value, label]) => ({ value, label }))} />
           <FiltroSelect etiqueta="Reporte" ancho={240} value={f.report} onChange={(v) => setF({ ...f, report: v })} options={lista?.reportes ?? []} />

@@ -133,6 +133,11 @@ class AudTest extends TestCase
         // Desde una fecha de la demostración: trae los de septiembre.
         $this->assertGreaterThan(0, $this->como(self::AUDITOR)->getJson('/api/v1/aud/accesos?desde=2026-09-01&hasta=2026-09-30')->json('total'));
         $this->como(self::AUDITOR)->getJson('/api/v1/aud/accesos?desde=2026-09-30&hasta=2026-09-01')->assertStatus(422);
+        // Buscador: por persona, detalle o IP.
+        $b = $this->como(self::AUDITOR)->getJson('/api/v1/aud/accesos?buscar=huamán')->assertOk();
+        $this->assertGreaterThan(0, $b->json('total'));
+        $this->assertSame(['Carmen Huamán Soto'], array_values(array_unique(array_column($b->json('data'), 'user_name'))));
+        $this->assertSame(0, $this->como(self::AUDITOR)->getJson('/api/v1/aud/accesos?buscar=zzqqxx')->json('total'));
 
         // Filtrar por una persona queda en la bitácora (consulta de auditoría).
         $id = $this->comoPersona(self::GERENTE, fn () => DB::table('users')->where('email', self::ADMINISTRACION)->value('id'));
@@ -184,8 +189,19 @@ class AudTest extends TestCase
         // AUD-04: la descarga queda entre los accesos a datos sensibles.
         $s = $this->como(self::AUDITOR)->getJson('/api/v1/aud/sensibles')->assertOk();
         $this->assertGreaterThan(0, collect($s->json('por_tipo'))->firstWhere('event', 'EXPORT_DOWNLOADED')['n']);
-        $this->assertContains('CPC Marisol Cárdenas', array_column($s->json('data'), 'user_name'));
+        $this->comoPersona(self::GERENTE, fn () => $this->assertTrue(DB::table('access_log')->where('event', 'REPORT_EXPORTED')->where('entity_id', $x->json('id'))->exists(),
+            'Sin datos personales: «Exportó un reporte», en la bitácora de accesos'));
+        $this->assertNotContains($x->json('id'), array_column($s->json('data'), 'entity_id'), 'No cuenta como acceso a datos sensibles');
         $this->assertSame(['EXPORT_DOWNLOADED'], array_values(array_unique(array_column($this->como(self::AUDITOR)->getJson('/api/v1/aud/sensibles?evento=EXPORT_DOWNLOADED')->json('data'), 'event'))));
+        $quien = $s->json('data.0.user_name');
+        $b = $this->como(self::AUDITOR)->getJson('/api/v1/aud/sensibles?buscar='.urlencode(mb_substr($quien, -6)))->assertOk();
+        $this->assertGreaterThan(0, $b->json('total'));
+        $this->assertContains($quien, array_column($b->json('data'), 'user_name'));
+        $this->assertSame(0, $this->como(self::AUDITOR)->getJson('/api/v1/aud/sensibles?buscar=zzqqxx')->json('total'));
+        // En exportaciones: por número, reporte, persona o motivo.
+        $this->assertContains($x->json('id'), array_column($this->como(self::CONTADORA)->getJson('/api/v1/aud/exportaciones?buscar=conciliación')->json('data'), 'id'));
+        $this->assertSame(0, $this->como(self::CONTADORA)->getJson('/api/v1/aud/exportaciones?buscar=zzqqxx')->json('total'));
+        $this->assertSame(['FILE_DOWNLOADED', 'RECORDING_PLAYED', 'EXPORT_DOWNLOADED', 'SENSITIVE_VIEW'], array_column($s->json('por_tipo'), 'event'), 'El orden del prototipo');
         $this->como(self::ADMINISTRACION)->getJson('/api/v1/aud/sensibles')->assertForbidden();
     }
 

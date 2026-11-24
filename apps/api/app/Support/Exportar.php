@@ -236,7 +236,9 @@ final class Exportar
     {
         $this->libro->setActiveSheetIndex(0);
         $nombre = preg_replace('/[^a-z0-9-]+/', '-', mb_strtolower($archivo)).'-'.now('America/Lima')->format('Y-m-d').'.xlsx';
-        Bitacora::registrar('EXPORT_DOWNLOADED', ['user' => $this->quien, 'detail' => "Exportó «{$this->titulo}» ({$this->filas} filas)",
+        // Un reporte común: va a la bitácora de accesos (AUD-03). Las exportaciones con datos personales (AUD-05) se anotan
+        // aparte como EXPORT_DOWNLOADED y cuentan entre los accesos a datos sensibles (AUD-04).
+        Bitacora::registrar('REPORT_EXPORTED', ['user' => $this->quien, 'detail' => "Exportó «{$this->titulo}» ({$this->filas} filas)",
             'details' => ['report' => $this->titulo, 'file' => $nombre, 'rows' => $this->filas]]);
         $libro = $this->libro;
 

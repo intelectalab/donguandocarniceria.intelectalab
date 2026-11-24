@@ -157,7 +157,7 @@ final class Exportaciones
         TenantContext::setUser($u->id);
         $descargas = [...(json_decode($x->downloads ?? '[]', true) ?: []), ['at' => now()->toIso8601String(), 'by' => $u->name]];
         DB::table('data_exports')->where('id', $id)->update(['downloads' => json_encode(array_slice($descargas, -50), JSON_UNESCAPED_UNICODE), 'updated_at' => now()]);
-        Bitacora::registrar('EXPORT_DOWNLOADED', ['user' => $u, 'entity' => 'data_exports', 'entity_id' => $id,
+        Bitacora::registrar($x->contains_personal_data ? 'EXPORT_DOWNLOADED' : 'REPORT_EXPORTED', ['user' => $u, 'entity' => 'data_exports', 'entity_id' => $id,
             'detail' => "{$x->number} · {$x->report_name} · ".number_format($x->rows_count, 0, ',', '.').' filas'.($x->contains_personal_data ? ' con datos personales' : '')]);
 
         return Storage::disk(self::DISCO)->download($x->storage_key, $x->file_name, [
@@ -187,6 +187,11 @@ final class Exportaciones
         }
         if (! empty($f['report'])) {
             $q->where('report', $f['report']);
+        }
+        $t = trim((string) ($f['buscar'] ?? ''));
+        if (mb_strlen($t) >= 2) {
+            $p = '%'.addcslashes($t, '%_\\').'%';
+            $q->where(fn ($w) => $w->where('number', 'ilike', $p)->orWhere('report_name', 'ilike', $p)->orWhere('requested_by', 'ilike', $p)->orWhere('reason', 'ilike', $p));
         }
         $q->orderByDesc('requested_at')->orderBy('id');
         Paginas::ordenar($q, ['number' => 'number', 'requested_at' => 'requested_at', 'requested_by' => 'requested_by', 'report_name' => 'report_name',

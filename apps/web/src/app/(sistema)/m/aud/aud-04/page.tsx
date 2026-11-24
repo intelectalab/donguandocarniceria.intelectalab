@@ -20,7 +20,7 @@ type Lista = Pagina<Acceso> & {
 };
 
 const ICONO: Record<string, typeof Eye> = { SENSITIVE_VIEW: Eye, EXPORT_DOWNLOADED: Download, FILE_DOWNLOADED: FileLock2, RECORDING_PLAYED: Mic };
-const TITULO: Record<string, string> = { SENSITIVE_VIEW: "Vistas sin enmascarar", EXPORT_DOWNLOADED: "Exportaciones descargadas", FILE_DOWNLOADED: "Archivos confidenciales", RECORDING_PLAYED: "Grabaciones reproducidas" };
+const TITULO: Record<string, string> = { FILE_DOWNLOADED: "Descargas de archivos sensibles", RECORDING_PLAYED: "Grabaciones reproducidas", EXPORT_DOWNLOADED: "Exportaciones con datos personales", SENSITIVE_VIEW: "Vistas de datos sensibles" };
 const REGISTRO: Record<string, string> = { data_exports: "Exportación", file_attachments: "Archivo adjunto", users: "Usuario" };
 
 /**
@@ -30,11 +30,17 @@ const REGISTRO: Record<string, string> = { data_exports: "Exportación", file_at
 export default function AccesosSensibles() {
   const { can } = useSesion();
   const permitido = Boolean(can("aud.access_log.view"));
-  const [f, setF] = useState({ evento: "", usuario: "", desde: "", hasta: "" });
+  const [f, setF] = useState({ evento: "", usuario: "", desde: "", hasta: "", buscar: "" });
+  const [buscar, setBuscar] = useState("");
   const [lista, setLista] = useState<Lista | null>(null);
   const [error, setError] = useState("");
   const [abierto, setAbierto] = useState<Acceso | null>(null);
   const pag = usePagina(JSON.stringify(f));
+
+  useEffect(() => {
+    const t = setTimeout(() => setF((x) => (x.buscar === buscar.trim() ? x : { ...x, buscar: buscar.trim() })), 400);
+    return () => clearTimeout(t);
+  }, [buscar]);
 
   const cargar = useCallback(() => {
     if (!permitido) return;
@@ -63,13 +69,14 @@ export default function AccesosSensibles() {
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {lista.por_tipo.map((t, i) => (
             <Cifra key={t.event} titulo={TITULO[t.event] ?? t.event_name} valor={numero(t.n)} icono={ICONO[t.event] ?? Eye} destacada={i === 0}
-              detalle={f.desde || f.hasta || f.usuario ? "En el filtro" : "Desde la puesta en marcha"} />
+              detalle={f.desde || f.hasta || f.usuario || f.buscar ? "En el filtro" : "Desde la puesta en marcha"} />
           ))}
         </div>
       )}
       <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_340px]">
         <DataTable {...pag.orden} columns={columnas} rows={lista?.data ?? []} pagination={pag.props(lista)} loading={!lista && !error} error={error} onRetry={cargar}
           onRowClick={setAbierto} empty="No hay accesos a datos sensibles con estos filtros."
+          search={{ value: buscar, onChange: setBuscar, placeholder: "Buscar persona, archivo o IP…" }}
           toolbar={<>
             <FiltroSelect etiqueta="Tipo" ancho={220} value={f.evento} onChange={(v) => setF({ ...f, evento: v })} options={lista?.eventos ?? []} />
             <FiltroSelect etiqueta="Usuario" ancho={200} value={f.usuario} onChange={(v) => setF({ ...f, usuario: v })} options={lista?.usuarios ?? []} />
