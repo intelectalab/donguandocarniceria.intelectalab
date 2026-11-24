@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Building2, ChevronDown, CreditCard, Database, Inbox, KeyRound, Layers, LifeBuoy, Loader2, LogOut, Menu, Moon, ScrollText, Settings2, ShieldCheck, Sun, Users, type LucideIcon,
+  Activity, Building2, ChevronDown, CreditCard, Database, Inbox, KeyRound, Layers, LifeBuoy, Loader2, LogOut, Megaphone, Menu, Moon, ScrollText, Settings2, ShieldCheck, Siren, Sun, Users, type LucideIcon,
 } from "lucide-react";
 import { UiHost } from "@/components/ui";
 import { Franja } from "@/components/ui/Franja";
@@ -23,6 +23,11 @@ const GRUPOS: { name: string; items: Item[] }[] = [
     { href: "/consola/registros", label: "Registros y demos", icon: Inbox },
     { href: "/consola/tickets", label: "Bandeja de tickets", icon: LifeBuoy },
     { href: "/consola/accesos", label: "Accesos de soporte", icon: KeyRound },
+  ] },
+  { name: "Operación", items: [
+    { href: "/consola/salud", label: "Salud de componentes", icon: Activity },
+    { href: "/consola/incidentes", label: "Incidentes", icon: Siren },
+    { href: "/consola/anuncios", label: "Anuncios", icon: Megaphone },
   ] },
   { name: "Producto", items: [
     { href: "/consola/planes", label: "Catálogo de planes", icon: Layers },

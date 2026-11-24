@@ -593,3 +593,63 @@ Migración `2026_11_23_000200_ops_accesos_de_soporte`:
 
 - En modo «empresa por dominio», «Entrar» tendrá que abrir el dominio de la empresa (hoy abre `/inicio` en el mismo dominio, que es como funciona el servidor).
 - En solo lectura, algunas pantallas muestran botones de crear o exportar; al usarlos la API los rechaza con un mensaje claro y queda registrado.
+
+# Tanda 8 (23/11): salud de componentes, incidentes y anuncios (OPS-07, OPS-08 y OPS-11)
+
+## Base de datos
+
+Migración `2026_11_23_000300_ops_salud_incidentes_y_anuncios`:
+- `platform_components` (13 componentes: aplicación, base de datos, colas, OSE, WhatsApp, pasarelas, mapas, correo, almacenamiento, telefonía, anuncios pagados, WooCommerce, API) y `platform_health_readings` (solo inserción).
+- `platform_incidents` (número INC-0001…, severidad SEV1 a SEV4, componente, estado, inicio y cierre, mensaje público, aviso a clientes, causa raíz, post mortem), `platform_incident_tenants` (empresas afectadas), `platform_incident_updates` (línea de tiempo, solo inserción) y `support_tickets.incident_id` (tickets vinculados).
+- La base exige que un incidente resuelto tenga hora de cierre posterior al inicio y causa raíz (RN-OPS-08).
+- `platform_announcements` con RLS: la consola ve todo y una empresa solo lo publicado y dirigido a ella (a todas, a su plan o a ella por nombre). La ventana de fechas la filtra la aplicación con su reloj (RN-OPS-06).
+- Las demás tablas de operación solo se ven con la sesión de la consola.
+- Parámetros de plataforma: `ops_component_check_seconds` (60), `ops_incident_notify_minutes` (30) y `ops_maintenance_notice_hours` (48), con sus reglas en «Parámetros de plataforma».
+
+## Salud de componentes (OPS-07)
+
+- Tarea `ops:leer-salud` cada minuto. Mide de verdad:
+  - la aplicación;
+  - la base de datos (latencia; degradada si pasa de 500 ms);
+  - las colas (trabajos pendientes; degradada si el más antiguo espera más de 5 minutos o hubo fallidos en la última hora; caída si espera más de 15 minutos: ningún proceso la atiende);
+  - el almacenamiento (escribe y lee un archivo de prueba).
+- Los servicios externos todavía no tienen adaptador: quedan «sin lectura» y no se inventa un verde. Ingeniería y administración registran su estado a mano, con lo que se observó.
+- Disponibilidad de 24 horas y de 7 días = lecturas operativas sobre el total (degradado cuenta la mitad).
+- Un componente que pasa a caído abre solo un incidente SEV2, si no había uno abierto para él (CA-OPS-07).
+
+## Incidentes (OPS-08)
+
+- Alta con título, severidad, componente y empresas afectadas (o todas). Se editan mientras estén abiertos.
+- Línea de tiempo con notas internas y mensajes públicos. Un mensaje público:
+  - se muestra como anuncio en el sistema de las empresas afectadas;
+  - en SEV1 y SEV2, avisa en la campana a gerencia, sistemas y administración de esas empresas.
+- Plazo de aviso a clientes en SEV1 y SEV2 (30 minutos desde el inicio): pendiente, a tiempo, vencido o fuera de plazo (RN-OPS-14).
+- Resolver pide causa raíz y hora de cierre (vacía: ahora). Si se había avisado a los clientes, el anuncio pasa a «Resuelto: …» por 6 horas más. El post mortem se completa después.
+- Desde la bandeja de tickets, un ticket se vincula al incidente que lo causó.
+
+## Anuncios (OPS-11)
+
+- Tipos: información, novedad y mantenimiento. Los de incidente se publican desde el incidente.
+- Para: todas las empresas, por plan o empresas elegidas. Se guardan como borrador, se publican (o quedan programados si la fecha de inicio es futura) y se cancelan.
+- Un mantenimiento lleva su ventana y se anuncia con al menos 48 horas entre que el anuncio se ve y su inicio (RN-OPS-18). Se ve hasta que termina el mantenimiento.
+- En la empresa aparecen como franjas arriba del contenido, en todo el sistema. Cada persona puede ocultar un anuncio (se recuerda en su navegador).
+
+## Pantallas
+
+- **Consola · grupo Operación:** Salud de componentes (tarjetas con estado, latencia, cola y disponibilidad; detalle con lecturas y registro a mano), Incidentes (lista, alta, detalle con línea de tiempo, resolver y post mortem) y Anuncios (lista, alta y edición, publicar y cancelar).
+- **Bandeja de tickets:** en el ticket, «Causado por un incidente».
+- **Empresa:** franja de anuncios en el sistema.
+
+## Pruebas
+
+3 pruebas nuevas en `OpsTest`:
+- lecturas automáticas, permisos, caída que abre un incidente y disponibilidad;
+- incidente con aviso a tiempo solo a la empresa afectada, ticket vinculado y resolución;
+- anuncios por plan, borrador, mantenimiento con anticipación, programado y cancelado.
+
+En total el sistema tiene 349 pruebas, todas correctas. Revisado en el navegador contra `aycha_test` (1440 y 375 px).
+
+## Pendiente
+
+- Adaptadores para leer la salud del OSE, WhatsApp, pasarelas, correo y demás servicios externos (cuando cada integración exista).
+- En el servidor ya corre `schedule:run` cada minuto (cron de www-data): al desplegar, las lecturas, los accesos vencidos y el cierre de tickets funcionan solos.

@@ -245,7 +245,7 @@ final class Tickets
             'priority' => $t->priority, 'priority_name' => self::PRIORIDADES[$t->priority], 'status' => $t->status, 'status_name' => self::ESTADOS[$t->status],
             'opened_by_name' => $t->opened_by_name, 'opened_at' => $t->opened_at, 'assigned_platform_user' => $t->assigned_platform_user,
             'assigned_name' => $t->assigned_name ?? null, 'first_response_at' => $t->first_response_at, 'resolved_at' => $t->resolved_at, 'closed_at' => $t->closed_at,
-            'satisfaction' => $t->satisfaction, 'plazo' => ['estado' => $plazo, 'vence' => $t->first_response_due_at],
+            'satisfaction' => $t->satisfaction, 'incident_id' => $t->incident_id ?? null, 'plazo' => ['estado' => $plazo, 'vence' => $t->first_response_due_at],
         ];
     }
 

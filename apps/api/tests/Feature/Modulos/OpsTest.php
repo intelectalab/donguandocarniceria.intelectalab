@@ -774,4 +774,112 @@ class OpsTest extends TestCase
         $this->desde(self::DG, $sesion)->getJson('/api/v1/cli/clientes')->assertStatus(401);
         $this->assertSame('EXPIRED', $this->desde(self::DG, $this->ingresar(self::DG, 'rquispe@donguando.pe'))->getJson('/api/v1/soporte/accesos')->assertOk()->json('data.0.status'));
     }
+
+    /* ---------------------------------------------------------------- tanda 8: salud, incidentes y anuncios */
+
+    public function test_salud_lee_componentes_y_una_caida_abre_un_incidente(): void
+    {
+        $this->artisan('ops:leer-salud')->expectsOutput('4 lecturas registradas.')->assertSuccessful();
+        [$admin] = $this->admin();
+        [, $l1] = $this->cuenta($admin, 'luis.soporte@intelectalab.com', 'SUPPORT_L1');
+        [, $ing] = $this->cuenta($admin, 'iris.ingenieria@intelectalab.com', 'ENGINEER');
+
+        $s = collect($this->consola($l1)->getJson('/api/v1/consola/salud')->assertOk()->json('data'))->keyBy('code');
+        $this->assertCount(13, $s);
+        $this->assertSame(['UP', 'UP', 'UNKNOWN'], [$s['DB']['status'], $s['APP']['status'], $s['OSE']['status']]);
+        $this->assertEquals(100, $s['DB']['disponibilidad_24h']);
+        $this->assertNull($s['OSE']['disponibilidad_24h'], 'Sin lecturas no hay disponibilidad (no se inventa)');
+
+        // Solo ingeniería y administración registran a mano. CA-OPS-07: OSE caído abre un SEV2 (uno solo).
+        $lectura = ['status' => 'DOWN', 'latency_ms' => 30000, 'detail' => 'El proveedor del OSE no responde'];
+        $this->consola($l1)->postJson('/api/v1/consola/salud/OSE/lecturas', $lectura)->assertStatus(422)->assertJsonPath('code', 'RN-OPS-10');
+        $this->consola($ing)->postJson('/api/v1/consola/salud/OSE/lecturas', $lectura)->assertOk()->assertJsonPath('status', 'DOWN');
+        $this->consola($ing)->postJson('/api/v1/consola/salud/OSE/lecturas', $lectura)->assertOk();
+        $inc = $this->consola($ing)->getJson('/api/v1/consola/incidentes?status=ABIERTOS')->assertOk()->json('data');
+        $this->assertCount(1, $inc);
+        $this->assertSame(['SEV2', 'OSE', 'AUTO', 'PENDIENTE'], [$inc[0]['severity'], $inc[0]['component_code'], $inc[0]['source'], $inc[0]['aviso']['estado']]);
+
+        // Vuelve: la disponibilidad del día baja en proporción (2 caídas de 3 lecturas → 33,33 %).
+        $this->consola($ing)->postJson('/api/v1/consola/salud/OSE/lecturas', ['status' => 'UP', 'detail' => 'El proveedor normalizó'])->assertOk();
+        $this->assertEquals(33.33, collect($this->consola($ing)->getJson('/api/v1/consola/salud')->json('data'))->firstWhere('code', 'OSE')['disponibilidad_24h']);
+
+        // Las lecturas son de solo inserción.
+        $this->expectException(QueryException::class);
+        TenantContext::platform();
+        DB::table('platform_health_readings')->delete();
+    }
+
+    public function test_incidente_avisa_a_los_afectados_y_se_resuelve_con_causa_raiz(): void
+    {
+        [$admin, , $norte, $tokenNorte] = $this->empresaEnPrueba();
+        [, $ing] = $this->cuenta($admin, 'iris.ingenieria@intelectalab.com', 'ENGINEER');
+        $gerente = $this->ingresar(self::DG, 'rquispe@donguando.pe');
+        $dg = $this->dg();
+
+        $i = $this->consola($ing)->postJson('/api/v1/consola/incidentes', ['title' => 'Boletas sin respuesta del OSE', 'severity' => 'SEV1', 'component_code' => 'OSE',
+            'affects_all' => false, 'tenants' => [$dg]])->assertCreated()->json();
+        $this->assertSame(['INC-', 'PENDIENTE'], [substr($i['number'], 0, 4), $i['aviso']['estado']]);
+
+        // A los 10 minutos se publica el mensaje: a tiempo (30 min), anuncio y aviso solo a la empresa afectada.
+        $this->travel(10)->minutes();
+        $u = $this->consola($ing)->postJson("/api/v1/consola/incidentes/{$i['id']}/actualizaciones", ['status' => 'IDENTIFIED', 'public' => true,
+            'message' => 'Las boletas se están enviando con demora; no hace falta volver a emitirlas.'])->assertOk();
+        $this->assertSame(['IDENTIFIED', 'A_TIEMPO'], [$u->json('status'), $u->json('aviso.estado')]);
+        $this->assertSame('Incidente en GestionCarnica: Boletas sin respuesta del OSE', $this->desde(self::DG, $gerente)->getJson('/api/v1/me/notifications')->json('data.0.title'));
+        $this->assertSame('INCIDENT', $this->desde(self::DG, $gerente)->getJson('/api/v1/anuncios')->assertOk()->json('data.0.kind'));
+        $this->assertSame([], $this->desde(self::DG, $tokenNorte)->getJson('/api/v1/anuncios')->assertOk()->json('data'), 'Otra empresa no ve el incidente');
+
+        // RN-OPS-14: el ticket que abrieron por esa causa se vincula.
+        $t = $this->ticket($this->ingresar(self::DG, 'mcardenas@donguando.pe'));
+        $this->consola($ing)->postJson("/api/v1/consola/tickets/{$t['id']}/incidente", ['incident_id' => $i['id']])->assertNoContent();
+        $this->assertSame($t['number'], $this->consola($ing)->getJson("/api/v1/consola/incidentes/{$i['id']}")->json('tickets.0.number'));
+
+        // RN-OPS-08: sin causa raíz no se resuelve; la hora de cierre va después del inicio.
+        $this->consola($ing)->postJson("/api/v1/consola/incidentes/{$i['id']}/resolver", [])->assertStatus(422)->assertJsonValidationErrors(['root_cause']);
+        $this->consola($ing)->postJson("/api/v1/consola/incidentes/{$i['id']}/resolver", ['root_cause' => 'Caída del proveedor', 'resolved_at' => now()->subHour()->toIso8601String()])
+            ->assertStatus(422)->assertJsonPath('code', 'RN-OPS-08');
+        $r = $this->consola($ing)->postJson("/api/v1/consola/incidentes/{$i['id']}/resolver", ['root_cause' => 'Caída del proveedor del OSE', 'message' => 'Las boletas pendientes ya se enviaron.'])->assertOk();
+        $this->assertSame(['RESOLVED', 10], [$r->json('status'), $r->json('duracion_min')]);
+        $this->assertSame('Resuelto: Boletas sin respuesta del OSE', $this->desde(self::DG, $gerente)->getJson('/api/v1/anuncios')->json('data.0.title'));
+        $this->assertDatabaseHas('platform_audit_log', ['action' => 'INCIDENT_RESOLVED', 'entity_id' => $i['id']]);
+        unset($norte);
+    }
+
+    public function test_anuncios_por_plan_programados_y_mantenimiento_con_anticipacion(): void
+    {
+        [$admin, $sub, , $tokenNorte] = $this->empresaEnPrueba();
+        [, $l1] = $this->cuenta($admin, 'luis.soporte@intelectalab.com', 'SUPPORT_L1');
+        $gerente = $this->ingresar(self::DG, 'rquispe@donguando.pe');
+        TenantContext::platform();
+        $plan = DB::table('subscriptions')->where('id', $sub)->value('plan_code');
+        TenantContext::set(null);
+        $nuevo = fn (array $d) => $this->consola($admin)->postJson('/api/v1/consola/anuncios', $d + ['body' => 'Texto del anuncio para las empresas.', 'kind' => 'INFO', 'audience' => 'ALL']);
+
+        // Solo ingeniería y administración; un borrador no se ve.
+        $this->consola($l1)->postJson('/api/v1/consola/anuncios', ['title' => 'Novedad', 'body' => 'Texto del anuncio.', 'kind' => 'INFO', 'audience' => 'ALL'])
+            ->assertStatus(422)->assertJsonPath('code', 'RN-OPS-10');
+        $porPlan = $nuevo(['title' => "Novedades del plan {$plan}", 'audience' => 'PLANS', 'audience_plans' => [$plan], 'kind' => 'FEATURE'])->assertCreated()->json();
+        $this->assertSame('DRAFT', $porPlan['status']);
+        $this->assertSame([], $this->desde(self::DG, $tokenNorte)->getJson('/api/v1/anuncios')->json('data'));
+
+        // Publicado por plan: lo ve la empresa del plan, no Don Guando.
+        $this->consola($admin)->postJson("/api/v1/consola/anuncios/{$porPlan['id']}/publicar")->assertOk()->assertJsonPath('status', 'ACTIVE');
+        $this->assertSame([$porPlan['id']], array_column($this->desde(self::DG, $tokenNorte)->getJson('/api/v1/anuncios')->json('data'), 'id'));
+        $this->assertSame([], $this->desde(self::DG, $gerente)->getJson('/api/v1/anuncios')->json('data'));
+
+        // RN-OPS-18: un mantenimiento en 24 h no se publica; en 72 h, sí.
+        $mant = fn (int $h) => $nuevo(['title' => 'Mantenimiento programado', 'kind' => 'MAINTENANCE',
+            'maintenance_starts_at' => now()->addHours($h)->toIso8601String(), 'maintenance_ends_at' => now()->addHours($h + 2)->toIso8601String()])->assertCreated()->json('id');
+        $this->consola($admin)->postJson('/api/v1/consola/anuncios/'.$mant(24).'/publicar')->assertStatus(422)->assertJsonPath('code', 'RN-OPS-18');
+        $m = $mant(72);
+        $this->consola($admin)->postJson("/api/v1/consola/anuncios/{$m}/publicar")->assertOk();
+        $this->assertSame('MAINTENANCE', $this->desde(self::DG, $gerente)->getJson('/api/v1/anuncios')->json('data.0.kind'));
+
+        // Programado para mañana: hoy no se ve. Cancelado, deja de verse.
+        $prog = $nuevo(['title' => 'Nueva pantalla de reportes', 'starts_at' => now()->addDay()->toIso8601String()])->assertCreated()->json('id');
+        $this->consola($admin)->postJson("/api/v1/consola/anuncios/{$prog}/publicar")->assertOk()->assertJsonPath('status', 'SCHEDULED');
+        $this->assertCount(1, $this->desde(self::DG, $gerente)->getJson('/api/v1/anuncios')->json('data'));
+        $this->consola($admin)->postJson("/api/v1/consola/anuncios/{$m}/cancelar")->assertOk()->assertJsonPath('status', 'CANCELLED');
+        $this->assertSame([], $this->desde(self::DG, $gerente)->getJson('/api/v1/anuncios')->json('data'));
+    }
 }

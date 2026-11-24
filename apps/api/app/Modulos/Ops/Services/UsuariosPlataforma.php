@@ -325,7 +325,7 @@ final class UsuariosPlataforma
     public static function publico(array $u): array
     {
         return ['id' => $u['id'], 'email' => $u['email'], 'full_name' => $u['full_name'], 'role' => $u['role'], 'role_name' => Consola::ROLES[$u['role']],
-            'status' => $u['status'], 'puede' => collect(['users.manage', 'tenant.create', 'tenant.status', 'plans.manage', 'params.manage', 'catalogs.import', 'ticket.manage', 'access.request_ro', 'access.request_rw'])->mapWithKeys(fn ($c) => [$c => Consola::puede($u, $c)])->all()];
+            'status' => $u['status'], 'puede' => collect(['users.manage', 'tenant.create', 'tenant.status', 'plans.manage', 'params.manage', 'catalogs.import', 'ticket.manage', 'access.request_ro', 'access.request_rw', 'health.record', 'incident.manage', 'announce.manage'])->mapWithKeys(fn ($c) => [$c => Consola::puede($u, $c)])->all()];
     }
 
     /* ------------------------------------------------------------------ internos */

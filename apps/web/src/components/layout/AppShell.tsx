@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { BookOpen, Cloud, Coins, Factory, Gauge, Home, Lock, Megaphone, ShieldCheck, ShoppingCart, Store, Truck } from "lucide-react";
 import Header from "./Header";
 import { FranjaSoporte } from "@/components/soporte/FranjaSoporte";
+import { FranjaAnuncios } from "@/components/soporte/FranjaAnuncios";
 import Sidebar, { type MenuItem } from "./Sidebar";
 import ContextSelectors from "./ContextSelectors";
 import { UiHost, toast } from "@/components/ui";
@@ -241,7 +242,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 : "Tu rol no tiene permiso para abrir esta pantalla. Si la necesitas, pídeselo al administrador de tu empresa."}>
               <Link href="/inicio" className="rounded-[9px] border border-line bg-surface px-4 py-2 text-[13px] font-medium hover:bg-surface-2">Ir al inicio</Link>
             </Aviso>
-          ) : children}
+          ) : <><FranjaAnuncios />{children}</>}
         </main>
       </div>
       <UiHost />

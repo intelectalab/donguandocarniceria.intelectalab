@@ -91,11 +91,23 @@ function DetalleConsola({ id, personal, onClose, onCambio }: { id: string; perso
   const [estado, setEstado] = useState("WAITING_CUSTOMER");
   const [enviando, setEnviando] = useState(false);
   const [pedir, setPedir] = useState(false);
+  const [incidentes, setIncidentes] = useState<{ id: string; number: string; title: string }[]>([]);
   const puedePedir = Boolean(yo.puede["access.request_ro"] || yo.puede["access.request_rw"]);
 
   useEffect(() => {
     apiConsola<Ticket>(`/tickets/${id}`).then(setT).catch((e) => setError(mensajeDe(e)));
+    apiConsola<{ id: string; number: string; title: string }[]>("/incidentes/para-vincular").then(setIncidentes).catch(() => undefined);
   }, [id]);
+
+  async function vincular(incidente: string) {
+    try {
+      await apiConsola(`/tickets/${id}/incidente`, { method: "POST", body: { incident_id: incidente || null } });
+      setT((x) => (x ? { ...x, incident_id: incidente || null } : x));
+      toast.ok(incidente ? "Ticket vinculado al incidente" : "Ticket desvinculado");
+    } catch (e) {
+      toast.error(mensajeDe(e));
+    }
+  }
 
   async function enviar(ruta: "responder" | "asignar", body: object, aviso: string) {
     setEnviando(true);
@@ -120,6 +132,12 @@ function DetalleConsola({ id, personal, onClose, onCambio }: { id: string; perso
             <div className="grid gap-1 text-[13px]">
               <PlazoTicket p={t.plazo} />
               {t.satisfaction && <span className="text-muted">Calificación del cliente: {t.satisfaction} de 5</span>}
+              {puede && (incidentes.length > 0 || t.incident_id) && (
+                <Field label="Causado por un incidente">
+                  <Select value={t.incident_id ?? ""} onChange={(e) => vincular(e.target.value)} placeholder="Ninguno"
+                    options={incidentes.map((i) => ({ value: i.id, label: `${i.number} · ${i.title}` }))} />
+                </Field>
+              )}
               {puedePedir && t.status !== "CLOSED" && (
                 <Button size="sm" variant="ghost" icon={KeyRound} className="justify-self-start" onClick={() => setPedir(true)}>Pedir acceso a la empresa</Button>
               )}

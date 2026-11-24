@@ -1,6 +1,7 @@
 <?php
 
 use App\Modulos\Ops\Http\Controllers\AccesoEmpresaController;
+use App\Modulos\Ops\Http\Controllers\AnuncioEmpresaController;
 use App\Modulos\Ops\Http\Controllers\TicketController;
 use Illuminate\Support\Facades\Route;
 
@@ -13,6 +14,9 @@ Route::prefix('soporte')->middleware('permiso:ops.ticket.create|ops.ticket.view_
     Route::post('/tickets/{id}/responder', [TicketController::class, 'responder'])->middleware('throttle:30,1')->whereUuid('id');
     Route::post('/tickets/{id}/cerrar', [TicketController::class, 'cerrar'])->whereUuid('id');
 });
+
+// Anuncios de GestionCarnica para esta empresa (todos los usuarios; RLS deja solo los dirigidos a ella).
+Route::get('/anuncios', AnuncioEmpresaController::class);
 
 // OPS-14 Accesos de soporte: la empresa aprueba o rechaza lo que pide el soporte, revoca lo vigente y ve lo que hizo.
 Route::prefix('soporte/accesos')->middleware('permiso:ops.support_access.approve|ops.support_access.revoke|ops.support_access.view_log')->group(function () {

@@ -13,6 +13,7 @@ use App\Modulos\Ops\Http\Controllers\AccesoConsolaController;
 use App\Modulos\Ops\Http\Controllers\BandejaController;
 use App\Modulos\Ops\Http\Controllers\ConsolaController;
 use App\Modulos\Ops\Http\Controllers\EmpresaController;
+use App\Modulos\Ops\Http\Controllers\OperacionController;
 use App\Modulos\Ops\Http\Controllers\PlanController;
 use App\Modulos\Ops\Http\Controllers\PlataformaController;
 use Illuminate\Support\Facades\Route;
@@ -97,6 +98,24 @@ Route::prefix('v1/consola')->group(function () {
         Route::post('/accesos/{id}/cancelar', [AccesoConsolaController::class, 'cancelar'])->whereUuid('id');
         Route::post('/accesos/{id}/terminar', [AccesoConsolaController::class, 'terminar'])->whereUuid('id');
         Route::post('/accesos/{id}/entrar', [AccesoConsolaController::class, 'entrar'])->middleware('throttle:10,1')->whereUuid('id');
+        // OPS-07 Salud, OPS-08 Incidentes y OPS-11 Anuncios (registrar y gestionar: ingeniería y administración; lo valida el servicio)
+        Route::get('/salud', [OperacionController::class, 'salud']);
+        Route::get('/salud/{codigo}', [OperacionController::class, 'componente'])->where('codigo', '[A-Z]{2,20}');
+        Route::post('/salud/{codigo}/lecturas', [OperacionController::class, 'registrarLectura'])->where('codigo', '[A-Z]{2,20}');
+        Route::get('/incidentes', [OperacionController::class, 'incidentes']);
+        Route::get('/incidentes/para-vincular', [OperacionController::class, 'incidentesParaVincular']);
+        Route::get('/incidentes/{id}', [OperacionController::class, 'incidente'])->whereUuid('id');
+        Route::post('/incidentes', [OperacionController::class, 'crearIncidente']);
+        Route::put('/incidentes/{id}', [OperacionController::class, 'editarIncidente'])->whereUuid('id');
+        Route::post('/incidentes/{id}/actualizaciones', [OperacionController::class, 'actualizarIncidente'])->whereUuid('id');
+        Route::post('/incidentes/{id}/resolver', [OperacionController::class, 'resolverIncidente'])->whereUuid('id');
+        Route::put('/incidentes/{id}/postmortem', [OperacionController::class, 'postmortem'])->whereUuid('id');
+        Route::post('/tickets/{ticket}/incidente', [OperacionController::class, 'vincularTicket'])->whereUuid('ticket');
+        Route::get('/anuncios', [OperacionController::class, 'anuncios']);
+        Route::post('/anuncios', [OperacionController::class, 'guardarAnuncio']);
+        Route::put('/anuncios/{id}', [OperacionController::class, 'guardarAnuncio'])->whereUuid('id');
+        Route::post('/anuncios/{id}/publicar', [OperacionController::class, 'publicarAnuncio'])->whereUuid('id');
+        Route::post('/anuncios/{id}/cancelar', [OperacionController::class, 'cancelarAnuncio'])->whereUuid('id');
     });
 });
 

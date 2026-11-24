@@ -26,4 +26,6 @@ Schedule::command('ped:vencer-borradores')->hourly()->withoutOverlapping();
 // OPS · RN-OPS-09: vence cada minuto los accesos de soporte cumplidos (desactiva su usuario técnico).
 // OPS · RN-OPS-15: cierra los tickets resueltos sin respuesta del cliente (ops_ticket_auto_close_days), cada mañana.
 Schedule::command('ops:vencer-accesos')->everyMinute()->withoutOverlapping();
+// OPS · OPS-07: lectura de salud de los componentes con sonda propia (D-OPS-01).
+Schedule::command('ops:leer-salud')->everyMinute()->withoutOverlapping();
 Schedule::command('ops:cerrar-tickets')->dailyAt('05:30')->timezone('America/Lima')->withoutOverlapping();

@@ -43,6 +43,9 @@ final class Plataforma
         'sus_trial_max_days' => ['entero', 1, 90],
         'ops_ticket_auto_close_days' => ['entero', 1, 60],
         'ops_support_max_hours' => ['entero', 1, 168],
+        'ops_incident_notify_minutes' => ['entero', 5, 240],
+        'ops_maintenance_notice_hours' => ['entero', 1, 336],
+        'ops_component_check_seconds' => ['entero', 60, 3600],
     ];
 
     /* ------------------------------------------------------------------ OPS-13 */

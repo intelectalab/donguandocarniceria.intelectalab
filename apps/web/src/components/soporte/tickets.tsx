@@ -11,7 +11,7 @@ export type TicketFila = {
   id: string; tenant_id: string; tenant_short: string | null; number: string; subject: string; category: string; category_name: string;
   priority: string; priority_name: string; status: string; status_name: string; opened_by_name: string; opened_at: string;
   assigned_platform_user: string | null; assigned_name: string | null; first_response_at: string | null; resolved_at: string | null;
-  closed_at: string | null; satisfaction: number | null; plazo: Plazo;
+  closed_at: string | null; satisfaction: number | null; incident_id?: string | null; plazo: Plazo;
 };
 export type Mensaje = { author_type: "CUSTOMER" | "PLATFORM" | "SYSTEM"; author_name: string; body: string; status_to: string | null; status_to_name: string | null; created_at: string };
 export type Ticket = TicketFila & { description: string; mensajes: Mensaje[] };
