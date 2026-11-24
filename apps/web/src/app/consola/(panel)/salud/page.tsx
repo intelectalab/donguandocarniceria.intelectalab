@@ -74,7 +74,7 @@ export default function SaludComponentes() {
       )}
       <div className="flex justify-end"><VistaToggle value={vista} onChange={setVista} /></div>
       {vista === "tabla" ? (
-        <DataTable {...ord.orden} columns={columnas} rows={ord.filas} loading={!datos && !error} onRowClick={(c) => setAbierto(c.code)} empty="No hay componentes." />
+        <DataTable {...ord.orden} columns={columnas} rows={ord.filas} rowKey={(c) => c.code} loading={!datos && !error} onRowClick={(c) => setAbierto(c.code)} empty="No hay componentes." />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {(datos?.data ?? []).map((c) => (
