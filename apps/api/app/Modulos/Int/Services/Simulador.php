@@ -27,6 +27,15 @@ final class Simulador
         'WOO' => ['Pedido de WooCommerce', 'WOOCOMMERCE'],
     ];
 
+    /**
+     * Solo existe en los ambientes de prueba y desarrollo (pendientes.md: «Oculto en producción»). En producción la API
+     * lo rechaza y la web lo saca del menú (MeController: pantallas_ocultas).
+     */
+    public static function disponible(): bool
+    {
+        return ! app()->environment('production');
+    }
+
     public static function opciones(): array
     {
         return collect(self::EJEMPLOS)->map(function ($e, $k) {

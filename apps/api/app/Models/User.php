@@ -18,7 +18,7 @@ class User extends Authenticatable
 
     protected $guarded = ['id', 'tenant_id', 'password'];
 
-    protected $hidden = ['password', 'totp_last_step'];
+    protected $hidden = ['password', 'totp_last_step', 'totp_secret_enc', 'totp_pending_enc', 'totp_pending_at'];
 
     protected $dateFormat = 'Y-m-d H:i:sP';
 

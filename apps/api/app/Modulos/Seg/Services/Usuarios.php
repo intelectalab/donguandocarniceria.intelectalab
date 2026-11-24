@@ -6,13 +6,13 @@ use App\Models\Role;
 use App\Models\User;
 use App\Modulos\Sus\Services\Suscripcion;
 use App\Support\Access;
+use App\Support\Correo;
 use App\Support\Events;
 use App\Support\Params;
 use App\Support\RuleError;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use App\Support\Correo;
 use Illuminate\Support\Str;
 
 /**
@@ -241,9 +241,10 @@ final class Usuarios
         }
 
         return DB::transaction(function () use ($u, $quien) {
-            $u->forceFill(['twofa_enabled' => false, 'mfa_enrolled_at' => null, 'totp_last_step' => null, 'updated_at' => now()])->save();
+            $u->forceFill(['twofa_enabled' => false, 'mfa_enrolled_at' => null, 'totp_last_step' => null, 'totp_secret_enc' => null, 'totp_pending_enc' => null,
+                'totp_pending_at' => null, 'updated_at' => now()])->save();
             DB::table('mfa_recovery_codes')->where('user_id', $u->id)->whereNull('used_at')->whereNull('voided_at')
-                ->update(['voided_at' => 'REINICIADO', 'updated_at' => now()]);
+                ->update(['voided_at' => now(), 'updated_at' => now()]);
             Bitacora::registrar('MFA_RESET', ['user' => $quien, 'entity' => 'users', 'entity_id' => $u->id, 'detail' => "Reinició el segundo factor de {$u->email}"]);
 
             return $u->fresh();

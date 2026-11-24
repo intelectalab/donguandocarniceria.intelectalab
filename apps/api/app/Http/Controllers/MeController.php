@@ -64,6 +64,8 @@ class MeController extends Controller
                     'menu_favs' => $user->menu_favs ?? [], 'menu_corto' => $user->menu_corto],   // estrellas y menú corto o completo
             'tenant' => TenantContext::tenant() + ['logo_url' => TenantController::urlLogo()],
             'roles' => $access['roles'],
+            // Pantallas que no existen en este ambiente: el simulador de integraciones solo fuera de producción.
+            'pantallas_ocultas' => \App\Modulos\Int\Services\Simulador::disponible() ? [] : ['INT-13'],
             // Sin los permisos de los módulos apagados (RN-PLT-07): la web los oculta igual que la API.
             'permissions' => collect($access['all_permissions'] ? array_keys($access['permission_modules']) : $access['permissions'])
                 ->filter(fn ($p) => ($m = $access['permission_modules'][$p] ?? null) === null || in_array($m, $access['enabled_modules'], true) || in_array($p, Access::DEL_SERVICIO, true))

@@ -4,6 +4,7 @@ namespace App\Modulos\Seg\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modulos\Seg\Services\Bitacora;
+use App\Modulos\Seg\Services\SegundoFactor;
 use App\Modulos\Seg\Services\Sesiones;
 use App\Support\Access;
 use App\Support\Params;
@@ -50,7 +51,7 @@ class MiCuentaController extends Controller
             ],
             'marcas' => $marcas,
             'seguridad' => [
-                'exige_2fa' => $roles->contains('requires_mfa', true), 'twofa_enabled' => (bool) $u->twofa_enabled, 'mfa_enrolled_at' => $u->mfa_enrolled_at,
+                'exige_2fa' => $roles->contains('requires_mfa', true), 'twofa_enabled' => SegundoFactor::tiene($u), 'mfa_enrolled_at' => SegundoFactor::tiene($u) ? $u->mfa_enrolled_at : null,
                 'codigos_disponibles' => DB::table('mfa_recovery_codes')->where('user_id', $u->id)->whereNull('used_at')->whereNull('voided_at')->count(),
                 'password_changed_at' => $u->password_changed_at, 'password_vence_dias' => (int) (Params::get('seg_password_max_age_days') ?? 0),
                 'sesiones_abiertas' => Sesiones::vigentes(DB::table('personal_access_tokens'))->where('tokenable_id', $u->id)->count(),
@@ -117,5 +118,41 @@ class MiCuentaController extends Controller
 
         return response()->json(['checks' => array_map(fn ($c) => ['etiqueta' => $c['etiqueta'], 'ok' => $c['ok']],
             PasswordPolicy::checks($request->user(), (string) ($d['password'] ?? '')))]);
+    }
+
+    /** SEG-06: estado del segundo factor de la persona. */
+    public function segundoFactor(Request $request)
+    {
+        return response()->json(SegundoFactor::estado($request->user()));
+    }
+
+    /** SEG-03 paso 1: el QR (todavía no activa nada). */
+    public function prepararSegundoFactor(Request $request)
+    {
+        return response()->json(SegundoFactor::preparar($request->user()));
+    }
+
+    /** SEG-03 paso 2: confirma con el primer código y entrega los códigos de recuperación (se ven una sola vez). */
+    public function activarSegundoFactor(Request $request)
+    {
+        $d = $request->validate(['codigo' => ['required', 'string', 'max:20']]);
+
+        return response()->json(SegundoFactor::activar($request->user(), $d['codigo']));
+    }
+
+    /** SEG-06: códigos de recuperación nuevos, con un código de la app. */
+    public function regenerarCodigos(Request $request)
+    {
+        $d = $request->validate(['codigo' => ['required', 'string', 'max:20']]);
+
+        return response()->json(SegundoFactor::regenerar($request->user(), $d['codigo']));
+    }
+
+    /** SEG-06: desactivarlo, con un código (no se puede si es obligatorio para su rol). */
+    public function desactivarSegundoFactor(Request $request)
+    {
+        $d = $request->validate(['codigo' => ['required', 'string', 'max:20']]);
+
+        return response()->json(SegundoFactor::desactivar($request->user(), $d['codigo']));
     }
 }

@@ -78,11 +78,11 @@ export default function Simulador() {
               : "No hay un endpoint de prueba para este ejemplo."}
           </p>
         )}
-        <div className="grid items-end gap-4 sm:grid-cols-[auto_220px_auto]">
+        <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
           <Checkbox checked={invalida} onChange={setInvalida} label="Firma inválida" hint="Para ver el rechazo con 401." />
-          <Field label="Veces">
+          <div className="w-full sm:w-[300px]"><Field label="Veces">
             <Select value={veces} onChange={(e) => setVeces(e.target.value)} options={[{ value: "1", label: "Enviar 1 vez" }, { value: "3", label: "Enviar 3 veces (reintentos del proveedor)" }]} />
-          </Field>
+          </Field></div>
           <Button variant="primary" icon={Send} loading={enviando} disabled={!permitido || !actual?.disponible} onClick={disparar}>Disparar</Button>
         </div>
       </section>

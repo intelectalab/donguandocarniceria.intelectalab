@@ -525,6 +525,19 @@ class IntTest extends TestCase
         $this->assertSame(1, $this->como($gerente)->getJson("/api/v1/int/archivos?entity=sales_orders&entity_id={$pedido['id']}")->json('total'));
     }
 
+    public function test_el_simulador_no_existe_en_produccion(): void
+    {
+        $this->assertSame([], $this->como(self::ADMIN)->getJson('/api/v1/me')->assertOk()->json('pantallas_ocultas'));
+        $this->app['env'] = 'production';
+        try {
+            $this->como(self::ADMIN)->getJson('/api/v1/int/simulador')->assertNotFound();
+            $this->como(self::ADMIN)->postJson('/api/v1/int/simulador', ['ejemplo' => 'MP', 'veces' => 1])->assertNotFound();
+            $this->assertSame(['INT-13'], $this->como(self::ADMIN)->getJson('/api/v1/me')->assertOk()->json('pantallas_ocultas'), 'La web lo saca del menú');
+        } finally {
+            $this->app['env'] = 'testing';
+        }
+    }
+
     public function test_el_despacho_programado_envia_lo_que_toca(): void
     {
         $falso = $this->conector(fn ($c) => $c['environment'] === 'SANDBOX' && $c['kind'] === 'MESSAGING' && $c['status'] === 'ACTIVE');

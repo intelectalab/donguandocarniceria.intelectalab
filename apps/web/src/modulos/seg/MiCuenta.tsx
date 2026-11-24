@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { CheckCircle2, Circle, KeyRound, MonitorSmartphone, ShieldCheck, UserRound, XCircle } from "lucide-react";
-import { Alert, Badge, Button, Checkbox, Cifra, DetailList, Field, Input, Select, toast } from "@/components/ui";
+import { Alert, Button, Checkbox, Cifra, DetailList, Field, Input, Select, toast } from "@/components/ui";
 import { api, erroresDe, mensajeDe } from "@/lib/api";
 import { fecha, fechaHora } from "@/lib/formato";
 import { aplicarModo, type ModoColor } from "@/lib/modoColor";
 import { useSesion } from "@/lib/sesion";
+import { SeccionSegundoFactor, type EstadoSegundoFactor } from "@/modulos/seg/SegundoFactor";
 
 type Cuenta = {
   datos: { name: string; email: string; roles: string; alcance: string; trabajador: string | null; ultimo_ingreso: string | null; idioma: string; empresa: string };
@@ -29,10 +30,12 @@ const MODOS = [{ value: "LIGHT", label: "Claro" }, { value: "DARK", label: "Oscu
 export function MiCuenta() {
   const { me, recargar } = useSesion();
   const [c, setC] = useState<Cuenta | null>(null);
+  const [sf, setSf] = useState<EstadoSegundoFactor | null>(null);
   const [error, setError] = useState("");
 
   const cargar = useCallback(() => {
     api<Cuenta>("/v1/seg/mi-cuenta").then(setC).catch((e) => setError(mensajeDe(e)));
+    api<EstadoSegundoFactor>("/v1/seg/mi-cuenta/segundo-factor").then(setSf).catch(() => setSf(null));
   }, []);
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -81,19 +84,8 @@ export function MiCuenta() {
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">
         <CambiarClave regla={s?.regla} onCambio={() => { cargar(); recargar(); }} />
-        <section className="min-w-0 rounded-xl border border-line bg-surface p-5 shadow-card">
-          <h2 className="mb-3 text-[14px] font-semibold">Segundo factor</h2>
-          {s ? (
-            <>
-              <DetailList items={[
-                { label: "Estado", value: s.twofa_enabled ? <Badge tone="ok">Activo</Badge> : <Badge tone={s.exige_2fa ? "warn" : "neutral"}>{s.exige_2fa ? "Lo exige tu rol y no está activo" : "No activo"}</Badge> },
-                { label: "Activado", value: s.mfa_enrolled_at ? fechaHora(s.mfa_enrolled_at) : "—" },
-                { label: "Códigos de recuperación disponibles", value: String(s.codigos_disponibles) },
-              ]} />
-              <p className="mt-3 text-[12.5px] text-muted">Activarlo y generar códigos de recuperación llegará con el segundo factor. Si necesitas reiniciarlo, pídelo al administrador del sistema.</p>
-            </>
-          ) : <div className="h-24 animate-pulse rounded bg-surface-2" />}
-        </section>
+        {sf && c ? <SeccionSegundoFactor s={sf} cuenta={c.datos.email} onCambio={() => { cargar(); recargar(); }} />
+          : <div className="h-40 animate-pulse rounded-xl bg-surface-2" />}
       </div>
     </div>
   );

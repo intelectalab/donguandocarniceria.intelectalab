@@ -29,6 +29,14 @@ class OperacionIntController extends Controller
         return response()->json(Corridas::ejecutar($d['job'], $d['connector_id'], $request->user()), 201);
     }
 
+    /** INT-13 solo en los ambientes de prueba: en producción no existe. */
+    private function soloEnPrueba(): void
+    {
+        if (! Simulador::disponible()) {
+            abort(response()->json(['message' => 'El simulador solo existe en los ambientes de prueba.', 'code' => 'NOT_FOUND'], 404));
+        }
+    }
+
     public function salud()
     {
         return response()->json(Salud::resumen());
@@ -36,11 +44,14 @@ class OperacionIntController extends Controller
 
     public function simulador()
     {
+        $this->soloEnPrueba();
+
         return response()->json(['ejemplos' => Simulador::opciones()]);
     }
 
     public function simular(Request $request)
     {
+        $this->soloEnPrueba();
         $d = $request->validate([
             'ejemplo' => ['required', Rule::in(array_keys(Simulador::EJEMPLOS))], 'firma_invalida' => ['boolean'], 'veces' => ['required', 'integer', Rule::in([1, 3])],
         ]);

@@ -6,7 +6,7 @@ import { AlertTriangle, CheckCircle2, Copy, Plug, Skull, Timer } from "lucide-re
 import { Badge, Cifra, DataTable, PageHeader, type Column } from "@/components/ui";
 import { fecha, fechaHora, numero } from "@/lib/formato";
 import { useDatos, venceEn } from "@/modulos/int/tipos";
-import { BarrasApiladas, BarrasPorDia } from "@/modulos/int/graficos";
+import { BarrasApiladas, LineaPorDia } from "@/modulos/int/graficos";
 
 type Dia = { dia: string; p95: number | null; webhooks: number; enviados: number; reintentando: number; muertos: number };
 type Problema = { id: string; name: string; status: string; status_name: string; consecutive_failures: number; last_error: string | null; last_error_at: string | null; simulate_down: boolean };
@@ -80,7 +80,7 @@ export default function SaludIntegraciones() {
               <h2 className="text-[14px] font-semibold text-ink">Tiempo de proceso de los webhooks por día</h2>
               <p className="text-[12px] text-muted">El 95 % se procesó en este tiempo o menos · del {fecha(datos.desde)} al {fecha(datos.hasta)}</p>
             </div>
-            <BarrasPorDia titulo="Tiempo de proceso p95 por día" dias={dias.map((d) => d.dia)} valor={(i) => dias[i].p95} meta={datos.metas.p95} formato={seg} />
+            <LineaPorDia titulo="Tiempo de proceso p95 por día" dias={dias.map((d) => d.dia)} valor={(i) => dias[i].p95} meta={datos.metas.p95} formato={seg} />
           </section>
           <section className="grid gap-3 rounded-xl border border-line bg-surface p-4 shadow-card">
             <div>
