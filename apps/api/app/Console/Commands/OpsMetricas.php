@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Modulos\Ops\Services\Metricas;
+use App\Modulos\Ops\Services\SaludEmpresas;
 use App\Support\TenantContext;
 use Illuminate\Console\Command;
 
@@ -19,6 +20,7 @@ class OpsMetricas extends Command
         try {
             if ($this->argument('accion') === 'uso') {
                 $this->info(Metricas::fotoDeUso().' empresas con su uso del mes.');
+                $this->info(SaludEmpresas::guardarFotos(null).' empresas con su salud del día.');
             } else {
                 $r = Metricas::congelar(null, $this->argument('periodo') ?? now()->subMonthNoOverflow()->format('Y-m'));
                 $this->info("Métricas de {$r['period']} congeladas (corrida {$r['run_no']}).");

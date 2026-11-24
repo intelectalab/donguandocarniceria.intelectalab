@@ -1110,3 +1110,43 @@ Prueba: en `OpsTest` se revisa la vista previa (no graba y soporte no la ve), su
 ## Pendiente de decisión
 
 La salud ponderada de cada empresa (puntaje de 0 a 100 con «en riesgo» y «críticas», su pestaña y su evolución) y el volumen mensual de pedidos y mensajes. El sistema todavía no guarda esos datos. Las integraciones (OSE, WhatsApp) tampoco están construidas, así que esas partes de la salud no se pueden medir.
+
+# Salud de las empresas (24/11)
+
+Ella eligió calcularla ya con lo que el sistema mide; el OSE y WhatsApp se suman cuando existan esas integraciones.
+
+## Cómo se calcula (`App\Modulos\Ops\Services\SaludEmpresas`)
+
+| Parte | Peso | Puntaje |
+|---|---|---|
+| Actividad | 40 | Último ingreso de sus usuarios: hasta 3 días = 100, 7 días = 80, 14 días = 50, 30 días = 20, más = 0 (y 0 si nadie ingresó) |
+| Cobro | 35 | Activa, en prueba o sin suscripción = 100; con deuda = 60 menos 4 por día de mora (mínimo 20); solo lectura = 15; suspendida o cancelada = 0 |
+| Soporte | 25 | 100, menos 15 por ticket abierto y 25 más por cada urgente (mínimo 0) |
+
+- El puntaje es el promedio ponderado. Si un peso se pone en 0, el resto se reparte solo.
+- **Niveles:** crítica debajo de 40, en riesgo debajo de 70 y saludable desde 70.
+- Los pesos y los cortes son parámetros de plataforma (`ops_health_weight_activity`, `_billing`, `_support`, `ops_health_risk_below`, `ops_health_critical_below`). Se cambian en Parámetros con motivo. «Crítica» no puede quedar sobre «en riesgo», y no pueden pesar todos 0.
+
+## Fotos diarias
+
+- Migración `2026_11_24_000500_ops_salud_de_empresas`: tabla `tenant_health_snapshots`, con una foto por empresa y día. Solo la ve la consola: la empresa no ve su puntaje.
+- La tarea diaria (`ops:metricas uso`, 5:10) guarda la foto del día.
+- «Recalcular salud» la reemplaza en el mismo día y queda en la bitácora. La pueden usar administración, cobranza, soporte nivel 2 e ingeniería (permiso nuevo `health.recompute`).
+
+## Pantallas
+
+- **Empresas:**
+  - cifras: saludables, en riesgo y críticas, que filtran al hacer clic;
+  - columna Salud («46 · En riesgo»), filtro por salud y botón «Recalcular salud»;
+  - como en el prototipo, la lista se ordena por riesgo (la salud más baja primero);
+  - usuarios, marcas y locales pasan a una sola columna «Uso de límites», con sus tres barras, para que la tabla entre en el ancho.
+- **Ficha:**
+  - cifra Salud;
+  - pestaña Salud con cada parte (peso, puntaje, barra y detalle) y el botón «Guardar lectura de salud»;
+  - evolución de los últimos 90 días en barras, coloreadas por nivel y con la línea del corte de riesgo.
+
+## De paso
+
+La lista de permisos que recibe la pantalla de la consola se arma con todas las acciones de `Consola` (`Consola::acciones()`). Antes era una lista escrita a mano, y un permiso nuevo no aparecía.
+
+Prueba nueva `test_salud_de_empresas_con_niveles_fotos_diarias_y_cortes`. En total el sistema tiene 362 pruebas, todas correctas.

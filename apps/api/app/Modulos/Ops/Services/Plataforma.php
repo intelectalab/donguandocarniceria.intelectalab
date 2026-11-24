@@ -29,7 +29,7 @@ final class Plataforma
         'PLAN_DRAFT_CREATED' => 'Borrador de plan', 'PLAN_DRAFT_DELETED' => 'Borrador de plan borrado', 'PLAN_PUBLISHED' => 'Plan publicado',
         'PLAN_RETIRED' => 'Plan retirado', 'PARAMETER_CHANGED' => 'Parámetro cambiado', 'CATALOG_IMPORTED' => 'Catálogo global importado',
         'TENANT_SIGNUP' => 'Empresa creada por registro', 'SIGNUP_REJECTED' => 'Registro rechazado', 'DEMO_ATTENDED' => 'Pedido de demo atendido', 'DEMO_REOPENED' => 'Pedido de demo reabierto',
-        'DUNNING_RUN' => 'Proceso de mora ejecutado', 'DUNNING_REMINDER' => 'Recordatorio de pago enviado', 'DUNNING_EXTENSION' => 'Prórroga de mora',
+        'DUNNING_RUN' => 'Proceso de mora ejecutado', 'HEALTH_RECOMPUTED' => 'Salud de las empresas recalculada', 'DUNNING_REMINDER' => 'Recordatorio de pago enviado', 'DUNNING_EXTENSION' => 'Prórroga de mora',
         'TICKET_ANSWERED' => 'Ticket respondido', 'TICKET_ASSIGNED' => 'Ticket asignado',
         'ACCESS_REQUESTED' => 'Acceso de soporte pedido', 'ACCESS_CANCELLED' => 'Acceso de soporte cancelado', 'ACCESS_SESSION_STARTED' => 'Sesión de soporte iniciada',
         'ACCESS_FINISHED' => 'Acceso de soporte terminado',
@@ -57,6 +57,11 @@ final class Plataforma
         'ops_incident_notify_minutes' => ['entero', 5, 240],
         'ops_maintenance_notice_hours' => ['entero', 1, 336],
         'ops_component_check_seconds' => ['entero', 60, 3600],
+        'ops_health_weight_activity' => ['entero', 0, 100],
+        'ops_health_weight_billing' => ['entero', 0, 100],
+        'ops_health_weight_support' => ['entero', 0, 100],
+        'ops_health_risk_below' => ['entero', 1, 100],
+        'ops_health_critical_below' => ['entero', 1, 100],
         'sus_invoice_due_days' => ['entero', 1, 60],
         'sus_grace_days' => ['entero', 1, 60],
         'sus_read_only_days' => ['entero', 1, 90],
@@ -157,6 +162,16 @@ final class Plataforma
         }
         if ($key === 'sus_trial_max_days' && $valor < (int) Consola::param('sus_trial_days_default', 14)) {
             RuleError::fail('RN-OPS-05', 'El tope no puede ser menor que los días de prueba por defecto.');
+        }
+        if ($key === 'ops_health_critical_below' && $valor >= (int) Consola::param('ops_health_risk_below', 70)) {
+            RuleError::fail('RN-OPS-05', 'El corte de «crítica» tiene que ser menor que el de «en riesgo».');
+        }
+        if ($key === 'ops_health_risk_below' && $valor <= (int) Consola::param('ops_health_critical_below', 40)) {
+            RuleError::fail('RN-OPS-05', 'El corte de «en riesgo» tiene que ser mayor que el de «crítica».');
+        }
+        $pesos = ['ops_health_weight_activity', 'ops_health_weight_billing', 'ops_health_weight_support'];
+        if (in_array($key, $pesos, true) && $valor + array_sum(array_map(fn ($k) => (int) Consola::param($k, 0), array_diff($pesos, [$key]))) === 0) {
+            RuleError::fail('RN-OPS-05', 'Al menos una parte de la salud tiene que pesar algo.');
         }
         // RN-OPS-16: quien cambia las redes permitidas no puede dejarse afuera a sí mismo.
         if ($key === 'ops_console_ip_allowlist' && $valor && ! Consola::ipPermitida(request()?->ip(), $valor)) {

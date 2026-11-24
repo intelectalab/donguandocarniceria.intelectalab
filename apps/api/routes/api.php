@@ -65,6 +65,7 @@ Route::prefix('v1/consola')->group(function () {
         Route::post('/usuarios/{id}/reenviar', [ConsolaController::class, 'reenviarInvitacion'])->middleware('throttle:10,1')->whereUuid('id');
         // OPS-02 Empresas, OPS-03 Ficha y alta de empresa (solo PLATFORM_ADMIN da de alta; lo valida el servicio)
         Route::get('/empresas', [EmpresaController::class, 'index']);
+        Route::post('/empresas/salud', [EmpresaController::class, 'recalcularSalud'])->middleware('throttle:5,1');
         Route::get('/empresas/opciones', [EmpresaController::class, 'opciones']);
         Route::get('/empresas/{id}', [EmpresaController::class, 'show'])->whereUuid('id');
         Route::post('/empresas', [EmpresaController::class, 'store'])->middleware('throttle:10,1');

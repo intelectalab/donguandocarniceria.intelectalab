@@ -1092,6 +1092,43 @@ class OpsTest extends TestCase
         $this->assertSame([], $this->consola($token)->getJson('/api/v1/consola/mora')->json('data'));
     }
 
+    public function test_salud_de_empresas_con_niveles_fotos_diarias_y_cortes(): void
+    {
+        [$admin, $sub, $norte] = $this->empresaActiva();
+        $salud = fn () => collect($this->consola($admin)->getJson('/api/v1/consola/empresas')->assertOk()->json('data'))->firstWhere('id', $norte)['salud'];
+
+        // Activa, su administradora ingresó hoy y sin tickets: 100, saludable.
+        $s = $salud();
+        $this->assertSame([100, 'HEALTHY'], [$s['score'], $s['level']]);
+        $this->assertSame(['Actividad', 'Cobro', 'Soporte'], array_column($s['parts'], 'label'));
+
+        // Suspendida: el cobro pesa 35 → 65, en riesgo (corte 70).
+        TenantContext::platform();
+        DB::table('subscriptions')->where('id', $sub)->update(['status' => 'SUSPENDED']);
+        TenantContext::set(null);
+        $this->assertSame([65, 'AT_RISK'], [$salud()['score'], $salud()['level']]);
+
+        // Recalcular guarda una foto por día; soporte nivel 1 no puede.
+        [, $l1] = $this->cuenta($admin, 'luis.soporte@intelectalab.com', 'SUPPORT_L1');
+        $this->consola($l1)->postJson('/api/v1/consola/empresas/salud')->assertStatus(422)->assertJsonPath('code', 'RN-OPS-10');
+        $this->consola($admin)->postJson('/api/v1/consola/empresas/salud')->assertOk();
+        $this->consola($admin)->postJson('/api/v1/consola/empresas/salud')->assertOk();
+        $ficha = $this->consola($admin)->getJson("/api/v1/consola/empresas/{$norte}")->assertOk();
+        $this->assertSame([[65, 'AT_RISK']], array_map(fn ($x) => [$x['score'], $x['level']], $ficha->json('salud_evolucion')), 'Una sola foto por día');
+        $this->assertSame([70, 40], $ficha->json('salud_cortes'));
+        $this->assertDatabaseHas('platform_audit_log', ['action' => 'HEALTH_RECOMPUTED']);
+
+        // Los cortes se cambian en Parámetros, pero «crítica» no puede quedar sobre «en riesgo».
+        $this->consola($admin)->putJson('/api/v1/consola/parametros/ops_health_critical_below', ['value' => 80, 'reason' => 'Prueba de cortes'])
+            ->assertStatus(422)->assertJsonPath('code', 'RN-OPS-05');
+        $this->consola($admin)->putJson('/api/v1/consola/parametros/ops_health_risk_below', ['value' => 60, 'reason' => 'Bajar el corte de riesgo'])->assertOk();
+        $this->assertSame('HEALTHY', $salud()['level'], 'Con el corte en 60, 65 ya es saludable');
+
+        // Sin suscripción (Don Guando, piloto) el cobro cuenta como al día.
+        $dg = collect($this->consola($admin)->getJson('/api/v1/consola/empresas')->json('data'))->firstWhere('short', 'Don Guando')['salud'];
+        $this->assertSame(100, $dg['parts'][1]['score']);
+    }
+
     public function test_prueba_vencida_sin_medio_de_pago_pasa_a_solo_lectura(): void
     {
         [, $sub, $norte] = $this->empresaEnPrueba();

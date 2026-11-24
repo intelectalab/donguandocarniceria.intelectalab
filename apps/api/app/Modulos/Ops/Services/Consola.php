@@ -26,10 +26,10 @@ final class Consola
     /** RN-OPS-10: lo que hace cada rol. «*» es todo. */
     private const PUEDE = [
         'PLATFORM_ADMIN' => ['*'],
-        'BILLING' => ['tenant.status', 'plans.manage', 'metrics.freeze', 'billing.manage'],
+        'BILLING' => ['tenant.status', 'plans.manage', 'metrics.freeze', 'billing.manage', 'health.recompute'],
         'SUPPORT_L1' => ['ticket.manage', 'access.request_ro'],
-        'SUPPORT_L2' => ['ticket.manage', 'access.request_ro', 'access.request_rw', 'reprocess'],
-        'ENGINEER' => ['health.record', 'incident.manage', 'access.request_ro', 'access.request_rw', 'announce.manage', 'ticket.manage'],
+        'SUPPORT_L2' => ['ticket.manage', 'access.request_ro', 'access.request_rw', 'reprocess', 'health.recompute'],
+        'ENGINEER' => ['health.record', 'incident.manage', 'access.request_ro', 'access.request_rw', 'announce.manage', 'ticket.manage', 'health.recompute'],
         'READ_ONLY' => [],
     ];
 
@@ -38,7 +38,14 @@ final class Consola
         'plans.manage' => 'administrar planes, pruebas ni descuentos', 'catalogs.import' => 'importar catálogos globales', 'ticket.manage' => 'responder ni asignar tickets de soporte',
         'access.request_ro' => 'pedir accesos de soporte de solo lectura', 'access.request_rw' => 'pedir accesos de soporte de lectura y escritura',
         'health.record' => 'registrar lecturas de salud', 'incident.manage' => 'gestionar incidentes', 'announce.manage' => 'gestionar anuncios',
-        'billing.manage' => 'facturar, cobrar ni gestionar la mora', 'metrics.freeze' => 'congelar métricas del negocio'];
+        'billing.manage' => 'facturar, cobrar ni gestionar la mora', 'metrics.freeze' => 'congelar métricas del negocio',
+        'health.recompute' => 'recalcular la salud de las empresas'];
+
+    /** Todas las acciones con permiso (las que ve la pantalla para mostrar u ocultar botones). */
+    public static function acciones(): array
+    {
+        return array_keys(self::ACCION);
+    }
 
     /** Dominios de correo permitidos para las cuentas de la consola (parámetro de plataforma; vacío = cualquiera). */
     public static function dominios(): array

@@ -57,8 +57,8 @@ PLT, SEG, MAE, INT y AUD son de cada empresa, pero algunas pantallas tocan datos
 
 | Pantalla | Lo que falta |
 |---|---|
-| Empresas | *Por decidir:* salud ponderada (en riesgo y críticas), su filtro y la columna de integraciones |
-| Ficha de empresa | *Por decidir:* pestaña de salud con su evolución y volumen mensual de pedidos y mensajes |
+| Empresas | Columna de integraciones (cuando existan) |
+| Ficha de empresa | Volumen mensual de pedidos y mensajes (no se mide todavía); sumar OSE y WhatsApp a la salud cuando existan |
 | Registros y demos | Cifras por estado, gráficos por rubro y por origen, filtros (estado, rubro, origen), columnas de origen y motivo de rechazo. *Por decidir:* tabla de altas en curso |
 | Métricas | Gráfico de clientes activos por mes, movimiento del MRR, lista de corridas congeladas. *Por decidir:* volumen por empresa |
 | Anuncios | Filtros por estado y tipo, panel de detalle. *Por decidir:* lecturas (no se registran) |

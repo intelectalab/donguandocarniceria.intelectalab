@@ -3,13 +3,13 @@
 import { Suspense, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, CalendarClock, Headset, KeyRound, Layers, Loader2, Power, TrendingUp } from "lucide-react";
-import { Alert, Badge, Button, Cifra, DataTable, DetailList, PageHeader, StatusBadge, Tabs } from "@/components/ui";
+import { ArrowLeft, CalendarClock, HeartPulse, Headset, KeyRound, Layers, Loader2, Power, RefreshCw, TrendingUp } from "lucide-react";
+import { Alert, Badge, Button, Cifra, DataTable, DetailList, PageHeader, StatusBadge, Tabs, toast } from "@/components/ui";
 import { PedirAcceso } from "@/components/consola/PedirAcceso";
 import { ESTADOS_ACCESO, type Acceso } from "@/components/soporte/AccesosEmpresa";
 import { EstadoTicket, PrioridadTicket, type TicketFila } from "@/components/soporte/tickets";
 import { AccionesSuscripcion } from "@/components/consola/AccionesSuscripcion";
-import { BarraUso, ESTADOS_SUSCRIPCION, type Empresa } from "@/components/consola/empresas";
+import { BarraUso, ESTADOS_SUSCRIPCION, TONO_SALUD, type Empresa, type Salud } from "@/components/consola/empresas";
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { mensajeDe } from "@/lib/api";
 import { apiConsola } from "@/lib/consola";
@@ -24,12 +24,15 @@ type Ficha = Empresa & {
     discount_pct: number; discount_reason: string | null; tenant_status: string; transiciones: string[]; efectos: Record<string, string> };
   modulos_encendidos: { module_code: string; name: string; phase: number; sus_source: string | null }[];
   acciones_consola: { action: string; action_name: string; actor_name: string; reason: string | null; occurred_at: string }[];
+  salud_evolucion: { day: string; score: number; level: Salud["level"] }[]; salud_cortes: [number, number];
 };
 
 type ComprobanteFila = { id: string; number: string | null; doc_type_name: string; period_start: string | null; period_end: string | null; total: number; saldo: number;
   due_date: string | null; status: string; payment_status_name: string; vencido: boolean; sunat_status_name: string };
 type IncidenteFila = { id: string; number: string; title: string; severity_name: string; started_at: string; status_name: string };
-type Pestana = "resumen" | "comprobantes" | "tickets" | "incidentes" | "accesos";
+type Pestana = "resumen" | "salud" | "comprobantes" | "tickets" | "incidentes" | "accesos";
+const BARRA: Record<Salud["level"], string> = { HEALTHY: "bg-ok", AT_RISK: "bg-warn", CRITICAL: "bg-bad" };
+const colorParte = (n: number) => (n < 40 ? "bg-bad" : n < 70 ? "bg-warn" : "bg-ok");
 const diasDeMora = (v: string | null) => (v ? Math.max(0, Math.floor((Date.now() - new Date(v).getTime()) / 86400000)) : 0);
 
 /** Lista de una pestaña de la ficha: se pide al abrirla, filtrada por la empresa. */
@@ -85,25 +88,63 @@ function FichaEmpresa() {
           {(yo.puede["access.request_ro"] || yo.puede["access.request_rw"]) && <Button variant="primary" icon={KeyRound} onClick={() => setPedir(true)}>Solicitar acceso de soporte</Button>}
         </div>} />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         <Cifra titulo="Plan" valor={f.plan_name ?? "Piloto"} icono={Layers} detalle={s ? (s.discount_pct > 0 ? `Mensual · −${s.discount_pct} %` : "Mensual") : "Sin suscripción"} />
         <Cifra titulo="Estado" valor={s ? s.status_name : "Sin suscripción"} icono={CalendarClock}
           tono={s ? (["PAST_DUE"].includes(s.status) ? "warn" : ["READ_ONLY", "SUSPENDED"].includes(s.status) ? "bad" : s.status === "ACTIVE" ? "ok" : undefined) : undefined}
           detalle={f.days_in_status !== null ? (f.days_in_status === 0 ? "Desde hoy" : `${f.days_in_status} ${f.days_in_status === 1 ? "día" : "días"} en el estado`) : undefined} />
         <Cifra titulo="MRR" valor={soles(f.mrr)} detalle="Sin IGV, con descuento" icono={TrendingUp} destacada />
+        <button type="button" onClick={() => setTab("salud")} className="grid cursor-pointer rounded-xl text-left [&>div]:h-full" title="Ver su salud">
+          <Cifra titulo="Salud" valor={f.salud ? `${f.salud.score} / 100` : "—"} detalle={f.salud?.level_name} tono={f.salud ? TONO_SALUD[f.salud.level] : undefined} icono={HeartPulse} />
+        </button>
         <button type="button" onClick={() => setTab("tickets")} className="cursor-pointer rounded-xl text-left [&>div]:h-full" title="Ver sus tickets">
           <Cifra titulo="Tickets abiertos" valor={String(f.tickets_abiertos)} tono={f.tickets_abiertos ? "warn" : undefined} icono={Headset} />
         </button>
-        <button type="button" onClick={() => setTab("accesos")} className="col-span-2 cursor-pointer rounded-xl text-left lg:col-span-1 [&>div]:h-full" title="Ver sus accesos de soporte">
+        <button type="button" onClick={() => setTab("accesos")} className="cursor-pointer rounded-xl text-left [&>div]:h-full" title="Ver sus accesos de soporte">
           <Cifra titulo="Accesos de soporte vigentes" valor={String(f.accesos_vigentes)} icono={KeyRound} />
         </button>
       </div>
 
       <Tabs value={tab} onChange={setTab} tabs={[
-        { key: "resumen", label: "Resumen" }, { key: "comprobantes", label: "Comprobantes del SaaS" }, { key: "tickets", label: "Tickets" },
+        { key: "resumen", label: "Resumen" }, { key: "salud", label: "Salud" }, { key: "comprobantes", label: "Comprobantes del SaaS" }, { key: "tickets", label: "Tickets" },
         { key: "incidentes", label: "Incidentes" }, { key: "accesos", label: "Accesos de soporte" },
       ]} />
 
+      {tab === "salud" && f.salud && (
+        <div className="grid gap-5 lg:grid-cols-2">
+          <Tarjeta titulo={`Puntaje ${f.salud.score} · ${f.salud.level_name}`} extra={yo.puede["health.recompute"] ? <Button size="sm" icon={RefreshCw} onClick={async () => {
+            try { await apiConsola("/empresas/salud", { method: "POST" }); toast.ok("Lectura de salud guardada"); cargar(); } catch (e) { toast.error(mensajeDe(e)); }
+          }}>Guardar lectura de salud</Button> : undefined}>
+            <div className="grid gap-4">
+              {f.salud.parts.map((p) => (
+                <div key={p.label} className="grid gap-1.5">
+                  <div className="flex items-center justify-between gap-2 text-[13.5px]"><b className="text-ink">{p.label} <span className="font-normal text-muted">(peso {p.weight})</span></b><span className="tabular-nums text-ink">{p.score}</span></div>
+                  <div className="h-2 overflow-hidden rounded-full bg-surface-2"><div className={`h-full rounded-full ${colorParte(p.score)}`} style={{ width: `${p.score}%` }} /></div>
+                  <p className="text-[12.5px] text-muted">{p.detail}</p>
+                </div>
+              ))}
+              <p className="text-[12px] text-muted">El OSE y WhatsApp se sumarán cuando existan esas integraciones; mientras tanto, su peso se reparte entre estas partes.</p>
+            </div>
+          </Tarjeta>
+          <Tarjeta titulo="Evolución" extra={<span className="text-[12px] text-muted">Últimos 90 días</span>}>
+            {f.salud_evolucion.length < 2 ? (
+              <p className="text-[13.5px] text-muted">{f.salud_evolucion.length ? "Hay una sola lectura: la evolución se ve desde la segunda." : "Aún sin lecturas guardadas. La tarea diaria guarda una cada mañana."}</p>
+            ) : (
+              <div className="relative h-44">
+                <div className="absolute inset-x-0 border-t border-dashed border-warn/70" style={{ bottom: `${f.salud_cortes[0]}%` }} title={`En riesgo bajo ${f.salud_cortes[0]}`} />
+                <div className="flex h-full items-end gap-[3px]">
+                  {f.salud_evolucion.map((x) => (
+                    <div key={x.day} className="group relative flex h-full flex-1 items-end" title={`${fecha(x.day)}: ${x.score}`}>
+                      <div className={`w-full rounded-t-[3px] ${BARRA[x.level]}`} style={{ height: `${Math.max(2, x.score)}%` }} />
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-1 flex justify-between text-[11px] text-muted"><span>{fecha(f.salud_evolucion[0].day)}</span><span>{fecha(f.salud_evolucion[f.salud_evolucion.length - 1].day)}</span></div>
+              </div>
+            )}
+          </Tarjeta>
+        </div>
+      )}
       {tab === "comprobantes" && (
         <Lista<ComprobanteFila> ruta={`/facturacion?tenant=${f.id}&per_page=100`}>{(filas, err) => (
           <DataTable rows={filas ?? []} loading={!filas && !err} error={err} empty="Todavía no tiene comprobantes del SaaS." columns={[

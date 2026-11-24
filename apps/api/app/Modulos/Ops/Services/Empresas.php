@@ -54,8 +54,9 @@ final class Empresas
         $subs = DB::table('subscriptions')->orderByRaw("status = 'CANCELLED' DESC")->orderBy('started_at')->get()->keyBy('tenant_id');
         $modulos = collect(DB::select('SELECT tenant_id, count(*) AS n FROM platform_tenant_modules() WHERE enabled GROUP BY tenant_id'))->pluck('n', 'tenant_id');
         [$tickets, $accesos] = self::soporte();
+        $salud = SaludEmpresas::calcular();
 
-        return DB::table('tenants')->orderBy('name')->get()->map(function ($t) use ($uso, $planes, $versiones, $subs, $modulos, $tickets, $accesos) {
+        return DB::table('tenants')->orderBy('name')->get()->map(function ($t) use ($uso, $planes, $versiones, $subs, $modulos, $tickets, $accesos, $salud) {
             $s = $subs[$t->id] ?? null;
             // Los límites y el precio son los de la versión que contrató (RN-SUS-02).
             $p = $s ? ($versiones[$s->plan_version_id] ?? null) ?? $planes[$s->plan_code] : null;
@@ -76,6 +77,7 @@ final class Empresas
                 'modulos' => (int) ($modulos[$t->id] ?? 0),
                 'last_login' => $u->last_login ?? null,
                 'tickets_abiertos' => (int) ($tickets[$t->id] ?? 0), 'accesos_vigentes' => (int) ($accesos[$t->id] ?? 0),
+                'salud' => $salud[$t->id] ?? null,
             ];
         })->all();
     }
@@ -93,6 +95,7 @@ final class Empresas
         $nombresModulo = DB::table('platform_modules')->pluck('name', 'code');
 
         return $fila + [
+            'salud_evolucion' => SaludEmpresas::evolucion($id), 'salud_cortes' => SaludEmpresas::cortes(),
             'hostname' => $t->hostname, 'contact_name' => $t->contact_name, 'contact_email' => $t->contact_email, 'contact_phone' => $t->contact_phone,
             'dominios' => DB::table('tenant_hostnames')->where('tenant_id', $id)->orderByDesc('is_primary')->get(['hostname', 'is_primary', 'status']),
             'creada_por' => $t->created_by_platform_user ? DB::table('platform_users')->where('id', $t->created_by_platform_user)->value('full_name') : null,
