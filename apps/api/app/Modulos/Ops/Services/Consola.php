@@ -38,7 +38,7 @@ final class Consola
         'plans.manage' => 'administrar planes, pruebas ni descuentos', 'catalogs.import' => 'importar catálogos globales', 'ticket.manage' => 'responder ni asignar tickets de soporte',
         'access.request_ro' => 'pedir accesos de soporte de solo lectura', 'access.request_rw' => 'pedir accesos de soporte de lectura y escritura',
         'health.record' => 'registrar lecturas de salud', 'incident.manage' => 'gestionar incidentes', 'announce.manage' => 'gestionar anuncios',
-        'billing.manage' => 'facturar, cobrar ni gestionar la mora'];
+        'billing.manage' => 'facturar, cobrar ni gestionar la mora', 'metrics.freeze' => 'congelar métricas del negocio'];
 
     /** Dominios de correo permitidos para las cuentas de la consola (parámetro de plataforma; vacío = cualquiera). */
     public static function dominios(): array

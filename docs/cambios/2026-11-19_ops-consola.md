@@ -860,3 +860,73 @@ En total el sistema tiene 357 pruebas, todas correctas. Revisado en el navegador
 - **Tanda 9d:** métricas del negocio (OPS-10) e historial de uso de 12 meses (SUS-04).
 - Complementos de números de WhatsApp, minutos, pedidos y llamadas de API, cuando se midan esos usos.
 - Precios de planes y complementos (D-SUS-01).
+
+# Tanda 9d (24/11): métricas del negocio e historial de uso (OPS-10 y SUS-04)
+
+## Base de datos
+
+Migración `2026_11_24_000400_ops_metricas_y_uso_mensual`:
+- `platform_metric_runs`: corridas congeladas de cada mes (RN-OPS-17), solo inserción y solo consola.
+- `tenant_usage_snapshots`: uso de cada empresa por mes (usuarios, marcas y locales, con su límite). La empresa ve las suyas; solo la consola escribe.
+
+## Métricas (consola · Clientes → Métricas del negocio)
+
+El mes en curso se calcula en vivo y un mes cerrado se congela el día 1 a las 3:00 (`ops:metricas cierre`). Administración y cobranza pueden congelar a mano un mes cerrado; recalcular pide motivo, crea otra corrida y la pantalla muestra la última.
+
+| KPI | Cómo se calcula |
+|---|---|
+| MRR (KPI-OPS-01) | Cuota de las suscripciones activas y con deuda (con descuento) más sus complementos, sin IGV |
+| Clientes activos (02) | Suscripciones activas o con deuda al cierre |
+| Churn de clientes (03) | Cancelaciones del mes / activos al inicio |
+| Churn de MRR (04) | MRR de los cancelados más lo que bajó / MRR al inicio |
+| Retención neta (05) | MRR al cierre de los que estaban al inicio / MRR al inicio |
+| Ingreso promedio (06) | MRR / clientes activos |
+| Prueba a pago (07) | Pruebas que terminaron en el mes y quedaron activas / pruebas que terminaron |
+| Uso por plan (08) | Promedio de usado / límite por plan |
+| Tiempo de alta (09) | **Sin datos todavía**: falta el primer comprobante aceptado de cada empresa (FAC). No se inventa |
+| Tickets por cliente (10) | Tickets del mes / activos |
+| Primera respuesta (11) | Mediana por prioridad |
+| Disponibilidad (12) | Lecturas UP / total, con degradado como media |
+| MRR en mora (13) | Con deuda más solo lectura / MRR total |
+| Resolución (14) | Mediana de los tickets resueltos en el mes |
+| Horas de acceso de soporte (15) | Suma de la duración real de los accesos aprobados en el mes |
+
+Además muestra lo facturado y lo cobrado del mes. Las empresas sin suscripción (el piloto) no cuentan.
+
+El estado de cada suscripción en una fecha sale de su historial de eventos. El precio es el de su versión de plan actual: el historial todavía no guarda el precio de cada cambio, así que una bajada de precio en un mes pasado no se ve como contracción.
+
+Pantalla:
+- cifras del mes elegido;
+- gráfico de barras del MRR de los últimos 12 meses (una serie, con el detalle al pasar el mouse);
+- soporte, disponibilidad, uso por plan y facturación;
+- tabla de los 12 meses (MRR, clientes, churn, retención y mora).
+
+## Historial de uso (empresa · Mi suscripción → Plan y uso)
+
+La tarea diaria (`ops:metricas uso`, 5:10) deja el uso del mes en curso de cada empresa con suscripción. «Plan y uso» muestra la tabla de los últimos 12 meses, con lo que llegó a su límite resaltado.
+
+## Pruebas
+
+1 prueba nueva en `OpsTest`:
+- MRR, clientes e ingreso promedio con dos empresas;
+- tiempo de alta sin datos;
+- foto de uso en el historial de la empresa;
+- en diciembre una cancelación: churn de clientes 50 %, de MRR 33,26 % y retención neta 66,74 %;
+- congelar noviembre, recalcular con motivo (corrida 2) y no congelar el mes en curso;
+- las corridas no se cambian.
+
+En total el sistema tiene 358 pruebas, todas correctas. Revisado en el navegador contra `aycha_test` (1440 y 375 px).
+
+## Con esto, la consola queda completa
+
+Las 16 pantallas de OPS y las 14 de SUS están hechas. Pendientes de negocio:
+- precios de planes y complementos (D-SUS-01);
+- RUC y OSE de Intelectalab (D-SUS-06);
+- pasarela real (D-SUS-02);
+- plan Inicial sin las dependencias de ONB (RN-SUS-01).
+
+Pendientes técnicos:
+- conectar `Suscripcion::exigirLimite` en SEG y PLT;
+- adaptadores de salud para los servicios externos;
+- tiempo de alta cuando exista el comprobante aceptado;
+- complementos de WhatsApp, minutos, pedidos y API.

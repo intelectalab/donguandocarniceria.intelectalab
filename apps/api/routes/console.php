@@ -30,6 +30,9 @@ Schedule::command('ops:vencer-accesos')->everyMinute()->withoutOverlapping();
 Schedule::command('sus:mora')->dailyAt('06:20')->timezone('America/Lima')->withoutOverlapping();
 // SUS · SUS-12: corrida de cobro del mes, el día 1 (sin RUC emisor quedan en borrador).
 Schedule::command('sus:corrida')->monthlyOn(1, '07:00')->timezone('America/Lima')->withoutOverlapping();
+// OPS · OPS-10: congela las métricas del mes anterior (día 1) y guarda cada día la foto de uso de las empresas (SUS-04).
+Schedule::command('ops:metricas cierre')->monthlyOn(1, '03:00')->timezone('America/Lima')->withoutOverlapping();
+Schedule::command('ops:metricas uso')->dailyAt('05:10')->timezone('America/Lima')->withoutOverlapping();
 // OPS · OPS-07: lectura de salud de los componentes con sonda propia (D-OPS-01).
 Schedule::command('ops:leer-salud')->everyMinute()->withoutOverlapping();
 Schedule::command('ops:cerrar-tickets')->dailyAt('05:30')->timezone('America/Lima')->withoutOverlapping();

@@ -17,6 +17,7 @@ type Resumen = {
   price_pen: number | null; discount_pct: number; cuota: number | null; igv_rate: number; started_at: string; trial_ends_at: string | null; proximo_cobro: string | null;
   cancel_at_period_end: boolean; cancel_effective_on: string | null; conservacion_hasta: string | null; uso: Uso[]; pedidos_mes: number;
   deuda: { total: number; comprobantes: number; vence: string | null; dias: number }; medio_pago: Medio | null;
+  historial: { period: string; users: number; brands: number; sites: number; users_limit: number | null; brands_limit: number | null; sites_limit: number | null }[];
   puede: { facturas: boolean; pagar: boolean; cancelar: boolean; cambiar: boolean }; encuesta: Record<string, string>;
 };
 type Comprobante = {
@@ -115,6 +116,24 @@ function PlanYUso({ r, onPagar }: { r: Resumen; onPagar: () => void }) {
           <p className="text-[12.5px] text-muted">Pedidos de este mes: {r.pedidos_mes}. Al llegar a un límite, la alta se rechaza hasta cambiar de plan o contratar más.</p>
         </div>
       </div>
+      {r.historial.length > 0 && (
+        <section className="overflow-x-auto rounded-xl border border-line bg-surface shadow-card">
+          <p className="px-4 pt-3 font-semibold text-ink">Uso de los últimos 12 meses</p>
+          <table className="w-full min-w-[480px] text-left text-[13px]">
+            <thead className="text-[11.5px] text-muted uppercase"><tr className="border-b border-line">
+              <th className="px-4 py-2">Mes</th><th className="px-4 py-2 text-right">Usuarios</th><th className="px-4 py-2 text-right">Marcas</th><th className="px-4 py-2 text-right">Locales</th></tr></thead>
+            <tbody>{r.historial.map((h) => (
+              <tr key={h.period} className="border-b border-line last:border-0">
+                <td className="px-4 py-2">{h.period}</td>
+                {(["users", "brands", "sites"] as const).map((k) => {
+                  const lim = h[`${k}_limit` as const];
+                  return <td key={k} className={`px-4 py-2 text-right ${lim !== null && h[k] >= lim ? "font-semibold text-warn" : ""}`}>{h[k]}{lim !== null ? ` de ${lim}` : ""}</td>;
+                })}
+              </tr>
+            ))}</tbody>
+          </table>
+        </section>
+      )}
     </div>
   );
 }

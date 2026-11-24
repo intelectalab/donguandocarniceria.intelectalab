@@ -1246,4 +1246,48 @@ class OpsTest extends TestCase
         });
         unset($sub);
     }
+
+    /* ---------------------------------------------------------------- tanda 9d: métricas del negocio e historial de uso */
+
+    public function test_metricas_del_mes_churn_y_congelar_el_cierre(): void
+    {
+        [$admin, , , $empresa] = $this->empresaActiva();
+        // Otra empresa en el plan Inicial, activa: MRR 299 + 149 = 448, 2 clientes, ingreso promedio 224.
+        $otra = $this->consola($admin)->postJson('/api/v1/consola/empresas', $this->datosAlta(['ruc' => '20555000007', 'legal_name' => 'Carnicería La Española EIRL',
+            'trade_name' => 'La Española', 'plan_code' => 'INICIAL', 'admin_email' => 'gerencia@laespanola.pe']))->assertCreated()->json('id');
+        $subOtra = DB::table('subscriptions')->where('tenant_id', $otra)->value('id');
+        $this->consola($admin)->postJson("/api/v1/consola/suscripciones/{$subOtra}/estado", ['status' => 'ACTIVE', 'reason' => 'Contrató el plan'])->assertOk();
+
+        $mes = collect($this->consola($admin)->getJson('/api/v1/consola/metricas')->assertOk()->json('meses'))->last();
+        $this->assertSame(['2026-11', false, 448, 2, 224], [$mes['period'], $mes['congelado'], (int) $mes['mrr'], $mes['clientes_activos'], (int) $mes['ingreso_promedio']]);
+        $this->assertNull($mes['tiempo_de_alta'], 'Sin el primer comprobante aceptado no se inventa');
+
+        // SUS-04: la foto de uso del mes llega al historial de la empresa.
+        $this->artisan('ops:metricas uso')->assertSuccessful();
+        $h = $this->desde(self::DG, $empresa)->getJson('/api/v1/suscripcion')->assertOk()->json('historial');
+        $this->assertSame(['2026-11', 1, 15], [$h[0]['period'], $h[0]['users'], $h[0]['users_limit']]);
+
+        // En diciembre cancela La Española: churn de clientes 1/2 = 50 %, de MRR 149/448, retención neta 299/448.
+        $this->travelTo(Carbon::parse('2026-12-10 10:00', 'America/Lima'));
+        $token = $this->entrar('ana.rios@intelectalab.com', $this->secretoAdmin);
+        $this->consola($token)->postJson("/api/v1/consola/suscripciones/{$subOtra}/estado", ['status' => 'CANCELLED', 'reason' => 'Cerró el negocio'])->assertOk();
+        $dic = collect($this->consola($token)->getJson('/api/v1/consola/metricas')->json('meses'))->last();
+        $this->assertSame(['2026-12', 50.0, 33.26, 66.74, 299, 1], [$dic['period'], (float) $dic['churn_clientes'], (float) $dic['churn_mrr'], (float) $dic['retencion_neta'],
+            (int) $dic['mrr'], $dic['clientes_activos']]);
+
+        // RN-OPS-17: noviembre se congela; recalcular pide motivo y crea otra corrida; el mes en curso no se congela.
+        [, $l1] = $this->cuenta($token, 'luis.soporte@intelectalab.com', 'SUPPORT_L1');
+        $this->consola($l1)->postJson('/api/v1/consola/metricas/congelar', ['period' => '2026-11'])->assertStatus(422)->assertJsonPath('code', 'RN-OPS-10');
+        $this->consola($token)->postJson('/api/v1/consola/metricas/congelar', ['period' => '2026-11'])->assertCreated()->assertJsonPath('run_no', 1);
+        $this->consola($token)->postJson('/api/v1/consola/metricas/congelar', ['period' => '2026-11'])->assertStatus(422)->assertJsonPath('code', 'RN-OPS-17');
+        $this->consola($token)->postJson('/api/v1/consola/metricas/congelar', ['period' => '2026-11', 'reason' => 'Se corrigió un descuento'])->assertCreated()->assertJsonPath('run_no', 2);
+        $this->consola($token)->postJson('/api/v1/consola/metricas/congelar', ['period' => '2026-12'])->assertStatus(422)->assertJsonPath('code', 'RN-OPS-17');
+        $meses = collect($this->consola($token)->getJson('/api/v1/consola/metricas')->json('meses'))->keyBy('period');
+        $this->assertSame([true, 2, 448], [$meses['2026-11']['congelado'], $meses['2026-11']['run_no'], (int) $meses['2026-11']['mrr']]);
+
+        // Las corridas congeladas no se cambian.
+        $this->expectException(QueryException::class);
+        TenantContext::platform();
+        DB::table('platform_metric_runs')->delete();
+    }
 }

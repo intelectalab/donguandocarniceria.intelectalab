@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Activity, AlarmClock, Building2, ChevronDown, CreditCard, Database, Inbox, KeyRound, Layers, LifeBuoy, Loader2, LogOut, Megaphone, Menu, Moon, PackagePlus, ReceiptText, ScrollText, Settings2, ShieldCheck, Siren, Sun, Users, Wallet, type LucideIcon,
+  Activity, AlarmClock, BarChart3, Building2, ChevronDown, CreditCard, Database, Inbox, KeyRound, Layers, LifeBuoy, Loader2, LogOut, Megaphone, Menu, Moon, PackagePlus, ReceiptText, ScrollText, Settings2, ShieldCheck, Siren, Sun, Users, Wallet, type LucideIcon,
 } from "lucide-react";
 import { UiHost } from "@/components/ui";
 import { Franja } from "@/components/ui/Franja";
@@ -18,6 +18,7 @@ type Item = { href: string; label: string; icon: LucideIcon };
 // Menú de la consola por grupos, como el del sistema.
 const GRUPOS: { name: string; items: Item[] }[] = [
   { name: "Clientes", items: [
+    { href: "/consola/metricas", label: "Métricas del negocio", icon: BarChart3 },
     { href: "/consola/empresas", label: "Empresas", icon: Building2 },
     { href: "/consola/suscripciones", label: "Suscripciones", icon: CreditCard },
     { href: "/consola/registros", label: "Registros y demos", icon: Inbox },

@@ -114,6 +114,8 @@ final class Suscripcion
             'cancel_at_period_end' => (bool) $s->cancel_at_period_end, 'cancel_effective_on' => $s->cancel_effective_on,
             'conservacion_hasta' => $s->status === 'CANCELLED' && $s->cancelled_at ? Carbon::parse($s->cancelled_at)->addDays((int) Consola::param('sus_data_retention_days', 90))->toDateString() : null,
             'uso' => collect(self::LIMITES)->map(fn ($l, $k) => ['clave' => $k, 'nombre' => $l[1], 'usado' => self::usado($k), 'limite' => self::limite($k), 'tipo' => 'HARD'])->values(),
+            // SUS-04: historial de 12 meses (la foto de uso de cada mes).
+            'historial' => DB::table('tenant_usage_snapshots')->orderByDesc('period')->limit(12)->get(['period', 'users', 'brands', 'sites', 'users_limit', 'brands_limit', 'sites_limit']),
             'pedidos_mes' => DB::table('sales_orders')->where('status', '!=', 'DRAFT')->where('created_at', '>=', $mes)->count(),
             'deuda' => self::deuda(),
             'medio_pago' => self::medio(),

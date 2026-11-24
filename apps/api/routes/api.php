@@ -13,6 +13,7 @@ use App\Modulos\Ops\Http\Controllers\AccesoConsolaController;
 use App\Modulos\Ops\Http\Controllers\BandejaController;
 use App\Modulos\Ops\Http\Controllers\ConsolaController;
 use App\Modulos\Ops\Http\Controllers\EmpresaController;
+use App\Modulos\Ops\Http\Controllers\MetricaController;
 use App\Modulos\Ops\Http\Controllers\OperacionController;
 use App\Modulos\Ops\Http\Controllers\PlanController;
 use App\Modulos\Ops\Http\Controllers\PlataformaController;
@@ -132,6 +133,9 @@ Route::prefix('v1/consola')->group(function () {
         Route::get('/cobros', [CobroController::class, 'cobros']);
         Route::post('/cobros/conciliar', [CobroController::class, 'conciliar']);
         Route::get('/mora', [CobroController::class, 'mora']);
+        // OPS-10 Métricas del negocio (congelar un mes: administración y cobranza; lo valida el servicio)
+        Route::get('/metricas', [MetricaController::class, 'index']);
+        Route::post('/metricas/congelar', [MetricaController::class, 'congelar'])->middleware('throttle:10,1');
         // SUS-10 Complementos (cambiar: administración y cobranza; lo valida el servicio)
         Route::get('/complementos', [ComplementoController::class, 'index']);
         Route::post('/complementos', [ComplementoController::class, 'guardar']);
