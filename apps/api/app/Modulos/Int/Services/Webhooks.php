@@ -256,7 +256,7 @@ final class Webhooks
     public static function cifras(): array
     {
         $r = DB::selectOne(<<<'SQL'
-            WITH u AS (SELECT max(received_at) AS hasta FROM webhook_events)
+            WITH u AS (SELECT coalesce(max(received_at) FILTER (WHERE status <> 'REJECTED'), max(received_at)) AS hasta FROM webhook_events)
             SELECT u.hasta,
                    count(*) FILTER (WHERE w.received_at >= date_trunc('month', u.hasta AT TIME ZONE 'America/Lima') AT TIME ZONE 'America/Lima') AS mes,
                    count(*) FILTER (WHERE w.status <> 'REJECTED' AND w.received_at >= u.hasta - interval '30 days') AS unicos_30,

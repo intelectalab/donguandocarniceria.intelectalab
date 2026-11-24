@@ -81,3 +81,14 @@ En `IntTest`, un caso nuevo: el simulador no existe en producción. `PltParametr
 En total el sistema tiene 380 pruebas, todas correctas. Revisado en el navegador contra `aycha_test`:
 - activar en Mi perfil, ver los códigos, cerrar sesión, ingresar con el código y entrar con un código de recuperación, en 1280 y 375 px;
 - Salud con la línea y el Simulador con su botón.
+
+## Salud de integraciones: período y gráficos con datos (después del commit de la tanda 1)
+
+- **Por qué estaban vacíos:** en la base local había un webhook de hoy, enviado desde el Simulador y rechazado. Los 10 días terminaban hoy y los datos de octubre quedaban fuera.
+- **Cada gráfico tiene su propio tramo:** muestra sus últimos 10 días con actividad de su tipo (webhooks procesados, mensajes salientes). En operación terminan hoy.
+- **Filtro «Período»:**
+  - por defecto, los últimos 10 días con actividad;
+  - también cualquier mes con datos (los últimos 12), día por día;
+  - con un mes completo, el eje muestra solo el número del día, uno cada dos.
+- **Cifras de webhooks** (repetidos y tiempo de proceso p95): se miden hasta el último webhook válido. Los rechazados por firma ya no corren la ventana.
+- **Pruebas:** la de Salud revisa los dos tramos, que la línea tenga puntos, el mes de septiembre completo (30 días) y que un mes mal escrito se rechace.

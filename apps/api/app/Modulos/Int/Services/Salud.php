@@ -14,8 +14,9 @@ use Illuminate\Support\Facades\DB;
  *  - KPI-INT-03 webhooks repetidos (informativo)
  *  - KPI-INT-04 tiempo de proceso p95 de los webhooks (meta ≤ 60 s)
  *  - KPI-INT-05 conectores en error (meta 0)
- * Los días terminan en la última actividad registrada: en operación es hoy, y en una empresa sin movimiento reciente
- * se ve su última semana y media, en vez de un gráfico vacío.
+ * Cada gráfico muestra sus últimos 10 días con actividad de su tipo (webhooks procesados, mensajes salientes): en
+ * operación terminan hoy; en una empresa sin movimiento reciente (o con solo pruebas de hoy) se ve su último tramo con
+ * datos, en vez de un gráfico vacío.
  */
 final class Salud
 {
@@ -23,37 +24,37 @@ final class Salud
 
     public const DIAS_CREDENCIALES = 30;
 
-    public static function resumen(): array
+    /** $mes «2026-10»: los gráficos muestran ese mes día por día; sin mes, los últimos 10 días con actividad. */
+    public static function resumen(?string $mes = null): array
     {
+        [$desde, $hasta] = $mes ? [Carbon::parse($mes.'-01')->toDateString(), Carbon::parse($mes.'-01')->endOfMonth()->toDateString()] : [null, null];
         $ob = Salientes::cifras();
         $wh = Webhooks::cifras();
-        $hasta = DB::selectOne(<<<'SQL'
-            SELECT (coalesce(greatest((SELECT max(created_at) FROM outbox_messages), (SELECT max(received_at) FROM webhook_events)), now())
-                    AT TIME ZONE 'America/Lima')::date AS d
-            SQL)->d;
-        $desde = date('Y-m-d', strtotime($hasta.' -'.(self::DIAS - 1).' days'));
-
-        $latencia = collect(DB::select(<<<'SQL'
-            SELECT (received_at AT TIME ZONE 'America/Lima')::date AS d,
-                   percentile_cont(0.95) WITHIN GROUP (ORDER BY extract(epoch FROM (processed_at - received_at))) AS p95, count(*) AS n
-            FROM webhook_events
-            WHERE status = 'PROCESSED' AND processed_at IS NOT NULL AND (received_at AT TIME ZONE 'America/Lima')::date BETWEEN ? AND ?
-            GROUP BY 1
-            SQL, [$desde, $hasta]))->keyBy('d');
-        $salientes = collect(DB::select(<<<'SQL'
-            SELECT (created_at AT TIME ZONE 'America/Lima')::date AS d,
-                   count(*) FILTER (WHERE status = 'SENT') AS enviados, count(*) FILTER (WHERE status IN ('PENDING','RETRYING')) AS reintentando,
-                   count(*) FILTER (WHERE status = 'DEAD') AS muertos
-            FROM outbox_messages WHERE (created_at AT TIME ZONE 'America/Lima')::date BETWEEN ? AND ?
-            GROUP BY 1
-            SQL, [$desde, $hasta]))->keyBy('d');
-        $dias = [];
-        for ($d = $desde; $d <= $hasta; $d = date('Y-m-d', strtotime($d.' +1 day'))) {
-            $l = $latencia[$d] ?? null;
-            $o = $salientes[$d] ?? null;
-            $dias[] = ['dia' => $d, 'p95' => $l ? round((float) $l->p95, 1) : null, 'webhooks' => (int) ($l->n ?? 0),
-                'enviados' => (int) ($o->enviados ?? 0), 'reintentando' => (int) ($o->reintentando ?? 0), 'muertos' => (int) ($o->muertos ?? 0)];
-        }
+        // Cada gráfico, sus últimos 10 días con actividad de su tipo: los webhooks procesados y los mensajes salientes.
+        $latencia = self::serie(
+            "SELECT max(received_at) AS d FROM webhook_events WHERE status = 'PROCESSED' AND processed_at IS NOT NULL",
+            <<<'SQL'
+                SELECT (received_at AT TIME ZONE 'America/Lima')::date AS d,
+                       round(percentile_cont(0.95) WITHIN GROUP (ORDER BY extract(epoch FROM (processed_at - received_at)))::numeric, 1) AS p95, count(*) AS webhooks
+                FROM webhook_events
+                WHERE status = 'PROCESSED' AND processed_at IS NOT NULL AND (received_at AT TIME ZONE 'America/Lima')::date BETWEEN ? AND ?
+                GROUP BY 1
+                SQL,
+            fn ($f) => ['p95' => $f ? (float) $f->p95 : null, 'webhooks' => (int) ($f->webhooks ?? 0)],
+            $desde, $hasta,
+        );
+        $salientes = self::serie(
+            'SELECT max(created_at) AS d FROM outbox_messages',
+            <<<'SQL'
+                SELECT (created_at AT TIME ZONE 'America/Lima')::date AS d,
+                       count(*) FILTER (WHERE status = 'SENT') AS enviados, count(*) FILTER (WHERE status IN ('PENDING','RETRYING')) AS reintentando,
+                       count(*) FILTER (WHERE status = 'DEAD') AS muertos
+                FROM outbox_messages WHERE (created_at AT TIME ZONE 'America/Lima')::date BETWEEN ? AND ?
+                GROUP BY 1
+                SQL,
+            fn ($f) => ['enviados' => (int) ($f->enviados ?? 0), 'reintentando' => (int) ($f->reintentando ?? 0), 'muertos' => (int) ($f->muertos ?? 0)],
+            $desde, $hasta,
+        );
 
         $problemas = DB::table('integration_connectors')->where(fn ($w) => $w->where('status', 'ERROR')->orWhere('consecutive_failures', '>', 0)->orWhere('simulate_down', true))
             ->orderByRaw("status = 'ERROR' DESC")->orderByDesc('consecutive_failures')->get(['id', 'name', 'status', 'consecutive_failures', 'last_error', 'last_error_at', 'simulate_down']);
@@ -67,7 +68,7 @@ final class Salud
                 'duplicados' => $wh['duplicados'], 'repetidos' => $wh['repetidos'], 'p95' => $wh['p95'],
                 'en_error' => DB::table('integration_connectors')->where('status', 'ERROR')->count(),
             ],
-            'dias' => $dias, 'desde' => $desde, 'hasta' => $hasta,
+            'latencia' => $latencia, 'salientes' => $salientes, 'mes' => $mes, 'meses' => self::meses(),
             'problemas' => $problemas->map(fn ($c) => [
                 'id' => $c->id, 'name' => $c->name, 'status' => $c->status, 'status_name' => ['ACTIVE' => 'Activo', 'ERROR' => 'En error', 'DISABLED' => 'Desactivado', 'PENDING' => 'Pendiente'][$c->status] ?? $c->status,
                 'consecutive_failures' => (int) $c->consecutive_failures, 'last_error' => $c->last_error, 'last_error_at' => $c->last_error_at, 'simulate_down' => (bool) $c->simulate_down,
@@ -76,5 +77,37 @@ final class Salud
                 'connector_name' => $k->connector_name, 'dias' => (int) now()->startOfDay()->diffInDays(Carbon::parse($k->expires_at)->startOfDay(), false)])->values(),
             'metas' => ['exito' => 99.5, 'p95' => 60], 'umbral_errores' => (int) (Params::get('int_connector_error_threshold') ?? 3),
         ];
+    }
+
+    /**
+     * Una serie de 10 días que termina en el último día con actividad (o hoy, si no hay ninguna). $fila arma cada día a
+     * partir de la fila de la consulta (o null si ese día no hubo nada).
+     *
+     * @return array{desde: string, hasta: string, dias: list<array>}
+     */
+    private static function serie(string $ultimo, string $consulta, callable $fila, ?string $desde = null, ?string $hasta = null): array
+    {
+        if (! $desde || ! $hasta) {
+            $max = DB::selectOne($ultimo)->d;
+            $hasta = Carbon::parse($max ?? now())->setTimezone('America/Lima')->toDateString();
+            $desde = Carbon::parse($hasta)->subDays(self::DIAS - 1)->toDateString();
+        }
+        $filas = collect(DB::select($consulta, [$desde, $hasta]))->keyBy('d');
+        $dias = [];
+        for ($d = $desde; $d <= $hasta; $d = Carbon::parse($d)->addDay()->toDateString()) {
+            $dias[] = ['dia' => $d] + $fila($filas[$d] ?? null);
+        }
+
+        return ['desde' => $desde, 'hasta' => $hasta, 'dias' => $dias];
+    }
+
+    /** Los meses con webhooks o mensajes salientes (los últimos 12), para elegir el período. */
+    private static function meses(): array
+    {
+        return array_column(DB::select(<<<'SQL'
+            SELECT DISTINCT to_char(d AT TIME ZONE 'America/Lima', 'YYYY-MM') AS mes FROM (
+                SELECT received_at AS d FROM webhook_events WHERE status <> 'REJECTED' UNION ALL SELECT created_at FROM outbox_messages
+            ) x ORDER BY 1 DESC LIMIT 12
+            SQL), 'mes');
     }
 }

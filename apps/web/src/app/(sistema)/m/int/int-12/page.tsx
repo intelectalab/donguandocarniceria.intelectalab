@@ -3,21 +3,27 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, Copy, Plug, Skull, Timer } from "lucide-react";
-import { Badge, Cifra, DataTable, PageHeader, type Column } from "@/components/ui";
+import { useState } from "react";
+import { Badge, Cifra, DataTable, FiltroSelect, PageHeader, type Column } from "@/components/ui";
 import { fecha, fechaHora, numero } from "@/lib/formato";
 import { useDatos, venceEn } from "@/modulos/int/tipos";
 import { BarrasApiladas, LineaPorDia } from "@/modulos/int/graficos";
 
-type Dia = { dia: string; p95: number | null; webhooks: number; enviados: number; reintentando: number; muertos: number };
+type DiaLatencia = { dia: string; p95: number | null; webhooks: number };
+type DiaSalientes = { dia: string; enviados: number; reintentando: number; muertos: number };
+type Serie<T> = { desde: string; hasta: string; dias: T[] };
 type Problema = { id: string; name: string; status: string; status_name: string; consecutive_failures: number; last_error: string | null; last_error_at: string | null; simulate_down: boolean };
 type PorVencer = { id: string; name: string; expires_at: string; connector_id: string; connector_name: string; dias: number };
 type Datos = {
   indicadores: { exito: number | null; enviados_30: number; base_30: number; muertos: number; duplicados: number | null; repetidos: number; p95: number | null; en_error: number };
-  dias: Dia[]; desde: string; hasta: string; problemas: Problema[]; credenciales: PorVencer[]; metas: { exito: number; p95: number }; umbral_errores: number;
+  latencia: Serie<DiaLatencia>; salientes: Serie<DiaSalientes>; mes: string | null; meses: string[]; problemas: Problema[]; credenciales: PorVencer[]; metas: { exito: number; p95: number }; umbral_errores: number;
 };
 
 const seg = (s: number) => (s <= 60 ? `${numero(s, s < 10 ? 1 : 0)} s` : `${numero(s / 60, 1)} min`);
 const pct = (v: number) => `${numero(v, 2)} %`;
+const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+/** «2026-10» → «Octubre 2026». */
+const nombreMes = (m: string) => `${MESES[Number(m.slice(5, 7)) - 1]} ${m.slice(0, 4)}`;
 
 /** Envuelve una cifra en un enlace a su pantalla, sin cambiar su diseño. */
 function A({ href, titulo, children }: { href: string; titulo: string; children: React.ReactNode }) {
@@ -30,9 +36,11 @@ function A({ href, titulo, children }: { href: string; titulo: string; children:
  */
 export default function SaludIntegraciones() {
   const router = useRouter();
-  const { datos, error, recargar } = useDatos<Datos>("/v1/int/salud");
+  const [mes, setMes] = useState("");
+  const { datos, error, recargar } = useDatos<Datos>(`/v1/int/salud${mes ? `?mes=${mes}` : ""}`);
   const k = datos?.indicadores;
-  const dias = datos?.dias ?? [];
+  const lat = datos?.latencia;
+  const sal = datos?.salientes;
 
   const colProblemas: Column<Problema>[] = [
     { key: "name", header: "Conector", cardTitle: true, render: (c) => <span className="font-semibold text-ink">{c.name}</span> },
@@ -74,24 +82,35 @@ export default function SaludIntegraciones() {
       {error && <p className="text-[13.5px] text-bad">{error} <button type="button" className="cursor-pointer underline" onClick={recargar}>Reintentar</button></p>}
 
       {datos && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-[14px] font-semibold text-ink">Por día</h2>
+          <FiltroSelect etiqueta="Período" ancho={250} value={mes} onChange={setMes} vacio="Últimos 10 días con actividad"
+            options={datos.meses.map((m) => ({ value: m, label: nombreMes(m) }))} />
+        </div>
+      )}
+      {datos && (
         <div className="grid gap-4 lg:grid-cols-2">
           <section className="grid gap-3 rounded-xl border border-line bg-surface p-4 shadow-card">
             <div>
               <h2 className="text-[14px] font-semibold text-ink">Tiempo de proceso de los webhooks por día</h2>
-              <p className="text-[12px] text-muted">El 95 % se procesó en este tiempo o menos · del {fecha(datos.desde)} al {fecha(datos.hasta)}</p>
+              <p className="text-[12px] text-muted">El 95 % se procesó en este tiempo o menos · del {fecha(datos.latencia.desde)} al {fecha(datos.latencia.hasta)}</p>
             </div>
-            <LineaPorDia titulo="Tiempo de proceso p95 por día" dias={dias.map((d) => d.dia)} valor={(i) => dias[i].p95} meta={datos.metas.p95} formato={seg} />
+            {lat && lat.dias.some((d) => d.p95 !== null)
+              ? <LineaPorDia titulo="Tiempo de proceso p95 por día" dias={lat.dias.map((d) => d.dia)} valor={(i) => lat.dias[i].p95} meta={datos.metas.p95} formato={seg} />
+              : <p className="py-10 text-center text-[13px] text-muted">Todavía no hay webhooks procesados.</p>}
           </section>
           <section className="grid gap-3 rounded-xl border border-line bg-surface p-4 shadow-card">
             <div>
               <h2 className="text-[14px] font-semibold text-ink">Mensajes salientes por día</h2>
-              <p className="text-[12px] text-muted">Según su estado actual · del {fecha(datos.desde)} al {fecha(datos.hasta)}</p>
+              <p className="text-[12px] text-muted">Según su estado actual · del {fecha(datos.salientes.desde)} al {fecha(datos.salientes.hasta)}</p>
             </div>
-            <BarrasApiladas titulo="Mensajes salientes por día" dias={dias.map((d) => d.dia)} series={[
-              { nombre: "Enviados", clase: "bg-ok", valores: dias.map((d) => d.enviados) },
-              { nombre: "Pendientes o reintentando", clase: "bg-warn", valores: dias.map((d) => d.reintentando) },
-              { nombre: "Cola muerta", clase: "bg-bad", valores: dias.map((d) => d.muertos) },
-            ]} />
+            {sal && sal.dias.some((d) => d.enviados + d.reintentando + d.muertos > 0) ? (
+              <BarrasApiladas titulo="Mensajes salientes por día" dias={sal.dias.map((d) => d.dia)} series={[
+                { nombre: "Enviados", clase: "bg-ok", valores: sal.dias.map((d) => d.enviados) },
+                { nombre: "Pendientes o reintentando", clase: "bg-warn", valores: sal.dias.map((d) => d.reintentando) },
+                { nombre: "Cola muerta", clase: "bg-bad", valores: sal.dias.map((d) => d.muertos) },
+              ]} />
+            ) : <p className="py-10 text-center text-[13px] text-muted">Todavía no hay mensajes salientes.</p>}
           </section>
         </div>
       )}

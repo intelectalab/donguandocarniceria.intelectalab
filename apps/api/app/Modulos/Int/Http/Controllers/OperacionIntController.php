@@ -37,9 +37,11 @@ class OperacionIntController extends Controller
         }
     }
 
-    public function salud()
+    public function salud(Request $request)
     {
-        return response()->json(Salud::resumen());
+        $d = $request->validate(['mes' => ['nullable', 'date_format:Y-m']]);
+
+        return response()->json(Salud::resumen($d['mes'] ?? null));
     }
 
     public function simulador()

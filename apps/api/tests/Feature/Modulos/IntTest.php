@@ -403,12 +403,19 @@ class IntTest extends TestCase
     public function test_salud_de_integraciones_y_simulador_solo_en_prueba(): void
     {
         $s = $this->como(self::ADMIN)->getJson('/api/v1/int/salud')->assertOk();
-        $this->assertCount(10, $s->json('dias'));
+        $this->assertCount(10, $s->json('latencia.dias'));
+        $this->assertCount(10, $s->json('salientes.dias'));
         $this->assertSame(2, $s->json('indicadores.muertos'));
         $this->assertGreaterThanOrEqual(1, $s->json('indicadores.en_error'));
         $this->assertNotNull($s->json('indicadores.exito'));
         $this->assertContains('Balanza de producción · Local 2', array_column($s->json('problemas'), 'name'));
-        $this->assertGreaterThan(0, array_sum(array_column($s->json('dias'), 'enviados')), 'Los días terminan en la última actividad');
+        $this->assertGreaterThan(0, array_sum(array_column($s->json('salientes.dias'), 'enviados')), 'Cada gráfico termina en su última actividad');
+        $this->assertNotEmpty(array_filter(array_column($s->json('latencia.dias'), 'p95')), 'La línea tiene puntos');
+        // Otro período: un mes completo, día por día.
+        $this->assertContains('2026-10', $s->json('meses'));
+        $m = $this->como(self::ADMIN)->getJson('/api/v1/int/salud?mes=2026-09')->assertOk();
+        $this->assertSame(['2026-09-01', '2026-09-30', 30], [$m->json('latencia.desde'), $m->json('latencia.hasta'), count($m->json('salientes.dias'))]);
+        $this->como(self::ADMIN)->getJson('/api/v1/int/salud?mes=octubre')->assertStatus(422);
 
         // Simulador: el endpoint de prueba recibe el pago firmado; tres envíos iguales se procesan una vez (CA-INT-01).
         $this->assertTrue(collect($this->como(self::ADMIN)->getJson('/api/v1/int/simulador')->assertOk()->json('ejemplos'))->firstWhere('code', 'MP')['disponible']);

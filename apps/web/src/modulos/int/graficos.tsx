@@ -6,6 +6,8 @@
  */
 
 const etiquetaDia = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
+/** Etiqueta del eje: con más de 15 días (un mes), solo el número del día y uno cada dos, para que no se encimen ni se salgan. */
+const eje = (dias: string[], i: number) => (dias.length > 15 ? (i % 2 ? "" : dias[i].slice(8, 10)) : etiquetaDia(dias[i]));
 const ALTO = 150;
 
 /**
@@ -64,7 +66,7 @@ export function LineaPorDia({ dias, valor, meta, formato, titulo }: {
           })}
         </div>
       </div>
-      <div className="flex">{dias.map((d) => <span key={d} className="flex-1 text-center text-[10.5px] text-muted tabular-nums">{etiquetaDia(d)}</span>)}</div>
+      <div className="flex">{dias.map((d, i) => <span key={d} className="flex-1 text-center text-[10.5px] text-muted tabular-nums">{eje(dias, i)}</span>)}</div>
     </figure>
   );
 }
@@ -95,7 +97,7 @@ export function BarrasPorDia({ dias, valor, meta, formato, titulo }: {
           );
         })}
       </div>
-      <div className="flex gap-1.5">{dias.map((d) => <span key={d} className="flex-1 text-center text-[10.5px] text-muted tabular-nums">{etiquetaDia(d)}</span>)}</div>
+      <div className="flex gap-1.5">{dias.map((d, i) => <span key={d} className="flex-1 text-center text-[10.5px] text-muted tabular-nums">{eje(dias, i)}</span>)}</div>
     </figure>
   );
 }
@@ -121,7 +123,7 @@ export function BarrasApiladas({ dias, series, titulo }: {
           </div>
         ))}
       </div>
-      <div className="flex gap-1.5">{dias.map((d) => <span key={d} className="flex-1 text-center text-[10.5px] text-muted tabular-nums">{etiquetaDia(d)}</span>)}</div>
+      <div className="flex gap-1.5">{dias.map((d, i) => <span key={d} className="flex-1 text-center text-[10.5px] text-muted tabular-nums">{eje(dias, i)}</span>)}</div>
     </figure>
   );
 }
