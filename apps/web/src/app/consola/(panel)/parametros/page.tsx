@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
-import { History, Pencil } from "lucide-react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { History, Pencil, Search } from "lucide-react";
 import { Alert, Button, Field, IconButton, Input, Modal, PageHeader, Textarea, toast } from "@/components/ui";
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { erroresDe, mensajeDe } from "@/lib/api";
@@ -13,7 +13,17 @@ type Parametro = {
   historial: { old_value: unknown; new_value: unknown; reason: string; changed_by_name: string; changed_at: string }[];
 };
 
-const mostrar = (v: unknown) => Array.isArray(v) ? (v.length ? v.join(", ") : "Vacía (acepta todo)") : String(v);
+const PRIORIDAD: Record<string, string> = { URGENT: "Urgente", HIGH: "Alta", NORMAL: "Normal", LOW: "Baja" };
+const mostrar = (v: unknown): string => {
+  if (Array.isArray(v)) return v.length ? v.join(", ") : "Vacía (acepta todo)";
+  if (v && typeof v === "object") return Object.entries(v as Record<string, unknown>).map(([k, x]) => `${PRIORIDAD[k] ?? k}: ${x}`).join(" · ");
+  if (v === "" || v === null || v === undefined) return "Vacío";
+  return String(v);
+};
+/** Grupos por el comienzo de la clave: así se encuentran juntos los de la consola, los del cobro y los del registro. */
+const GRUPOS: [string, string][] = [["ops_", "Consola, soporte y operación"], ["sus_", "Suscripciones y cobro"], ["onb_", "Registro de empresas"]];
+const grupoDe = (key: string) => GRUPOS.find(([pre]) => key.startsWith(pre))?.[1] ?? "Otros";
+const sinTildes = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 /** OPS-16 Parámetros de plataforma: valores de toda la plataforma; cada cambio pide motivo y queda en su historial (RN-OPS-05). */
 export default function ParametrosPlataforma() {
@@ -22,17 +32,36 @@ export default function ParametrosPlataforma() {
   const [error, setError] = useState("");
   const [editando, setEditando] = useState<Parametro | null>(null);
   const [historia, setHistoria] = useState<Parametro | null>(null);
+  const [buscar, setBuscar] = useState("");
+  const grupos = useMemo(() => {
+    const q = sinTildes(buscar.trim());
+    const vistos = (lista ?? []).filter((p) => !q || sinTildes(`${p.key} ${p.description} ${mostrar(p.value)}`).includes(q));
+    return [...GRUPOS.map(([, n]) => n), "Otros"].map((n) => ({ nombre: n, items: vistos.filter((p) => grupoDe(p.key) === n) })).filter((g) => g.items.length);
+  }, [lista, buscar]);
+  const total = grupos.reduce((s, g) => s + g.items.length, 0);
 
   const cargar = () => apiConsola<{ data: Parametro[] }>("/parametros").then((r) => { setLista(r.data); setError(""); }).catch((e) => setError(mensajeDe(e)));
   useEffect(() => { cargar(); }, []);
 
   return (
     <div className="grid gap-5">
-      <PageHeader description="Valores que valen para toda la plataforma: la sesión de la consola, las redes permitidas, la invitación y la prueba gratuita. Cada cambio pide un motivo y queda en su historial." />
+      <PageHeader description="Valores que valen para toda la plataforma: la consola, el soporte, la operación, el registro y el cobro de las suscripciones. Cada cambio pide un motivo y queda en su historial." />
       {error && <Alert tone="bad">{error}</Alert>}
       {!yo.puede["params.manage"] && lista && <p className="text-[13px] text-muted">Solo un administrador de plataforma los cambia. Tú puedes consultarlos.</p>}
-      <div className="grid gap-3">
-        {lista?.map((p) => (
+      {lista && (
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative w-full max-w-md">
+            <Search size={16} aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 z-10 -translate-y-1/2 text-muted" />
+            <Input aria-label="Buscar parámetro" placeholder="Buscar por nombre, descripción o valor" value={buscar} onChange={(e) => setBuscar(e.target.value)} className="pl-9" />
+          </div>
+          <span className="text-[13px] text-muted">{buscar ? `${total} de ${lista.length}` : `${lista.length} parámetros`}</span>
+        </div>
+      )}
+      {lista && total === 0 && <p className="text-[13.5px] text-muted">Ningún parámetro coincide con «{buscar}».</p>}
+      {grupos.map((g) => (
+      <div key={g.nombre} className="grid gap-3">
+        <p className="text-[12px] font-semibold tracking-wide text-muted uppercase">{g.nombre}</p>
+        {g.items.map((p) => (
           <section key={p.key} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-surface px-5 py-4 shadow-card">
             <div className="min-w-0 flex-1">
               <p className="font-mono text-[12px] text-accent">{p.key}</p>
@@ -47,6 +76,7 @@ export default function ParametrosPlataforma() {
           </section>
         ))}
       </div>
+      ))}
       {editando && <Editar p={editando} onClose={() => setEditando(null)} onGuardado={() => { setEditando(null); cargar(); }} />}
       {historia && (
         <Modal open onClose={() => setHistoria(null)} title={`Historial de ${historia.key}`} description={historia.description}>
@@ -70,7 +100,8 @@ export default function ParametrosPlataforma() {
 function Editar({ p, onClose, onGuardado }: { p: Parametro; onClose: () => void; onGuardado: () => void }) {
   const esLista = p.regla?.[0] === "redes" || p.regla?.[0] === "dominios";
   const esDominios = p.regla?.[0] === "dominios";
-  const [valor, setValor] = useState(esLista ? (p.value as string[]).join("\n") : String(p.value));
+  const esTexto = p.regla?.[0] === "ruc" || p.regla?.[0] === "texto";
+  const [valor, setValor] = useState(esLista ? (p.value as string[]).join("\n") : String(p.value ?? ""));
   const [motivo, setMotivo] = useState("");
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [general, setGeneral] = useState("");
@@ -82,7 +113,7 @@ function Editar({ p, onClose, onGuardado }: { p: Parametro; onClose: () => void;
     setErrores({});
     setGeneral("");
     try {
-      await apiConsola(`/parametros/${p.key}`, { method: "PUT", body: { value: esLista ? valor : Number(valor), reason: motivo } });
+      await apiConsola(`/parametros/${p.key}`, { method: "PUT", body: { value: esLista || esTexto ? valor.trim() : Number(valor), reason: motivo } });
       toast.ok("Parámetro cambiado");
       onGuardado();
     } catch (err) {
@@ -102,6 +133,10 @@ function Editar({ p, onClose, onGuardado }: { p: Parametro; onClose: () => void;
             hint={esDominios ? "Un dominio por línea, sin @ (por ejemplo intelectalab.com). Vacía acepta cualquier correo. Solo vale para las cuentas nuevas."
               : "Una IP o red por línea (por ejemplo 190.237.14.22 o 10.0.0.0/8). Vacía acepta todas. Incluye la tuya o te quedarás sin acceso."}>
             <Textarea rows={4} value={valor} onChange={(e) => setValor(e.target.value)} className="font-mono" />
+          </Field>
+        ) : esTexto ? (
+          <Field label="Valor" error={errores.value} hint={p.regla?.[0] === "ruc" ? "11 dígitos. Vacío: la corrida de cobro no emite comprobantes." : `Hasta ${p.regla?.[1]} caracteres.`}>
+            <Input value={valor} onChange={(e) => setValor(e.target.value)} inputMode={p.regla?.[0] === "ruc" ? "numeric" : undefined} maxLength={p.regla?.[0] === "ruc" ? 11 : p.regla?.[1]} />
           </Field>
         ) : (
           <Field label="Valor" error={errores.value} hint={p.regla ? `Entre ${p.regla[1]} y ${p.regla[2]}` : undefined}>
