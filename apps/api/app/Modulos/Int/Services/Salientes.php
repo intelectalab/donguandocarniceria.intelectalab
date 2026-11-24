@@ -217,7 +217,7 @@ final class Salientes
      * KPI-INT-01 (éxito de entrega en 30 días) y los mensajes por estado. Los 30 días terminan en el último mensaje
      * registrado: en operación es hoy, y en una empresa sin movimiento reciente sigue mostrando su último mes.
      */
-    private static function cifras(): array
+    public static function cifras(): array
     {
         $r = DB::selectOne(<<<'SQL'
             SELECT count(*) FILTER (WHERE status = 'PENDING') AS pendientes, count(*) FILTER (WHERE status = 'RETRYING') AS reintentando,

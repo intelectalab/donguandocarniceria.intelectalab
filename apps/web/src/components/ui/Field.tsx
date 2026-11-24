@@ -46,7 +46,8 @@ export function Field({ label, error, hint, required, className = "", children }
   const describedBy = [error && `${id}-error`, hint && `${id}-hint`].filter(Boolean).join(" ") || undefined;
   return (
     <FieldContext.Provider value={{ id, invalid: Boolean(error), describedBy, required }}>
-      <div className={`grid content-start gap-1.5 ${className}`}>
+      {/* min-w-0 y una sola columna flexible: un texto largo (un select con un nombre muy largo) se corta con «…» en vez de salirse. */}
+      <div className={`grid min-w-0 grid-cols-1 content-start gap-1.5 ${className}`}>
         <label htmlFor={id} className="text-[12.5px] font-medium text-muted">
           {label}{required && <span className="text-bad" aria-hidden="true"> *</span>}
         </label>

@@ -253,7 +253,7 @@ final class Webhooks
      * KPI-INT-03 (repetidos), KPI-INT-04 (latencia p95 de proceso) y los recibidos en el mes. Se miden hasta el último
      * evento recibido: en operación es hoy, y en una empresa sin movimiento reciente sigue mostrando su último mes.
      */
-    private static function cifras(): array
+    public static function cifras(): array
     {
         $r = DB::selectOne(<<<'SQL'
             WITH u AS (SELECT max(received_at) AS hasta FROM webhook_events)

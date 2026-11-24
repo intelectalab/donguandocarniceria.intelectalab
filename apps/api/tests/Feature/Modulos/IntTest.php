@@ -364,6 +364,64 @@ class IntTest extends TestCase
         }
     }
 
+    public function test_corridas_programadas_reales_de_prueba_y_no_instaladas(): void
+    {
+        $l = $this->como(self::ADMIN)->getJson('/api/v1/int/corridas')->assertOk();
+        $this->assertGreaterThanOrEqual(80, $l->json('total'), 'Las de la demostración');
+        $this->assertSame('Tipo de cambio SUNAT', collect($l->json('data'))->firstWhere('job', 'FX_DAILY')['job_name'] ?? 'Tipo de cambio SUNAT');
+        $this->assertSame(['FAILED'], array_values(array_unique(array_column($this->como(self::ADMIN)->getJson('/api/v1/int/corridas?status=FAILED')->json('data'), 'status'))));
+        $ej = collect($l->json('ejecutables'));
+
+        // Tipo de cambio: el proceso existe (MAE) y corre; sin conexión con SUNAT falla, pero no culpa al conector.
+        $fx = $ej->firstWhere('job', 'FX_DAILY');
+        $this->assertNull($fx['motivo']);
+        foreach ([1, 2, 3] as $n) {
+            $r = $this->como(self::ADMIN)->postJson('/api/v1/int/corridas', ['job' => 'FX_DAILY', 'connector_id' => $fx['connector_id']])->assertCreated();
+        }
+        $this->assertSame(['FAILED', 'Luis Ccahuana Rojas'], [$r->json('status'), $r->json('triggered_by')]);
+        $this->assertStringContainsString('SUNAT', $r->json('detail'));
+        $this->enDonGuando(function () use ($fx) {
+            $this->assertSame('ACTIVE', DB::table('integration_connectors')->where('id', $fx['connector_id'])->value('status'));
+            // RN-MAE-14: a la tercera falla del día se pide cargarlo a mano, una sola vez.
+            $this->assertSame(1, DB::table('notifications')->where('title', 'Carga el tipo de cambio a mano')->where('at', '>=', now()->subMinute())->count());
+        });
+
+        // Catálogo a WooCommerce: en producción no está instalado (lo dice), en el de prueba corre con el falso.
+        $prod = $ej->first(fn ($x) => $x['job'] === 'WOO_CATALOG_SYNC' && ! $x['prueba']);
+        $this->assertSame('NO_INSTALADO', $prod['motivo']);
+        $this->como(self::ADMIN)->postJson('/api/v1/int/corridas', ['job' => 'WOO_CATALOG_SYNC', 'connector_id' => $prod['connector_id']])
+            ->assertStatus(422)->assertJsonPath('code', 'RN-INT-01');
+        $sbx = $ej->first(fn ($x) => $x['job'] === 'WOO_CATALOG_SYNC' && $x['prueba']);
+        $this->como(self::ADMIN)->postJson('/api/v1/int/corridas', ['job' => 'WOO_CATALOG_SYNC', 'connector_id' => $sbx['connector_id']])->assertCreated()->assertJsonPath('status', 'COMPLETED');
+        // Un conector que no es del tipo del proceso, o sin el permiso: no.
+        $this->como(self::ADMIN)->postJson('/api/v1/int/corridas', ['job' => 'FX_DAILY', 'connector_id' => $sbx['connector_id']])->assertStatus(422);
+        $this->como(self::SIN_PERMISO)->postJson('/api/v1/int/corridas', ['job' => 'WOO_CATALOG_SYNC', 'connector_id' => $sbx['connector_id']])->assertForbidden();
+    }
+
+    public function test_salud_de_integraciones_y_simulador_solo_en_prueba(): void
+    {
+        $s = $this->como(self::ADMIN)->getJson('/api/v1/int/salud')->assertOk();
+        $this->assertCount(10, $s->json('dias'));
+        $this->assertSame(2, $s->json('indicadores.muertos'));
+        $this->assertGreaterThanOrEqual(1, $s->json('indicadores.en_error'));
+        $this->assertNotNull($s->json('indicadores.exito'));
+        $this->assertContains('Balanza de producción · Local 2', array_column($s->json('problemas'), 'name'));
+        $this->assertGreaterThan(0, array_sum(array_column($s->json('dias'), 'enviados')), 'Los días terminan en la última actividad');
+
+        // Simulador: el endpoint de prueba recibe el pago firmado; tres envíos iguales se procesan una vez (CA-INT-01).
+        $this->assertTrue(collect($this->como(self::ADMIN)->getJson('/api/v1/int/simulador')->assertOk()->json('ejemplos'))->firstWhere('code', 'MP')['disponible']);
+        $r = $this->como(self::ADMIN)->postJson('/api/v1/int/simulador', ['ejemplo' => 'MP', 'veces' => 3])->assertOk();
+        $this->assertSame([[200, false], [200, true], [200, true]], array_map(fn ($x) => [$x['http'], $x['duplicate']], $r->json('respuestas')));
+        $this->assertSame(2, $r->json('evento.duplicates'));
+        $this->assertSame('Mercado Pago · prueba', $r->json('endpoint'));
+        // Con firma inválida: 401 y rechazado.
+        $this->como(self::ADMIN)->postJson('/api/v1/int/simulador', ['ejemplo' => 'WA', 'veces' => 1, 'firma_invalida' => true])->assertOk()
+            ->assertJsonPath('respuestas.0.http', 401)->assertJsonPath('respuestas.0.status', 'REJECTED');
+        // La sesión sigue siendo de quien simula (la bitácora lo registra con su usuario).
+        $this->enDonGuando(fn () => $this->assertNotNull(DB::table('domain_events')->where('event_name', 'integration.simulated')->orderByDesc('id')->value('user_id')));
+        $this->como(self::SIN_PERMISO)->postJson('/api/v1/int/simulador', ['ejemplo' => 'MP', 'veces' => 1])->assertForbidden();
+    }
+
     public function test_el_despacho_programado_envia_lo_que_toca(): void
     {
         $falso = $this->conector(fn ($c) => $c['environment'] === 'SANDBOX' && $c['kind'] === 'MESSAGING' && $c['status'] === 'ACTIVE');

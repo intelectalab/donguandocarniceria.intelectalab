@@ -111,7 +111,7 @@ function CargarCredencial({ conectores, conector, onClose, onListo }: { conector
             <Select value={d.connector_id} onChange={(e) => setD({ ...d, connector_id: e.target.value })} placeholder="Elige el conector" options={conectores.map((c) => ({ value: c.id, label: c.name }))} />
           </Field>
           <Field label="Nombre" required error={errores.name} hint="En minúsculas y sin espacios: access_token, api_key, webhook_secret…">
-            <Input value={d.name} onChange={(e) => setD({ ...d, name: e.target.value.toLowerCase().replace(/\s+/g, "_") })} maxLength={80} placeholder="access_token" />
+            <Input name="nombre-credencial" autoComplete="off" data-1p-ignore data-lpignore="true" spellCheck={false} value={d.name} onChange={(e) => setD({ ...d, name: e.target.value.toLowerCase().replace(/\s+/g, "_") })} maxLength={80} placeholder="access_token" />
           </Field>
           <Field label="Secreto" required error={errores.secret} hint="Al menos 8 caracteres."><CampoSecreto value={d.secret} onChange={(v) => setD({ ...d, secret: v })} /></Field>
           <Field label="Vence" error={errores.expires_at} hint="Déjalo vacío si no vence. Se avisa unos días antes."><Input type="date" value={d.expires_at} onChange={(e) => setD({ ...d, expires_at: e.target.value })} /></Field>

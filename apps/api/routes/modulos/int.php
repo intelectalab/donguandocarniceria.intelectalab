@@ -1,11 +1,13 @@
 <?php
 
 use App\Modulos\Int\Http\Controllers\ConectorController;
+use App\Modulos\Int\Http\Controllers\OperacionIntController;
 use App\Modulos\Int\Http\Controllers\SalienteController;
 use App\Modulos\Int\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 
-// INT · Integraciones: conectores y credenciales (INT-01 a INT-03), webhooks (INT-04, INT-05), mensajes salientes y cola muerta (INT-06, INT-07).
+// INT · Integraciones: conectores y credenciales (INT-01 a INT-03), webhooks (INT-04, INT-05), mensajes salientes y cola muerta (INT-06, INT-07),
+// corridas (INT-08), salud (INT-12) y simulador (INT-13).
 Route::prefix('int')->group(function () {
     $conector = 'permiso:int.connector.manage';
     $credencial = 'permiso:int.credential.rotate';
@@ -39,4 +41,11 @@ Route::prefix('int')->group(function () {
     Route::get('/webhooks/eventos', [WebhookController::class, 'eventos'])->middleware('modulo:INT');
     Route::get('/webhooks/eventos/{id}', [WebhookController::class, 'evento'])->middleware('modulo:INT')->whereUuid('id');
     Route::post('/webhooks/eventos/{id}/reprocesar', [WebhookController::class, 'reprocesar'])->middleware(['modulo:INT,E', 'permiso:int.webhook.reprocess', 'throttle:20,1'])->whereUuid('id');
+
+    // INT-08 Corridas programadas, INT-12 Salud de integraciones e INT-13 Simulador (solo contra conectores de prueba)
+    Route::get('/corridas', [OperacionIntController::class, 'corridas'])->middleware('modulo:INT');
+    Route::post('/corridas', [OperacionIntController::class, 'ejecutar'])->middleware(['modulo:INT,E', $conector, 'throttle:10,1']);
+    Route::get('/salud', [OperacionIntController::class, 'salud'])->middleware('modulo:INT');
+    Route::get('/simulador', [OperacionIntController::class, 'simulador'])->middleware('modulo:INT');
+    Route::post('/simulador', [OperacionIntController::class, 'simular'])->middleware(['modulo:INT,E', 'permiso:int.simulator.use', 'throttle:20,1']);
 });

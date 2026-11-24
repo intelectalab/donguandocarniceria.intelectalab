@@ -43,7 +43,8 @@ export function CampoSecreto({ value, onChange, id }: { value: string; onChange:
   const [ver, setVer] = useState(false);
   return (
     <div className="relative">
-      <Input id={id} type={ver ? "text" : "password"} autoComplete="off" value={value} onChange={(e) => onChange(e.target.value)} className="pr-10" />
+      {/* new-password: el navegador no debe ofrecer la contraseña guardada del sistema; es un secreto del proveedor. */}
+      <Input id={id} type={ver ? "text" : "password"} autoComplete="new-password" data-1p-ignore data-lpignore="true" spellCheck={false} value={value} onChange={(e) => onChange(e.target.value)} className="pr-10" />
       <button type="button" onClick={() => setVer((v) => !v)} aria-label={ver ? "Ocultar el secreto" : "Mostrar el secreto"} title={ver ? "Ocultar" : "Mostrar"}
         className="absolute top-1/2 right-1 flex size-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-muted hover:text-ink">
         {ver ? <EyeOff size={16} /> : <Eye size={16} />}

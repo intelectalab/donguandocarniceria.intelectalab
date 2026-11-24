@@ -223,3 +223,78 @@ Las pantallas de Integraciones (conectores, credenciales, mensajes salientes y s
 - los filtros van a la derecha, compactos, con su nombre: «Estado: todos», «Conector: todos»…
 
 Los módulos se muestran con su nombre corto («Delivery»), no con la descripción del catálogo.
+
+---
+
+# Tanda 4: corridas programadas, salud de integraciones y simulador (INT-08, INT-12 e INT-13)
+
+INT-13 es el «Simulador de integraciones», como en el prototipo. No es una pantalla de indicadores: los indicadores del módulo están en Salud (INT-12).
+
+## INT-08 Corridas programadas
+
+Migración `2026_11_25_000400_int_corridas`:
+- el resultado solo puede ser completada, parcial o fallida;
+- los contadores nunca son negativos;
+- hay un índice por proceso y fecha.
+
+Cómo funcionan los procesos (`Services\Corridas`):
+- **Cada proceso lo instala el módulo que lo usa.**
+  - **Tipo de cambio:** ya existe en MAE (`TiposDeCambio::cargarDeFuente`) y corre de verdad. Hoy falla con el aviso de que falta la conexión con SUNAT. Esa falla no pasa el conector a «En error», porque no es culpa del proveedor.
+  - **Los demás procesos:** gasto de anuncios, catálogo y stock de WooCommerce, lotes de la granja y estado en el OSE. Los agregan ADS, WEB, GRJ y FAC en `Corridas::$procesos` cuando se construyan.
+- **En un conector de prueba:** la corrida usa el adaptador falso y no trae datos reales.
+- **En producción, sin el proceso instalado:** no se ejecuta y lo dice, para no registrar una corrida que no pasó.
+- **No se ejecuta tampoco** si el conector está desactivado o su módulo está apagado.
+- **RN-MAE-14:** a la tercera falla del día del tipo de cambio se avisa a Administración que lo cargue a mano, una vez por día.
+- **Resultado del conector:** cada corrida cuenta para el estado del conector (RN-INT-19), salvo la falta del adaptador de SUNAT.
+
+Pantalla:
+- cifras: corridas en 7 días, fallidas, parciales y la última corrida;
+- «Ejecutar ahora»: una tarjeta por proceso, con un botón por conector que se puede ejecutar y, si no se puede, el motivo con el nombre del módulo;
+- la lista con filtros en la barra (proceso, resultado y fecha). Columnas: inicio, fin, proceso, conector, correctos, fallidos, resultado, detalle y origen.
+
+## INT-12 Salud de integraciones
+
+Muestra los cinco indicadores del módulo, y cada uno lleva a su pantalla:
+- éxito de los mensajes (meta 99,5 % o más);
+- cola muerta (meta 0);
+- webhooks repetidos (informativo);
+- tiempo de proceso p95 (meta 60 s o menos);
+- conectores en error (meta 0).
+
+Tiene dos gráficos de los últimos 10 días:
+- tiempo de proceso de los webhooks, con la línea de meta;
+- mensajes salientes por estado, apilados y con leyenda.
+
+Los gráficos son barras livianas, sin librería, en `modulos/int/graficos.tsx`. Cada barra muestra su detalle al pasar el cursor. Debajo hay dos tablas: conectores con problemas y credenciales que vencen en 30 días.
+
+Los 10 días terminan en la última actividad registrada. En operación terminan hoy. En los datos de demostración, que son de octubre, terminan en su último día con movimiento, así el gráfico no queda vacío.
+
+## INT-13 Simulador de integraciones
+
+- **Qué hace:** dispara tres ejemplos (pago de Mercado Pago, mensaje de WhatsApp y pedido de WooCommerce) contra los endpoints de los conectores de prueba.
+- **Opciones:** con firma válida o inválida, y 1 o 3 envíos (los reintentos del proveedor).
+- **Mismo camino que un webhook real:** pasa por `Webhooks::recibir`, así que valida la firma y detecta los repetidos igual. Después vuelve a la sesión de quien simula, para que la bitácora lo registre con su usuario.
+- **Secreto de firma:** si el endpoint de prueba no tiene uno, el simulador genera un secreto de prueba y lo registra en la bitácora.
+- **Permiso:** pide `int.simulator.use`. Nunca dispara contra producción.
+- **Respuesta en pantalla:** HTTP y estado de cada envío, si fue repetido, la clave, la firma enviada, el cuerpo y un enlace a la bitácora.
+
+## Otros arreglos
+
+- **Formulario de credenciales:** el nombre largo del conector se salía de su caja. Ahora `Field` (componente común) tiene ancho mínimo cero y una sola columna flexible, así cualquier texto largo se corta con «…».
+- **Autocompletado del navegador:** ofrecía el correo y la contraseña guardados del sistema. Ahora el secreto usa `autocomplete="new-password"` y el nombre no se autocompleta.
+
+## Pruebas
+
+En `IntTest` hay 2 casos nuevos, 11 en total:
+- **corridas:**
+  - la lista de la demostración y sus filtros;
+  - el tipo de cambio falla sin culpar al conector, con un solo aviso a la tercera falla;
+  - WooCommerce no instalado en producción da 422 y corre en el conector de prueba;
+  - un conector de otro tipo se rechaza, y sin permiso no se ejecuta.
+- **salud y simulador:**
+  - los indicadores y los 10 días con datos;
+  - el pago de prueba enviado tres veces se procesa una sola vez;
+  - la firma inválida da 401;
+  - la bitácora queda con el usuario y sin permiso no se dispara.
+
+En total el sistema tiene 373 pruebas, todas correctas. Revisado en el navegador contra `aycha_test` (1440 y 375 px).
