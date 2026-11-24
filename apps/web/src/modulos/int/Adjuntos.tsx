@@ -110,23 +110,7 @@ export function Adjuntos({ entidad, id, clasificacion = "INTERNAL", camara, perm
   const aceptar = permitidos?.length ? permitidos.map((x) => `.${x.toLowerCase()}`).join(",") : "image/*,.pdf,.mp3,.ogg,.wav,.csv,.xlsx,.xml,.zip";
   return (
     <div className="grid gap-3">
-      {archivos === null && <p className="text-[13px] text-muted">Cargando…</p>}
-      {archivos?.length === 0 && <p className="text-[13px] text-muted">Sin archivos adjuntos.</p>}
-      {archivos?.map((a) => (
-        <div key={a.id} className="flex items-center gap-3 rounded-lg border border-line px-3 py-2">
-          <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-md bg-primary-soft font-mono text-[11px] font-semibold text-primary">{a.ext ?? "?"}</span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] text-ink" title={a.file_name}>{a.file_name}</p>
-            <p className="text-[12px] text-muted">{tamano(a.size_bytes)} · {a.classification_name} · {a.uploaded_by ?? "—"}</p>
-          </div>
-          {a.status === "ACTIVE" ? (
-            <div className="flex shrink-0 gap-1">
-              <Button size="sm" icon={Download} onClick={() => descarga.pedir(a)}>Descargar</Button>
-              {elimina && <Button size="sm" variant="ghost" icon={Trash2} onClick={() => eliminar(a)} aria-label={`Eliminar ${a.file_name}`}>Eliminar</Button>}
-            </div>
-          ) : <span title={a.deleted_reason ?? ""}><Badge>Eliminado</Badge></span>}
-        </div>
-      ))}
+      {/* Subir arriba, siempre en el mismo lugar. */}
       {sube && (
         <div className="grid gap-2 sm:grid-cols-[1fr_200px]">
           <label className={`flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-[9px] border border-dashed border-line px-3 text-[13px] font-medium text-ink hover:border-primary ${subiendo ? "pointer-events-none opacity-60" : ""}`}>
@@ -139,6 +123,26 @@ export function Adjuntos({ entidad, id, clasificacion = "INTERNAL", camara, perm
           {(permitidos?.length || maxMb) && <p className="text-[12px] text-muted sm:col-span-2">{permitidos?.join(", ")}{maxMb ? ` · hasta ${maxMb} MB` : ""}</p>}
         </div>
       )}
+      {/* Lo más nuevo primero; con muchos archivos la lista se desplaza dentro de su caja y no empuja la página. */}
+      <div className="grid max-h-80 gap-2 overflow-y-auto pr-0.5">
+        {archivos === null && <p className="text-[13px] text-muted">Cargando…</p>}
+        {archivos?.length === 0 && <p className="text-[13px] text-muted">Sin archivos adjuntos.</p>}
+        {archivos?.map((a) => (
+          <div key={a.id} className="flex items-center gap-3 rounded-lg border border-line px-3 py-2">
+            <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-md bg-primary-soft font-mono text-[11px] font-semibold text-primary">{a.ext ?? "?"}</span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] text-ink" title={a.file_name}>{a.file_name}</p>
+              <p className="text-[12px] text-muted">{tamano(a.size_bytes)} · {a.classification_name} · {a.uploaded_by ?? "—"}</p>
+            </div>
+            {a.status === "ACTIVE" ? (
+              <div className="flex shrink-0 gap-1">
+                <Button size="sm" icon={Download} onClick={() => descarga.pedir(a)}>Descargar</Button>
+                {elimina && <Button size="sm" variant="ghost" icon={Trash2} onClick={() => eliminar(a)} aria-label={`Eliminar ${a.file_name}`}>Eliminar</Button>}
+              </div>
+            ) : <span title={a.deleted_reason ?? ""}><Badge>Eliminado</Badge></span>}
+          </div>
+        ))}
+      </div>
       {descarga.modal}
     </div>
   );

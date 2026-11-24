@@ -502,6 +502,9 @@ class IntTest extends TestCase
         $this->assertSame(['PNG', 'CONFIDENTIAL', 'Pedido '.$pedido['label']], [$r->json('ext'), $r->json('classification'), $r->json('registro')]);
         $this->assertSame(64, strlen($r->json('sha256')));
         $id = $r->json('id');
+        // El mismo archivo otra vez en el mismo registro: no se guarda otra copia.
+        $this->como($gerente)->post('/api/v1/int/archivos', ['file' => $foto, 'entity' => 'sales_orders', 'entity_id' => $pedido['id'], 'classification' => 'INTERNAL'], ['Accept' => 'application/json'])
+            ->assertStatus(422)->assertJsonPath('message', 'Este archivo ya está adjunto a este registro.');
 
         // RN-INT-17: enlace firmado y temporal; el confidencial pide permiso (y el intento queda en la bitácora).
         $this->como('aexterno@donguando.pe')->postJson("/api/v1/int/archivos/{$id}/enlace")->assertStatus(422)->assertJsonPath('code', 'RN-INT-17');

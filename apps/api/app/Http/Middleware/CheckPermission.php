@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Modulos\Seg\Services\Bitacora;
 use App\Support\Access;
 use Closure;
 use Illuminate\Http\Request;
@@ -24,6 +25,9 @@ class CheckPermission
         }
         // El mensaje dice qué acción falta, sin el código interno del permiso.
         $accion = DB::table('permissions')->where('code', $permisos[0])->value('description');
+        // KPI-AUD-03: cada acceso denegado queda en la bitácora de accesos (AUD-03).
+        Bitacora::registrar('PERMISSION_DENIED', ['user' => $request->user(),
+            'detail' => ($accion ? 'Sin permiso para: '.mb_strtolower($accion) : 'Sin permiso').' · '.$request->method().' /'.$request->path()], denegado: true);
 
         return response()->json([
             'message' => $accion ? 'No tienes permiso para esta acción: '.mb_strtolower(mb_substr($accion, 0, 1)).mb_substr($accion, 1).'.' : 'No tienes permiso para esta acción.',

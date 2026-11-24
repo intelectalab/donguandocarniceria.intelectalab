@@ -89,6 +89,11 @@ final class Archivos
             }
         }
         $huella = hash_file('sha256', $archivo->getRealPath());
+        // El mismo archivo (misma huella) ya adjunto y vigente en ese registro: no se guarda otra copia.
+        if ($registro !== null && DB::table('file_attachments')->where('entity', $registro)->where('entity_id', $registroId)
+            ->where('sha256', $huella)->where('status', 'ACTIVE')->exists()) {
+            RuleError::fail('RN-INT-16', 'Este archivo ya está adjunto a este registro.');
+        }
         $id = (string) Str::uuid();
         $ruta = 'adjuntos/'.TenantContext::id().'/'.now()->format('Y/m').'/'.$id.'.'.strtolower($ext);
         Storage::disk(self::DISCO)->putFileAs(dirname($ruta), $archivo, basename($ruta));

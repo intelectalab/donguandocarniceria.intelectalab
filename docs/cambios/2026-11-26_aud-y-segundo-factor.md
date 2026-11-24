@@ -5,7 +5,7 @@ Rama `feature/aud-auditoria`, creada desde `feature/int-integraciones` (que toda
 ## Plan por tandas
 
 1. **Segundo factor:** activarlo con QR y códigos de recuperación (SEG-03), pedir el código al ingresar (SEG-02) y su parte en Mi cuenta (SEG-06). *Hecha.*
-2. Consulta de cambios (AUD-01), Historia del registro (AUD-02) y Bitácora de accesos (AUD-03).
+2. Consulta de cambios (AUD-01), Historia del registro (AUD-02) y Bitácora de accesos (AUD-03). *Hecha.*
 3. Accesos a datos sensibles (AUD-04) y Exportaciones con aprobación (AUD-05).
 4. Políticas de retención (AUD-06), Corridas de depuración (AUD-07) y Revisión de accesos (AUD-08).
 
@@ -92,3 +92,83 @@ En total el sistema tiene 380 pruebas, todas correctas. Revisado en el navegador
   - con un mes completo, el eje muestra solo el número del día, uno cada dos.
 - **Cifras de webhooks** (repetidos y tiempo de proceso p95): se miden hasta el último webhook válido. Los rechazados por firma ya no corren la ventana.
 - **Pruebas:** la de Salud revisa los dos tramos, que la línea tenga puntos, el mes de septiembre completo (30 días) y que un mes mal escrito se rechace.
+
+---
+
+# Tanda 2: consulta de cambios, historia del registro y bitácora de accesos (AUD-01 a AUD-03)
+
+## Arreglo de seguridad en la bitácora de cambios (RN-AUD-07)
+
+La bitácora de cambios (`audit.change_log`, la llena un trigger) enmascaraba los secretos solo por algunos nombres de columna (`password`, `token`, `secret`…). Las columnas cifradas nuevas quedaban copiadas con su valor cifrado: `secret_enc` de credenciales y webhooks, y `totp_secret_enc` y `totp_pending_enc` del segundo factor.
+
+Migración `2026_11_26_000200_aud_mascara_y_bitacora`:
+- **`audit.mask_sensitive` enmascara con «***»:** todo campo cuyo nombre lleve `password`, `token`, `secret`, `totp_secret`, `totp_pending`, `api_key`, `code_hash` o termine en `_enc`, y todo valor cifrado (`enc:v…`). Así se ve que el campo cambió, pero nunca su valor.
+- **Limpieza de lo ya guardado:** se limpian las filas que traían un secreto. La bitácora tiene una protección que no deja modificarla (`change_log_inmutable`); la migración la suspende solo durante esta limpieza, dentro de la misma transacción, y la vuelve a activar. Es la única vez que se toca la bitácora: para borrar un secreto que nunca debió quedar ahí.
+- **Índices** de la bitácora de accesos por fecha y por evento.
+
+## Accesos denegados en la bitácora (KPI-AUD-03)
+
+Antes los 403 no se anotaban. Ahora cada uno queda en la bitácora de accesos:
+- **sin permiso:** `PERMISSION_DENIED`, con la acción que faltaba y la ruta;
+- **módulo apagado:** `MODULE_DISABLED`;
+- **rol sin acceso al módulo:** `PERMISSION_DENIED`.
+
+## Reglas (`Aud\Services\Cambios` y `Aud\Services\Accesos`)
+
+- **RN-AUD-09, permisos:**
+  - la consulta completa (AUD-01) pide `aud.change_log.view`: administración del sistema, gerencia y auditoría;
+  - la historia de un registro (AUD-02) pide `aud.record_history.view`, sin el módulo de Auditoría, porque es una pestaña de cualquier ficha;
+  - las tablas de seguridad (usuarios, roles, credenciales, webhooks, códigos de recuperación…) solo se ven con la consulta completa;
+  - la bitácora de accesos (AUD-03) pide `aud.access_log.view`.
+- **RN-AUD-07, datos sensibles:**
+  - además de lo que enmascara la base, la API vuelve a enmascarar por nombre de campo;
+  - los datos personales (celular, documento, correo, dirección) se ven enmascarados;
+  - completos solo con `aud.export.personal_data` y pidiéndolo, y esa vista queda en la bitácora (`SENSITIVE_VIEW`).
+- **Consultas registradas:** filtrar AUD-01 o AUD-03 por una persona queda en la bitácora (`AUDIT_VIEWED`).
+- **Filas sin usuario:** son la carga inicial o procesos automáticos y se muestran como «Sistema». Por defecto AUD-01 muestra solo los cambios de personas; la carga inicial se incluye con una casilla.
+- **Fechas:** todas en hora de Lima, con segundos.
+- **Historia de un registro:** empieza en su alta más reciente. Si la base se volvió a cargar con el mismo registro, la historia es la de hoy.
+
+## Pantallas
+
+- **AUD-01 Consulta de cambios:**
+  - cifras: cambios en el filtro, usuarios distintos, tablas y hoy;
+  - filtros en la barra: tabla, usuario («Sistema» incluido), operación, desde y hasta (por defecto los últimos 30 días);
+  - casillas «Incluir la carga inicial y los procesos automáticos» y «Mostrar datos personales»;
+  - columnas: fecha y hora, usuario con su rol, operación, tabla, registro, y antes → después. Las cuatro primeras se ordenan;
+  - el detalle muestra todos los campos y lleva a la historia del registro.
+- **AUD-02 Historia del registro:**
+  - se elige el tipo y el registro; solo se ofrecen los que tienen historia;
+  - línea de tiempo de cambios (alta, cambio, borrado, con el antes y el después) y de accesos;
+  - el registro como está ahora;
+  - el componente `HistoriaRegistro` sirve para la pestaña «Historia» de cualquier ficha.
+- **AUD-03 Bitácora de accesos:**
+  - cifras en vivo: ingresos de hoy, y en los últimos 7 días los ingresos fallidos (con el segundo factor), los bloqueos y los accesos denegados;
+  - buscador por IP y filtros por evento, usuario, resultado, desde y hasta (por defecto los últimos 14 días);
+  - columnas: fecha y hora, usuario y rol, evento, IP, dispositivo y detalle;
+  - tabla «Accesos denegados por usuario y semana».
+
+## Archivos adjuntos (en esta rama)
+
+- **El panel:** el botón para subir y la clasificación van arriba; la lista, debajo, con lo más nuevo primero y que se desplaza dentro de su caja.
+- **Repetidos:** el mismo archivo (misma huella) no se adjunta dos veces al mismo registro; el sistema avisa «Este archivo ya está adjunto a este registro».
+
+## Pruebas
+
+`tests/Feature/Modulos/AudTest.php`, con 3 casos:
+- **consulta de cambios:**
+  - un cambio se ve campo por campo con la persona;
+  - por defecto, sin la carga inicial;
+  - el celular enmascarado y completo solo con permiso;
+  - una credencial nueva queda como «***» en la bitácora y en la API.
+- **permisos y historia:**
+  - administración no ve la consulta completa, y ese 403 queda en la bitácora;
+  - sí ve la historia de una marca, pero no la de un usuario;
+  - los registros para elegir y las tablas reservadas.
+- **bitácora de accesos:**
+  - las cifras y los denegados por semana;
+  - el filtro por evento y por fechas de la demostración;
+  - el rango inválido se rechaza;
+  - el filtro por persona queda en la bitácora.
+
+En `IntTest`, el archivo repetido. En total el sistema tiene 383 pruebas, todas correctas. Revisado en el navegador contra `aycha_test` (1440 y 375 px).
