@@ -7,7 +7,7 @@ import { api, mensajeDe } from "@/lib/api";
 
 type Canal = "in_app" | "email" | "push";
 type Fila = { type: string; name: string; fijo: boolean; in_app: boolean; email: boolean; push: boolean };
-type Datos = { usuario: { id: string; name: string }; data: Fila[]; puede_elegir: boolean; usuarios: { id: string; name: string }[] };
+type Datos = { usuario: { id: string; name: string }; data: Fila[]; puede_elegir: boolean; usuarios: { id: string; name: string; roles: string | null }[] };
 
 const CANALES: [Canal, string][] = [["in_app", "En la app"], ["email", "Correo"], ["push", "Push (Android)"]];
 
@@ -54,7 +54,7 @@ function Preferencias() {
         <div className="max-w-md">
           <Field label="Persona">
             <Select value={datos.usuario.id} onChange={(e) => router.replace(`/m/int/int-10?user=${e.target.value}`, { scroll: false })}
-              options={datos.usuarios.map((u) => ({ value: u.id, label: u.name }))} />
+              options={datos.usuarios.map((u) => ({ value: u.id, label: u.roles ? `${u.name} · ${u.roles}` : u.name }))} />
           </Field>
         </div>
       )}

@@ -130,7 +130,7 @@ final class Notificaciones
         })->values();
 
         return ['usuario' => ['id' => $persona->id, 'name' => $persona->name], 'data' => $filas, 'puede_elegir' => self::cambiaOtras($quien),
-            'usuarios' => self::cambiaOtras($quien) ? DB::table('users')->where('status', 'ACTIVE')->orderBy('name')->get(['id', 'name']) : []];
+            'usuarios' => self::cambiaOtras($quien) ? self::personasConRol() : []];
     }
 
     public static function guardarPreferencia(string $userId, string $tipo, array $canales, User $quien): array
@@ -161,6 +161,14 @@ final class Notificaciones
         $t = preg_replace('/^RN-[A-Z]{2,4}-\d+[a-z]?:\s*/u', '', $t);
 
         return trim((string) $t);
+    }
+
+    /** Personas activas con el nombre de su rol (o roles), para el selector de INT-10: «Rosa Quispe Huamán · Gerencia». */
+    private static function personasConRol()
+    {
+        return DB::table('users as u')->leftJoin('user_roles as ur', 'ur.user_id', '=', 'u.id')->leftJoin('roles as r', 'r.id', '=', 'ur.role_id')
+            ->where('u.status', 'ACTIVE')->groupBy('u.id', 'u.name')->orderBy('u.name')
+            ->select('u.id', 'u.name')->selectRaw("string_agg(r.name, ', ' ORDER BY r.name) AS roles")->get();
     }
 
     public static function veTodas(User $u): bool
