@@ -2,8 +2,12 @@
 
 namespace Tests\Feature\Modulos;
 
+use App\Models\User;
+use App\Modulos\Ops\Services\Planes;
 use App\Modulos\Ops\Services\Tickets;
 use App\Modulos\Ops\Services\UsuariosPlataforma;
+use App\Modulos\Plt\Services\Modulos;
+use App\Modulos\Sus\Services\ModulosDelPlan;
 use App\Modulos\Sus\Services\Pasarelas\PasarelaFake;
 use App\Modulos\Sus\Services\Suscripcion;
 use App\Support\RuleError;
@@ -1128,5 +1132,118 @@ class OpsTest extends TestCase
         $this->assertNull(Suscripcion::limite('users'), 'Sin suscripción no hay límites (RN-SUS-21)');
         $this->assertTrue(Suscripcion::operativa());
         TenantContext::set(null);
+    }
+
+    /* ---------------------------------------------------------------- tanda 9c: cambio de plan y complementos */
+
+    private function enEmpresa(string $tenant, \Closure $fn): mixed
+    {
+        TenantContext::set(TenantContext::find($tenant));
+        try {
+            return $fn();
+        } finally {
+            TenantContext::set(null);
+        }
+    }
+
+    private function modulosEncendidos(string $tenant): array
+    {
+        return $this->enEmpresa($tenant, fn () => DB::table('tenant_modules')->where('enabled', true)->orderBy('module_code')->pluck('module_code')->all());
+    }
+
+    public function test_subir_de_plan_con_prorrateo_y_bajar_al_fin_del_periodo(): void
+    {
+        [$admin, $sub, $norte, $empresa] = $this->empresaActiva();
+        $this->emisor($admin);
+        $this->tarjeta($empresa, 'ok', '4242');
+        $multi = DB::table('saas_plan_versions')->where('plan_code', 'MULTIMARCA')->where('status', 'PUBLISHED')->value('id');
+        $inicial = DB::table('saas_plan_versions')->where('plan_code', 'INICIAL')->where('status', 'PUBLISHED')->value('id');
+        $antes = $this->modulosEncendidos($norte);
+
+        // CA-SUS-06: el 19 de noviembre quedan 12 de 30 días: (599 − 299) × 12 / 30 = 120,00.
+        $planes = collect($this->desde(self::DG, $empresa)->getJson('/api/v1/suscripcion/planes')->assertOk()->json('planes'))->keyBy('plan_code');
+        $this->assertSame(['ACTUAL', 'SUBE', 'BAJA'], [$planes['CRECIMIENTO']['tipo'], $planes['MULTIMARCA']['tipo'], $planes['INICIAL']['tipo']]);
+        $this->assertEquals(120, $planes['MULTIMARCA']['prorrateo']['monto']);
+        $this->desde(self::DG, $empresa)->postJson('/api/v1/suscripcion/plan', ['plan_version_id' => $multi])->assertOk();
+        $this->assertSame('MULTIMARCA', DB::table('subscriptions')->where('id', $sub)->value('plan_code'));
+        TenantContext::platform();
+        $p = DB::table('saas_invoices')->where('tenant_id', $norte)->where('kind', 'PRORATION')->first();
+        TenantContext::set(null);
+        $this->assertSame(['141.60', 'PAID'], [$p->total, $p->payment_status], 'Comprobante aparte, emitido y cobrado');
+        $despues = $this->modulosEncendidos($norte);
+        $this->assertGreaterThan(count($antes), count($despues), 'RN-SUS-08: el plan nuevo enciende sus módulos en el momento');
+
+        // CA-SUS-07: con 6 usuarios no se baja a Inicial (5).
+        $this->enEmpresa($norte, function () {
+            foreach (range(1, 5) as $i) {
+                DB::table('users')->insert(['name' => "Persona {$i}", 'email' => "persona{$i}@carnesdelnorte.pe", 'role' => 'VENDEDORA', 'status' => 'ACTIVE',
+                    'password' => 'x', 'failed_logins' => 0]);
+            }
+        });
+        $this->desde(self::DG, $empresa)->postJson('/api/v1/suscripcion/plan', ['plan_version_id' => $inicial])->assertStatus(422)
+            ->assertJsonPath('code', 'RN-SUS-18')->assertJsonFragment(['message' => 'Con tu uso actual no entras en el plan Inicial: Usuarios del personal 6 de 5 (te sobran 1).']);
+
+        // Sin esos usuarios cabe: se programa para el 1 de diciembre, se puede deshacer, y la tarea lo aplica ese día.
+        $this->enEmpresa($norte, fn () => DB::table('users')->where('email', 'like', 'persona%')->update(['status' => 'INACTIVE']));
+        $this->desde(self::DG, $empresa)->postJson('/api/v1/suscripcion/plan', ['plan_version_id' => $inicial])->assertOk()->assertJsonPath('pendiente_desde', '2026-12-01');
+        $this->desde(self::DG, $empresa)->postJson('/api/v1/suscripcion/plan/deshacer')->assertOk()->assertJsonPath('pendiente', null);
+        $this->desde(self::DG, $empresa)->postJson('/api/v1/suscripcion/plan', ['plan_version_id' => $inicial])->assertOk();
+        $this->travelTo(Carbon::parse('2026-12-01 06:20', 'America/Lima'));
+        $this->artisan('sus:mora')->assertSuccessful();
+        $this->assertSame('INICIAL', DB::table('subscriptions')->where('id', $sub)->value('plan_code'));
+        $this->assertLessThan(count($antes), count($this->modulosEncendidos($norte)), 'Al bajar se apagan los módulos que el plan no incluye');
+    }
+
+    public function test_complementos_se_publican_con_precio_suben_limites_y_encienden_modulos(): void
+    {
+        [$admin, $sub, $norte, $empresa] = $this->empresaActiva();
+        [, $l1] = $this->cuenta($admin, 'luis.soporte@intelectalab.com', 'SUPPORT_L1');
+
+        // SUS-10: nacen en borrador sin precio; se publican con precio; solo administración y cobranza.
+        $lista = collect($this->consola($admin)->getJson('/api/v1/consola/complementos')->assertOk()->json('data'))->keyBy('code');
+        $this->assertSame('DRAFT', $lista['USERS_5']['status']);
+        $this->consola($admin)->postJson('/api/v1/consola/complementos/USERS_5/publicar')->assertStatus(422)->assertJsonPath('code', 'RN-SUS-01');
+        $this->consola($l1)->putJson('/api/v1/consola/complementos/USERS_5', ['name' => '5 usuarios más', 'kind' => 'LIMIT', 'limit_key' => 'users', 'unit_qty' => 5, 'price_pen' => 25])
+            ->assertStatus(422)->assertJsonPath('code', 'RN-OPS-10');
+        $this->consola($admin)->putJson('/api/v1/consola/complementos/USERS_5', ['name' => '5 usuarios más', 'kind' => 'LIMIT', 'limit_key' => 'users', 'unit_qty' => 5, 'price_pen' => 25])->assertOk();
+        $this->consola($admin)->postJson('/api/v1/consola/complementos/USERS_5/publicar')->assertOk()->assertJsonPath('status', 'PUBLISHED');
+
+        // Un módulo que Crecimiento no trae y cuyas dependencias sí trae.
+        $deseados = $this->enEmpresa($norte, fn () => ModulosDelPlan::deseados(Suscripcion::vigente()));
+        $catalogo = Planes::modulos();
+        $modulo = collect($catalogo)->first(fn ($m) => ! isset($deseados[$m['code']]) && ! $m['is_core'] && ! array_diff($m['depends_on'], array_keys($deseados)))['code'];
+        $this->consola($admin)->postJson('/api/v1/consola/complementos', ['code' => 'MOD_X', 'name' => 'Módulo extra', 'kind' => 'MODULE', 'module_code' => $modulo, 'price_pen' => 30])->assertCreated();
+        $this->consola($admin)->postJson('/api/v1/consola/complementos/MOD_X/publicar')->assertOk();
+
+        // SUS-03: la empresa contrata 2 × 5 usuarios (15 + 10 = 25) y el módulo, que se enciende como complemento.
+        $this->desde(self::DG, $empresa)->postJson('/api/v1/suscripcion/complementos/USERS_5', ['quantity' => 2])->assertOk();
+        $this->assertSame(25, $this->enEmpresa($norte, fn () => Suscripcion::limite('users')));
+        $this->desde(self::DG, $empresa)->postJson('/api/v1/suscripcion/complementos/MOD_X')->assertOk();
+        $this->assertSame('ADDON', $this->enEmpresa($norte, fn () => DB::table('tenant_modules')->where('module_code', $modulo)->where('enabled', true)->value('sus_source')));
+        $this->desde(self::DG, $empresa)->postJson('/api/v1/suscripcion/complementos/MOD_X')->assertStatus(422)->assertJsonPath('code', 'RN-SUS-01');
+
+        // La corrida cobra el plan y los complementos.
+        $this->emisor($admin);
+        $this->consola($admin)->postJson('/api/v1/consola/facturacion/corridas', ['period' => '2026-11'])->assertCreated();
+        $f = $this->consola($admin)->getJson("/api/v1/consola/facturacion?tenant={$norte}")->json('data.0.id');
+        $lineas = $this->consola($admin)->getJson("/api/v1/consola/facturacion/{$f}")->json('lineas');
+        $this->assertCount(3, $lineas);
+        $this->assertEquals(50, collect($lineas)->firstWhere('description', 'Complemento 5 usuarios más × 2')['subtotal']);
+
+        // Quitar: baja el límite y apaga el módulo; RN-SUS-09: la empresa ya no lo enciende a mano.
+        $this->desde(self::DG, $empresa)->deleteJson('/api/v1/suscripcion/complementos/USERS_5', ['quantity' => 1])->assertOk();
+        $this->assertSame(20, $this->enEmpresa($norte, fn () => Suscripcion::limite('users')));
+        $this->desde(self::DG, $empresa)->deleteJson('/api/v1/suscripcion/complementos/MOD_X')->assertOk();
+        $this->assertNotContains($modulo, $this->modulosEncendidos($norte));
+        $this->enEmpresa($norte, function () use ($modulo) {
+            $gerente = User::where('email', 'rosa.medina@carnesdelnorte.pe')->first();
+            try {
+                Modulos::cambiar($modulo, true, 'Lo quiero encender sin contratarlo', $gerente);
+                $this->fail('Debió rechazar un módulo no contratado');
+            } catch (RuleError $e) {
+                $this->assertSame('RN-SUS-09', $e->rule);
+            }
+        });
+        unset($sub);
     }
 }

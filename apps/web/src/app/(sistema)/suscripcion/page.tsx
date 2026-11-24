@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { CreditCard, Printer, RotateCcw, XCircle } from "lucide-react";
 import { Alert, Badge, Button, Checkbox, DataTable, Field, Input, Modal, PageHeader, Select, Tabs, Textarea, confirmAction, toast, type Column, type Tone } from "@/components/ui";
 import { PasarelaPrueba, type TarjetaTokenizada } from "@/components/suscripcion/PasarelaPrueba";
+import { CambiarPlan, Complementos } from "@/components/suscripcion/CambiarPlan";
 import { api, erroresDe, mensajeDe } from "@/lib/api";
 import { fecha, fechaHora, soles } from "@/lib/formato";
 import { useSesion } from "@/lib/sesion";
@@ -16,7 +17,7 @@ type Resumen = {
   price_pen: number | null; discount_pct: number; cuota: number | null; igv_rate: number; started_at: string; trial_ends_at: string | null; proximo_cobro: string | null;
   cancel_at_period_end: boolean; cancel_effective_on: string | null; conservacion_hasta: string | null; uso: Uso[]; pedidos_mes: number;
   deuda: { total: number; comprobantes: number; vence: string | null; dias: number }; medio_pago: Medio | null;
-  puede: { facturas: boolean; pagar: boolean; cancelar: boolean }; encuesta: Record<string, string>;
+  puede: { facturas: boolean; pagar: boolean; cancelar: boolean; cambiar: boolean }; encuesta: Record<string, string>;
 };
 type Comprobante = {
   id: string; doc_type: string; doc_type_name: string; number: string; payment_status: string; payment_status_name: string; sunat_status_name: string;
@@ -27,7 +28,7 @@ type Comprobante = {
 };
 
 const TONO_ESTADO: Record<string, Tone> = { TRIAL: "info", ACTIVE: "ok", PAST_DUE: "warn", READ_ONLY: "bad", SUSPENDED: "bad", CANCELLED: "neutral" };
-type Tab = "resumen" | "comprobantes" | "pago" | "cancelar";
+type Tab = "resumen" | "planes" | "complementos" | "comprobantes" | "pago" | "cancelar";
 
 /** Mi suscripción: plan, uso, comprobantes de GestionCarnica, tarjeta y cancelación. */
 export default function MiSuscripcion() {
@@ -51,7 +52,8 @@ function Contenido() {
   if (!r) return <p className="text-muted">Cargando…</p>;
   if (r.sin_suscripcion) return <Alert tone="info" title="Tu empresa opera sin suscripción">No tiene plan, límites ni cobros de GestionCarnica.</Alert>;
 
-  const tabs = [{ key: "resumen" as Tab, label: "Plan y uso" }, ...(r.puede.facturas ? [{ key: "comprobantes" as Tab, label: "Comprobantes", count: r.deuda.comprobantes || undefined }] : []),
+  const cambia = r.status !== "CANCELLED";
+  const tabs = [{ key: "resumen" as Tab, label: "Plan y uso" }, ...(cambia ? [{ key: "planes" as Tab, label: "Cambiar de plan" }, { key: "complementos" as Tab, label: "Complementos" }] : []), ...(r.puede.facturas ? [{ key: "comprobantes" as Tab, label: "Comprobantes", count: r.deuda.comprobantes || undefined }] : []),
     ...(r.puede.pagar ? [{ key: "pago" as Tab, label: "Medio de pago" }] : []), ...(r.puede.cancelar ? [{ key: "cancelar" as Tab, label: "Cancelar" }] : [])];
   const tab = tabs.some((t) => t.key === pedida) ? pedida! : "resumen";
   const ir = (t: Tab) => router.replace(`/suscripcion?tab=${t}`, { scroll: false });
@@ -61,6 +63,8 @@ function Contenido() {
       <PageHeader description="Tu plan de GestionCarnica, lo que usas de él, tus comprobantes y tu medio de pago." />
       <Tabs value={tab} onChange={ir} tabs={tabs} />
       {tab === "resumen" && <PlanYUso r={r} onPagar={() => ir("comprobantes")} />}
+      {tab === "planes" && <CambiarPlan puede={r.puede.cambiar} onCambio={cambiar} />}
+      {tab === "complementos" && <Complementos puede={r.puede.cambiar} onCambio={cambiar} />}
       {tab === "comprobantes" && <Comprobantes puedePagar={r.puede.pagar} tieneTarjeta={Boolean(r.medio_pago)} onCambio={cambiar} />}
       {tab === "pago" && <MedioDePago medio={r.medio_pago} onCambio={cambiar} />}
       {tab === "cancelar" && <Cancelar r={r} onCambio={cambiar} />}

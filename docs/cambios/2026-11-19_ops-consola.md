@@ -805,3 +805,58 @@ En total el sistema tiene 355 pruebas, todas correctas. Revisado en el navegador
 - Encender y apagar módulos según el plan (RN-SUS-08).
 - Historial de uso de 12 meses (SUS-04).
 - Métricas del negocio (OPS-10).
+
+# Tanda 9c (24/11): cambio de plan, complementos y módulos según el plan (SUS-02, SUS-03, SUS-10 y RN-SUS-08)
+
+La 9c se dividió en dos:
+- **9c:** cambio de plan, complementos y módulos.
+- **9d:** métricas del negocio (OPS-10) e historial de uso de 12 meses.
+
+## Base de datos
+
+Migración `2026_11_24_000300_sus_planes_y_complementos`:
+- `saas_addons`: catálogo de complementos. Encienden un módulo que no es del núcleo o suman unidades a un límite (usuarios, marcas, locales).
+  - Todos lo leen; solo la consola lo cambia.
+  - Publicado tiene precio (RN-SUS-01, lo exige la base).
+  - Vienen en borrador y sin precio, como propone la spec mientras no se decidan los precios (D-SUS-01): Telefonía, Contabilidad, Consignación, 5 usuarios más, 1 marca más y 1 local más.
+- `subscription_addons`: lo que contrató cada empresa, con el precio del momento. Lo ven la empresa (RLS) y la consola.
+- `subscriptions.pending_plan_version_id` y `pending_from`: bajada de plan programada.
+
+## Cambiar de plan (empresa · Mi suscripción → «Cambiar de plan»)
+
+- Comparador de los planes publicados: precio, límites, lo destacado y sus módulos. Muestra el prorrateo al subir y lo que excedería al bajar.
+- **Subir:** el cambio es inmediato.
+  - Se cobra el prorrateo de los días que quedan del mes en un comprobante aparte: (cuota nueva − anterior) × días restantes / días del mes (RN-SUS-18, CA-SUS-06). Se emite y se cobra solo si hay RUC emisor y cobro automático.
+  - Los módulos del plan nuevo se encienden en el momento.
+- **Bajar:** se aplica el 1 del mes siguiente y solo si el uso actual cabe (CA-SUS-07: «Usuarios del personal 6 de 5»).
+  - Se puede deshacer antes.
+  - Ese día la tarea diaria vuelve a revisar el uso: si ya no cabe, no se aplica y queda en el historial.
+- En prueba, el cambio es inmediato y sin cobro.
+
+## Complementos
+
+- **Consola · Producto → Complementos** (SUS-10; administración y cobranza): crear, editar el borrador, publicar con precio y retirar. Uno publicado solo cambia nombre y descripción; retirado ya no se contrata.
+- **Empresa · Mi suscripción → «Complementos»** (SUS-03): contratar y quitar.
+  - **De límite:** suben el límite efectivo (plan + complementos, D-SUS-07). No se quitan si el uso quedaría por encima.
+  - **De módulo:** encienden el módulo si el plan trae lo que necesita (RN-SUS-01). No se quitan si otro módulo depende de él.
+  - Se cobran en la corrida del mes como líneas del comprobante, sin el descuento del plan.
+
+## Módulos según el plan (RN-SUS-08 y RN-SUS-09)
+
+- `ModulosDelPlan::sincronizar()`: núcleo + plan + complementos quedan encendidos y los demás apagados. Corre al cambiar de plan, al aplicar una bajada y al contratar o quitar un complemento.
+- Un módulo que la empresa apagó a mano queda `MANUAL` y el plan no lo vuelve a encender.
+- En **Plataforma → Módulos** (PLT, cambio de dos líneas en `Modulos::cambiar`): con suscripción, la empresa ya no enciende un módulo que no esté contratado. Al apagar uno queda `MANUAL`; al encenderlo toma su origen en el plan.
+
+## Pruebas
+
+2 pruebas nuevas en `OpsTest`:
+- subir con prorrateo de 120 + IGV, pagado; módulos encendidos; bajar rechazado por uso; bajar programado, deshacer y aplicado el 1 de diciembre con módulos apagados;
+- complementos: publicar con precio, permisos, límite que sube y baja, módulo encendido como complemento, corrida con las líneas, quitar y RN-SUS-09 en PLT.
+
+En total el sistema tiene 357 pruebas, todas correctas. Revisado en el navegador contra `aycha_test` (1440 y 375 px).
+
+## Pendiente
+
+- **Tanda 9d:** métricas del negocio (OPS-10) e historial de uso de 12 meses (SUS-04).
+- Complementos de números de WhatsApp, minutos, pedidos y llamadas de API, cuando se midan esos usos.
+- Precios de planes y complementos (D-SUS-01).

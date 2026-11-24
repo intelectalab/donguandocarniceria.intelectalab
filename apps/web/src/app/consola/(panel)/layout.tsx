@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Activity, AlarmClock, Building2, ChevronDown, CreditCard, Database, Inbox, KeyRound, Layers, LifeBuoy, Loader2, LogOut, Megaphone, Menu, Moon, ReceiptText, ScrollText, Settings2, ShieldCheck, Siren, Sun, Users, Wallet, type LucideIcon,
+  Activity, AlarmClock, Building2, ChevronDown, CreditCard, Database, Inbox, KeyRound, Layers, LifeBuoy, Loader2, LogOut, Megaphone, Menu, Moon, PackagePlus, ReceiptText, ScrollText, Settings2, ShieldCheck, Siren, Sun, Users, Wallet, type LucideIcon,
 } from "lucide-react";
 import { UiHost } from "@/components/ui";
 import { Franja } from "@/components/ui/Franja";
@@ -36,6 +36,7 @@ const GRUPOS: { name: string; items: Item[] }[] = [
   ] },
   { name: "Producto", items: [
     { href: "/consola/planes", label: "Catálogo de planes", icon: Layers },
+    { href: "/consola/complementos", label: "Complementos", icon: PackagePlus },
     { href: "/consola/catalogos", label: "Catálogos globales", icon: Database },
   ] },
   { name: "Plataforma", items: [

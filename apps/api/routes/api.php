@@ -17,6 +17,7 @@ use App\Modulos\Ops\Http\Controllers\OperacionController;
 use App\Modulos\Ops\Http\Controllers\PlanController;
 use App\Modulos\Ops\Http\Controllers\PlataformaController;
 use App\Modulos\Sus\Http\Controllers\CobroController;
+use App\Modulos\Sus\Http\Controllers\ComplementoController;
 use App\Modulos\Sus\Http\Controllers\PasarelaController;
 use Illuminate\Support\Facades\Route;
 
@@ -131,6 +132,12 @@ Route::prefix('v1/consola')->group(function () {
         Route::get('/cobros', [CobroController::class, 'cobros']);
         Route::post('/cobros/conciliar', [CobroController::class, 'conciliar']);
         Route::get('/mora', [CobroController::class, 'mora']);
+        // SUS-10 Complementos (cambiar: administración y cobranza; lo valida el servicio)
+        Route::get('/complementos', [ComplementoController::class, 'index']);
+        Route::post('/complementos', [ComplementoController::class, 'guardar']);
+        Route::put('/complementos/{code}', [ComplementoController::class, 'guardar'])->where('code', '[A-Z0-9_]{2,20}');
+        Route::post('/complementos/{code}/publicar', [ComplementoController::class, 'publicar'])->where('code', '[A-Z0-9_]{2,20}');
+        Route::post('/complementos/{code}/retirar', [ComplementoController::class, 'retirar'])->where('code', '[A-Z0-9_]{2,20}');
         Route::post('/mora/{sub}/recordatorio', [CobroController::class, 'recordatorio'])->middleware('throttle:20,1')->whereUuid('sub');
         Route::post('/mora/{sub}/prorroga', [CobroController::class, 'prorroga'])->whereUuid('sub');
         Route::post('/mora/{sub}/cobrar', [CobroController::class, 'cobrarAhora'])->middleware('throttle:20,1')->whereUuid('sub');

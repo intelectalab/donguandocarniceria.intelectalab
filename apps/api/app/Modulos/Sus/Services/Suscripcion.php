@@ -57,8 +57,14 @@ final class Suscripcion
             return null;
         }
         $v = DB::table('saas_plan_versions')->where('id', $s->plan_version_id)->value(self::LIMITES[$clave][0]);
+        if ($v === null) {
+            return null;
+        }
+        // D-SUS-07: el del plan más los complementos de ese límite contratados.
+        $extra = (int) DB::table('subscription_addons as x')->join('saas_addons as a', 'a.code', '=', 'x.addon_code')->where('x.subscription_id', $s->id)
+            ->where('x.status', 'ACTIVE')->where('a.kind', 'LIMIT')->where('a.limit_key', $clave)->sum(DB::raw('x.quantity * a.unit_qty'));
 
-        return $v === null ? null : (int) $v;
+        return (int) $v + $extra;
     }
 
     /** Uso actual de una clave de LIMITES en la empresa en contexto. */
@@ -111,7 +117,8 @@ final class Suscripcion
             'pedidos_mes' => DB::table('sales_orders')->where('status', '!=', 'DRAFT')->where('created_at', '>=', $mes)->count(),
             'deuda' => self::deuda(),
             'medio_pago' => self::medio(),
-            'puede' => ['facturas' => self::puede($u, 'sus.invoice.view'), 'pagar' => self::puede($u, 'sus.payment_method.manage'), 'cancelar' => self::puede($u, 'sus.subscription.cancel')],
+            'puede' => ['facturas' => self::puede($u, 'sus.invoice.view'), 'pagar' => self::puede($u, 'sus.payment_method.manage'), 'cancelar' => self::puede($u, 'sus.subscription.cancel'),
+                'cambiar' => self::puede($u, 'sus.subscription.change_plan')],
         ];
     }
 

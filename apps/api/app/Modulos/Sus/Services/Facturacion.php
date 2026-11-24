@@ -62,7 +62,13 @@ final class Facturacion
             $subtotal = round((float) $s->price_pen * (1 - (float) ($s->discount_pct ?? 0) / 100), 2);
             $descripcion = 'Suscripción GestionCarnica · plan '.($s->plan_name ?? $s->plan_code).' · '.mb_strtolower($inicio->translatedFormat('F Y'))
                 .((float) $s->discount_pct > 0 ? ' (descuento '.rtrim(rtrim(number_format((float) $s->discount_pct, 2), '0'), '.').' %)' : '');
-            $creados[] = self::borrador($s, $periodo, $inicio, $fin, $run, [[$descripcion, $subtotal]], $quien['id']);
+            // Complementos contratados: a su precio del momento, sin el descuento del plan.
+            $lineas = [[$descripcion, $subtotal]];
+            foreach (DB::table('subscription_addons as x')->join('saas_addons as a', 'a.code', '=', 'x.addon_code')->where('x.subscription_id', $s->id)
+                ->where('x.status', 'ACTIVE')->where('x.started_at', '<=', $fin)->get(['a.name', 'x.quantity', 'x.unit_price']) as $c) {
+                $lineas[] = ["Complemento {$c->name}".($c->quantity > 1 ? " × {$c->quantity}" : ''), round((float) $c->unit_price * $c->quantity, 2)];
+            }
+            $creados[] = self::borrador($s, $periodo, $inicio, $fin, $run, $lineas, $quien['id']);
         }
 
         $emitidos = 0;
@@ -85,6 +91,30 @@ final class Facturacion
             'detail' => ['comprobantes' => count($creados), 'emitidos' => $emitidos, 'total' => $total]]);
 
         return array_merge((array) DB::table('saas_billing_runs')->where('id', $run)->first(), ['notes' => $notas]);
+    }
+
+    /**
+     * Cargo fuera de la corrida (prorrateo al subir de plan, RN-SUS-18): un comprobante aparte del mes en curso. Se emite
+     * y se cobra si hay RUC emisor y cobro automático; si no, queda en borrador para la consola. Corre como consola
+     * (las series son de Intelectalab) y vuelve al contexto de quien lo pidió.
+     */
+    public static function cargoExtra(object $s, string $kind, string $descripcion, float $subtotal): string
+    {
+        $antes = TenantContext::id();
+        TenantContext::platform();
+        try {
+            $t = DB::table('tenants')->where('id', $s->tenant_id)->first(['name', 'ruc']);
+            $fila = (object) ['id' => $s->id, 'tenant_id' => $s->tenant_id, 'ruc' => $t->ruc, 'legal_name' => $t->name];
+            $id = self::borrador($fila, now()->format('Y-m'), now()->startOfMonth(), now()->endOfMonth(), null, [[$descripcion, $subtotal]], null, $kind);
+            if (self::emisor()) {
+                self::emitir($id, [], sinPermiso: true);
+                Pagos::cobrarSiCorresponde($id, 'AUTO');
+            }
+
+            return $id;
+        } finally {
+            $antes ? TenantContext::set(TenantContext::find($antes)) : TenantContext::set(null);
+        }
     }
 
     /** Emite un borrador: serie y correlativo de Intelectalab, fecha y vencimiento (RN-SUS-12, RN-SUS-19). */
@@ -235,7 +265,7 @@ final class Facturacion
     /* ------------------------------------------------------------------ internos */
 
     /** @param  array<int, array{0: string, 1: float}>  $lineas  descripción y subtotal (sin IGV) */
-    private static function borrador(object $s, string $periodo, Carbon $inicio, Carbon $fin, string $run, array $lineas, ?string $quien): string
+    private static function borrador(object $s, string $periodo, Carbon $inicio, Carbon $fin, ?string $run, array $lineas, ?string $quien, string $kind = 'PERIOD'): string
     {
         $tasa = (float) Consola::param('sus_igv_rate', 0.18);
         $esRuc = strlen($s->ruc) === 11;
@@ -246,7 +276,8 @@ final class Facturacion
             'tenant_id' => $s->tenant_id, 'subscription_id' => $s->id, 'run_id' => $run, 'doc_type' => $esRuc ? 'INVOICE' : 'RECEIPT', 'period' => $periodo,
             'period_start' => $inicio->toDateString(), 'period_end' => $fin->toDateString(), 'customer_doc_type' => $esRuc ? 'RUC' : 'DNI',
             'customer_doc_number' => $s->ruc, 'customer_name' => mb_substr($s->legal_name, 0, 200), 'customer_address' => self::direccion($s->tenant_id),
-            'subtotal' => $subtotal, 'igv' => $igv, 'total' => round($subtotal + $igv, 2), 'igv_rate' => $tasa, 'created_by' => $quien, 'created_at' => now(), 'updated_at' => now(),
+            'subtotal' => $subtotal, 'igv' => $igv, 'total' => round($subtotal + $igv, 2), 'igv_rate' => $tasa, 'kind' => $kind, 'created_by' => $quien,
+            'created_at' => now(), 'updated_at' => now(),
         ], 'id');
         foreach ($filas as $i => $l) {
             DB::table('saas_invoice_lines')->insert($l + ['invoice_id' => $id, 'tenant_id' => $s->tenant_id, 'sort' => $i + 1, 'quantity' => 1, 'unit_price' => $l['subtotal'],
@@ -259,11 +290,13 @@ final class Facturacion
     /** Domicilio fiscal de la empresa (está en sus propios datos: se lee con su contexto y se vuelve a la consola). */
     private static function direccion(string $tenant): ?string
     {
+        $antes = TenantContext::id();
+        $plataforma = DB::selectOne("SELECT current_setting('app.platform', true) = 'on' AS si")->si;
         TenantContext::set(TenantContext::find($tenant));
         try {
             return DB::table('companies')->orderBy('created_at')->value('fiscal_address');
         } finally {
-            TenantContext::platform();
+            $antes ? TenantContext::set(TenantContext::find($antes)) : ($plataforma ? TenantContext::platform() : TenantContext::set(null));
         }
     }
 

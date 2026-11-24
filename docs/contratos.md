@@ -383,7 +383,7 @@ Límite efectivo del plan contratado. `null` = sin límite.
 | `brands` | `brands_max` | Marcas activas |
 | `sites` | `sites_max` | Locales activos |
 
-Cuando lleguen los complementos (tanda 9c), el límite efectivo será el del plan más los complementos activos (D-SUS-07); la firma no cambia.
+Desde la tanda 9c, el límite efectivo es el del plan más los complementos de ese límite contratados (D-SUS-07).
 
 ### `Suscripcion::usado(string $clave): int`
 
@@ -420,4 +420,4 @@ Todavía no se emiten al outbox de INT.
 
 - **SEG y PLT:** llamar `exigirLimite('users' | 'brands' | 'sites')` en el alta y la reactivación de usuarios, marcas y locales (CA-SUS-02).
 - **API:** el límite de llamadas por día llega con los complementos (9c).
-- **RN-SUS-08:** encender y apagar módulos según el plan y los complementos, también en 9c.
+- **RN-SUS-08:** hecho en 9c (`ModulosDelPlan::sincronizar()`); PLT revisa con `ModulosDelPlan::contratado()` antes de encender un módulo a mano.
