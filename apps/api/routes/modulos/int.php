@@ -1,5 +1,6 @@
 <?php
 
+use App\Modulos\Int\Http\Controllers\AvisoArchivoController;
 use App\Modulos\Int\Http\Controllers\ConectorController;
 use App\Modulos\Int\Http\Controllers\OperacionIntController;
 use App\Modulos\Int\Http\Controllers\SalienteController;
@@ -7,7 +8,7 @@ use App\Modulos\Int\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 
 // INT · Integraciones: conectores y credenciales (INT-01 a INT-03), webhooks (INT-04, INT-05), mensajes salientes y cola muerta (INT-06, INT-07),
-// corridas (INT-08), salud (INT-12) y simulador (INT-13).
+// corridas (INT-08), notificaciones, preferencias y archivos (INT-09 a INT-11), salud (INT-12) y simulador (INT-13).
 Route::prefix('int')->group(function () {
     $conector = 'permiso:int.connector.manage';
     $credencial = 'permiso:int.credential.rotate';
@@ -48,4 +49,18 @@ Route::prefix('int')->group(function () {
     Route::get('/salud', [OperacionIntController::class, 'salud'])->middleware('modulo:INT');
     Route::get('/simulador', [OperacionIntController::class, 'simulador'])->middleware('modulo:INT');
     Route::post('/simulador', [OperacionIntController::class, 'simular'])->middleware(['modulo:INT,E', 'permiso:int.simulator.use', 'throttle:20,1']);
+
+    // INT-09 Centro de notificaciones e INT-10 Preferencias: cada persona las suyas (el servicio revisa quién ve todas)
+    Route::get('/notificaciones', [AvisoArchivoController::class, 'notificaciones'])->middleware('modulo:INT');
+    Route::post('/notificaciones/leer-todas', [AvisoArchivoController::class, 'marcarTodas'])->middleware('modulo:INT');
+    Route::post('/notificaciones/{id}/leida', [AvisoArchivoController::class, 'marcar'])->middleware('modulo:INT')->whereUuid('id');
+    Route::get('/preferencias', [AvisoArchivoController::class, 'preferencias'])->middleware('modulo:INT');
+    Route::put('/preferencias', [AvisoArchivoController::class, 'guardarPreferencia'])->middleware(['modulo:INT', 'throttle:60,1']);
+
+    // INT-11 Archivos adjuntos (la descarga va por un enlace firmado y temporal: routes/api.php)
+    Route::get('/archivos', [AvisoArchivoController::class, 'archivos'])->middleware('modulo:INT');
+    Route::get('/archivos/registros', [AvisoArchivoController::class, 'registros'])->middleware('modulo:INT');
+    Route::post('/archivos', [AvisoArchivoController::class, 'subir'])->middleware(['modulo:INT,C', 'permiso:int.file.upload', 'throttle:30,1']);
+    Route::post('/archivos/{id}/enlace', [AvisoArchivoController::class, 'enlace'])->middleware(['modulo:INT', 'throttle:60,1'])->whereUuid('id');
+    Route::post('/archivos/{id}/eliminar', [AvisoArchivoController::class, 'eliminar'])->middleware(['modulo:INT,E', 'permiso:int.file.delete'])->whereUuid('id');
 });

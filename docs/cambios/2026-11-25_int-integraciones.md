@@ -298,3 +298,74 @@ En `IntTest` hay 2 casos nuevos, 11 en total:
   - la bitácora queda con el usuario y sin permiso no se dispara.
 
 En total el sistema tiene 373 pruebas, todas correctas. Revisado en el navegador contra `aycha_test` (1440 y 375 px).
+
+---
+
+# Tanda 5: centro de notificaciones, preferencias y archivos adjuntos (INT-09, INT-10 e INT-11)
+
+## Base de datos
+
+Migración `2026_11_25_000500_int_notificaciones_y_archivos`:
+- **Preferencias:** una por persona y tipo de aviso, y solo los tipos que existen.
+- **Notificaciones:** índices para la lista de cada persona y la de su rol.
+- **Archivos:** nombre, motivo y quién lo subió o eliminó caben enteros. La clasificación y el estado se limitan a sus valores, el tamaño nunca es cero, y hay un índice por registro.
+
+## INT-09 Centro de notificaciones (`Services\Notificaciones`)
+
+- **Avisos de la persona:** los suyos y los de su rol, con su severidad. Los avisos antiguos sin severidad la toman de su color.
+- **Marcar:** cada aviso se marca como leído o no leído. Los de rol se marcan solo para esa persona. También hay «Marcar todas como leídas».
+- **Filtros:** buscador en el aviso, severidad, tipo y lectura.
+- **Cifras:** sin leer, críticas sin leer y recibidas en 30 días.
+- **Todas por destinatario:** gerencia, administración del sistema y auditoría ven todas las de la empresa, con su destinatario. Los avisos ajenos no se pueden marcar.
+- **Abrir:** al abrir un aviso, se marca como leído y lleva al registro que lo originó.
+- **Sin códigos internos:** los avisos de la demostración traían el código de la regla, como «(RN-INT-20)». Se quitan en el centro y en la campana.
+
+## INT-10 Preferencias
+
+- Una tabla por tipo de aviso con tres interruptores: en la app, correo y push (Android). Los avisos críticos llegan siempre y no se pueden apagar.
+- **RN-INT-15:** apagar «en la app» oculta ese tipo de aviso en el centro y también en la campana, porque los dos usan la misma consulta (`Notificaciones::mias`). Los críticos se muestran siempre.
+- El correo y el push quedan guardados como preferencia. Se enviarán cuando estén configurados sus conectores (correo y Firebase).
+- Gerencia y administración del sistema pueden ajustar las preferencias de otra persona. Las demás personas, solo las suyas.
+
+## INT-11 Archivos adjuntos (`Services\Archivos`)
+
+- **Panel reutilizable:** `modulos/int/Adjuntos.tsx`, para que lo usen las fichas de pedido, cobro o trabajador cuando se construyan:
+  - lista los archivos del registro;
+  - permite subir un archivo, y en el celular el navegador ofrece también la cámara;
+  - descarga con un enlace temporal y elimina con motivo.
+- **RN-INT-16, tipos y tamaño:**
+  - solo los tipos de `int_file_allowed_types`, hasta `int_file_max_mb` (20 MB);
+  - se revisa el contenido real del archivo, sus primeros bytes, y no solo el nombre: un «.pdf» que no es PDF se rechaza;
+  - se guarda su huella SHA-256;
+  - el archivo va al disco privado del servidor (`storage/app/private/adjuntos/<empresa>/…`) con un nombre propio, nunca con el que trae quien lo sube.
+- **RN-INT-17, descarga:**
+  - nunca hay una dirección pública: se descarga con un enlace firmado que vence a los 10 minutos (`int_file_link_minutes`);
+  - la firma lleva el archivo, la empresa y el vencimiento, y se firma la ruta relativa para que valga detrás del proxy;
+  - los archivos confidenciales y de datos personales piden `int.file.view_confidential`. La descarga y también el intento sin permiso quedan en la bitácora;
+  - la respuesta lleva las cabeceras `nosniff` y `no-store`.
+- **RN-INT-18, eliminar:** pide `int.file.delete` y un motivo de al menos 10 caracteres. El archivo queda marcado como eliminado y no se descarga más; el contenido se depura después, según la retención.
+- **Datos de la demostración:** los archivos de ejemplo no tienen contenido guardado. Al pedir su descarga, el sistema lo dice.
+- **Pantalla:**
+  - cifras: archivos activos, espacio usado, confidenciales o personales, y eliminados;
+  - tabla con buscador y filtros por registro, clasificación y estado;
+  - el panel «Adjuntar a un registro», con el tipo de registro, el registro y una clasificación sugerida (datos personales para trabajadores, confidencial para cobros y proveedores).
+
+**Pendiente en el servidor:** el sitio de GestionCarnica en nginx tiene `client_max_body_size 2m`. Hay que subirlo a 20 MB (o al valor de `int_file_max_mb`) para que se puedan subir archivos más grandes. PHP ya acepta 100 MB.
+
+## Pruebas
+
+En `IntTest` hay 2 casos nuevos, 13 en total:
+- **notificaciones:**
+  - marcar como leída o no leída, y que no aparezcan códigos de reglas;
+  - «todas» solo para quien puede, y un aviso ajeno no se marca;
+  - las preferencias ocultan un tipo en el centro y en la campana, y los críticos no se apagan;
+  - «Marcar todas» deja cero sin leer;
+  - las preferencias de otra persona, solo con el rol que corresponde.
+- **archivos:**
+  - un tipo no permitido, un contenido falso o un archivo demasiado grande se rechazan, y quien solo consulta no sube;
+  - una foto subida a un pedido guarda su huella SHA-256;
+  - el enlace firmado sirve; alterado o vencido se rechaza;
+  - el archivo confidencial sin permiso se rechaza y queda en la bitácora;
+  - eliminar pide permiso y motivo, y lo eliminado no se descarga.
+
+En total el sistema tiene 375 pruebas, todas correctas. Revisado en el navegador contra `aycha_test` (1440 y 375 px).

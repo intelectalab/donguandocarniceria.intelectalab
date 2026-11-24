@@ -58,7 +58,7 @@ function ColaMuerta() {
       <PageHeader description={`Los mensajes que fallaron ${lista?.max_intentos ?? 8} veces seguidas. Ya no se reintentan solos: revisa el error, corrige la causa (la plantilla, la credencial, el proveedor) y reinténtalo, o cancélalo si ya no hace falta. Las dos acciones piden un motivo de al menos 10 caracteres y quedan registradas.`} />
       {!gestiona && <Alert tone="info">Tu rol puede consultar la cola muerta, pero no reintentar ni cancelar mensajes.</Alert>}
       {c && (
-        <div className="grid grid-cols-2 gap-3 lg:max-w-xl">
+        <div className="grid grid-cols-2 gap-3">
           <Cifra titulo="En cola muerta" valor={numero(c.muertos)} icono={Skull} tono={c.muertos ? "bad" : "ok"} detalle="Meta: 0" />
           <Cifra titulo="Atendidos a mano" valor={numero(c.atendidos)} icono={Hand} detalle="Reintentados o cancelados" />
         </div>

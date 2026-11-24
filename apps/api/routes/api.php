@@ -8,6 +8,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicoController;
 use App\Http\Controllers\TenantController;
 use App\Modulos\Cli\Http\Controllers\EnlaceController;
+use App\Modulos\Int\Http\Controllers\AvisoArchivoController;
 use App\Modulos\Int\Http\Controllers\WebhookController;
 use App\Modulos\Onb\Http\Controllers\RegistroController;
 use App\Modulos\Ops\Http\Controllers\AccesoConsolaController;
@@ -50,6 +51,11 @@ Route::prefix('v1/publico')->group(function () {
 // INT-04 · webhooks de entrada de los proveedores: públicos, sin sesión. La empresa sale del token de la URL y sin firma
 // válida no se procesan (RN-INT-04). Responden 200 a todo evento firmado, también a uno repetido (RN-INT-05).
 Route::post('/hooks/{token}', [WebhookController::class, 'recibir'])->middleware('throttle:120,1')->where('token', '[A-Za-z0-9]{16,80}');
+
+// INT-11 · descarga de un archivo adjunto con su enlace firmado y temporal (RN-INT-17): sin sesión; la firma lleva el
+// archivo, la empresa y el vencimiento. Se firma la ruta relativa para que valga detrás del proxy.
+Route::get('/v1/archivos/{id}', [AvisoArchivoController::class, 'descargar'])->name('int.archivo')
+    ->middleware(['signed:relative', 'throttle:60,1'])->whereUuid('id');
 
 // OPS · Consola de Intelectalab: sin empresa (no pasa por «tenant» ni por Sanctum). Usuarios de plataforma con
 // su propio ingreso, segundo factor obligatorio y sesión «gcc_…» (middleware «consola»). Ver docs/cambios.

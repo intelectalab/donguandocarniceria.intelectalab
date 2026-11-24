@@ -7,9 +7,11 @@ use App\Modulos\Int\Services\Salientes;
 use App\Modulos\Int\Services\Webhooks;
 use App\Support\RuleError;
 use App\Support\TenantContext;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /** INT · Integraciones. Conectores (INT-01, INT-02), credenciales (INT-03), mensajes salientes y cola muerta (INT-06, INT-07). */
@@ -420,6 +422,107 @@ class IntTest extends TestCase
         // La sesión sigue siendo de quien simula (la bitácora lo registra con su usuario).
         $this->enDonGuando(fn () => $this->assertNotNull(DB::table('domain_events')->where('event_name', 'integration.simulated')->orderByDesc('id')->value('user_id')));
         $this->como(self::SIN_PERMISO)->postJson('/api/v1/int/simulador', ['ejemplo' => 'MP', 'veces' => 1])->assertForbidden();
+    }
+
+    public function test_centro_de_notificaciones_y_preferencias_respetadas(): void
+    {
+        $l = $this->como(self::ADMIN)->getJson('/api/v1/int/notificaciones')->assertOk();
+        $sinLeer = $l->json('cifras.sin_leer');
+        $this->assertTrue($l->json('ve_todas'));
+        $this->assertStringNotContainsString('(RN-', $this->como(self::ADMIN)->getJson('/api/v1/int/notificaciones?per_page=100')->getContent(), 'Sin códigos de reglas en pantalla');
+        $this->assertGreaterThan(0, $l->json('total'));
+        $n = collect($l->json('data'))->first(fn ($x) => $x['severity'] !== 'CRITICAL' && $x['type']);
+
+        // Leída y no leída.
+        $this->como(self::ADMIN)->postJson("/api/v1/int/notificaciones/{$n['id']}/leida", ['leida' => ! $n['read']])->assertNoContent();
+        $this->assertSame(! $n['read'], collect($this->como(self::ADMIN)->getJson('/api/v1/int/notificaciones?per_page=100')->json('data'))->firstWhere('id', $n['id'])['read']);
+
+        // Todas (por destinatario) solo para quien puede; las de otra persona no se marcan.
+        $todas = $this->como(self::ADMIN)->getJson('/api/v1/int/notificaciones?scope=all&per_page=100')->assertOk();
+        $this->assertNotNull($todas->json('data.0.destino'));
+        $ajena = collect($todas->json('data'))->firstWhere('mia', false);
+        $this->como(self::ADMIN)->postJson("/api/v1/int/notificaciones/{$ajena['id']}/leida", ['leida' => true])->assertNotFound();
+        $this->como(self::SIN_PERMISO)->getJson('/api/v1/int/notificaciones?scope=all')->assertStatus(422)->assertJsonPath('code', 'RN-INT-15');
+
+        // RN-INT-15: apagar «en la app» un tipo lo oculta aquí y en la campana; los críticos siguen llegando.
+        $yo = $this->como(self::ADMIN)->getJson('/api/v1/int/preferencias')->assertOk();
+        $uid = $yo->json('usuario.id');
+        $this->assertTrue(collect($yo->json('data'))->firstWhere('type', 'CRITICAL')['fijo']);
+        $this->como(self::ADMIN)->putJson('/api/v1/int/preferencias', ['user' => $uid, 'type' => 'CRITICAL', 'in_app' => false])->assertStatus(422)->assertJsonPath('code', 'RN-INT-15');
+        $this->como(self::ADMIN)->putJson('/api/v1/int/preferencias', ['user' => $uid, 'type' => $n['type'], 'in_app' => false, 'email' => true])->assertOk();
+        $ids = array_column($this->como(self::ADMIN)->getJson('/api/v1/int/notificaciones?per_page=100')->json('data'), 'id');
+        $this->assertNotContains($n['id'], $ids);
+        $this->assertNotContains($n['id'], array_column($this->como(self::ADMIN)->getJson('/api/v1/me/notifications?per_page=100')->json('data'), 'id'), 'La campana también');
+        $criticas = collect($this->como(self::ADMIN)->getJson('/api/v1/int/notificaciones?severidad=CRITICAL&per_page=100')->json('data'));
+        $this->assertGreaterThan(0, $criticas->count());
+        $this->como(self::ADMIN)->putJson('/api/v1/int/preferencias', ['user' => $uid, 'type' => $n['type'], 'in_app' => true])->assertOk();
+        $this->assertContains($n['id'], array_column($this->como(self::ADMIN)->getJson('/api/v1/int/notificaciones?per_page=100')->json('data'), 'id'));
+
+        // Marcar todas: quedan cero sin leer.
+        $this->como(self::ADMIN)->postJson('/api/v1/int/notificaciones/leer-todas')->assertOk();
+        $this->assertSame(0, $this->como(self::ADMIN)->getJson('/api/v1/int/notificaciones')->json('cifras.sin_leer'));
+        $this->assertGreaterThanOrEqual(0, $sinLeer);
+
+        // Las preferencias de otra persona: solo gerencia o administración del sistema.
+        $otro = $this->como(self::SIN_PERMISO)->getJson('/api/v1/int/preferencias')->assertOk()->json('usuario.id');
+        $this->como(self::SIN_PERMISO)->getJson("/api/v1/int/preferencias?user={$uid}")->assertStatus(422);
+        $this->como(self::ADMIN)->getJson("/api/v1/int/preferencias?user={$otro}")->assertOk()->assertJsonPath('usuario.id', $otro);
+    }
+
+    public function test_archivos_adjuntos_tipos_enlace_firmado_y_eliminar_con_motivo(): void
+    {
+        Storage::fake('local');
+        $gerente = 'rquispe@donguando.pe';
+        $l = $this->como($gerente)->getJson('/api/v1/int/archivos')->assertOk();
+        $this->assertGreaterThanOrEqual(25, $l->json('total'), 'Los de la demostración');
+        $this->assertContains('PDF', $l->json('permitidos'));
+        $pedido = $this->como($gerente)->getJson('/api/v1/int/archivos/registros?entity=sales_orders')->assertOk()->json('0');
+
+        // RN-INT-16: tipo no permitido, contenido que no corresponde y demasiado grande.
+        $this->como($gerente)->post('/api/v1/int/archivos', ['file' => UploadedFile::fake()->create('virus.exe', 10), 'classification' => 'INTERNAL'], ['Accept' => 'application/json'])
+            ->assertStatus(422)->assertJsonPath('code', 'RN-INT-16');
+        $this->como($gerente)->post('/api/v1/int/archivos', ['file' => UploadedFile::fake()->createWithContent('falso.pdf', 'esto no es un pdf'), 'classification' => 'INTERNAL'], ['Accept' => 'application/json'])
+            ->assertStatus(422)->assertJsonPath('code', 'RN-INT-16');
+        $this->como($gerente)->post('/api/v1/int/archivos', ['file' => UploadedFile::fake()->create('grande.pdf', 21 * 1024, 'application/pdf'), 'classification' => 'INTERNAL'], ['Accept' => 'application/json'])
+            ->assertStatus(422);
+        // Quien solo consulta (auditoría) no sube.
+        $this->como('aexterno@donguando.pe')->post('/api/v1/int/archivos', ['file' => UploadedFile::fake()->image('foto.png'), 'classification' => 'INTERNAL'], ['Accept' => 'application/json'])->assertForbidden();
+
+        // Subir una foto de entrega a un pedido: huella SHA-256 y guardado con nombre propio.
+        $foto = UploadedFile::fake()->image('entrega P-1.png', 40, 40);
+        $r = $this->como($gerente)->post('/api/v1/int/archivos', ['file' => $foto, 'entity' => 'sales_orders', 'entity_id' => $pedido['id'], 'classification' => 'CONFIDENTIAL'], ['Accept' => 'application/json'])
+            ->assertCreated();
+        $this->assertSame(['PNG', 'CONFIDENTIAL', 'Pedido '.$pedido['label']], [$r->json('ext'), $r->json('classification'), $r->json('registro')]);
+        $this->assertSame(64, strlen($r->json('sha256')));
+        $id = $r->json('id');
+
+        // RN-INT-17: enlace firmado y temporal; el confidencial pide permiso (y el intento queda en la bitácora).
+        $this->como('aexterno@donguando.pe')->postJson("/api/v1/int/archivos/{$id}/enlace")->assertStatus(422)->assertJsonPath('code', 'RN-INT-17');
+        $e = $this->como($gerente)->postJson("/api/v1/int/archivos/{$id}/enlace")->assertOk();
+        $this->assertSame(10, $e->json('minutos'));
+        $ruta = parse_url($e->json('url'), PHP_URL_PATH).'?'.parse_url($e->json('url'), PHP_URL_QUERY);
+        $this->app['auth']->forgetGuards();
+        TenantContext::set(null);
+        $this->call('GET', $ruta)->assertOk()->assertHeader('X-Content-Type-Options', 'nosniff');
+        $this->call('GET', str_replace('signature=', 'signature=x', $ruta))->assertForbidden();
+        $this->travel(11)->minutes();
+        $this->call('GET', $ruta)->assertForbidden();
+        $this->travelBack();
+        $this->enDonGuando(function () use ($id) {
+            $this->assertDatabaseHas('domain_events', ['event_name' => 'file.download_denied', 'aggregate_id' => $id]);
+            $this->assertDatabaseHas('domain_events', ['event_name' => 'file.downloaded', 'aggregate_id' => $id]);
+        });
+        // Los de la demostración no tienen contenido guardado: lo dice.
+        $demo = collect($l->json('data'))->first(fn ($x) => $x['status'] === 'ACTIVE' && ! $x['sensible']);
+        $this->como($gerente)->postJson("/api/v1/int/archivos/{$demo['id']}/enlace")->assertStatus(422)->assertJsonPath('code', 'RN-INT-17');
+
+        // RN-INT-18: eliminar con permiso y motivo; queda marcado y ya no se descarga.
+        $this->como(self::SIN_PERMISO)->postJson("/api/v1/int/archivos/{$id}/eliminar", ['reason' => 'Foto equivocada del pedido'])->assertForbidden();
+        $this->como($gerente)->postJson("/api/v1/int/archivos/{$id}/eliminar", ['reason' => 'corto'])->assertStatus(422);
+        $this->como($gerente)->postJson("/api/v1/int/archivos/{$id}/eliminar", ['reason' => 'Foto equivocada del pedido'])->assertOk()
+            ->assertJsonPath('status', 'DELETED')->assertJsonPath('deleted_reason', 'Foto equivocada del pedido');
+        $this->como($gerente)->postJson("/api/v1/int/archivos/{$id}/enlace")->assertStatus(422)->assertJsonPath('code', 'RN-INT-18');
+        $this->assertSame(1, $this->como($gerente)->getJson("/api/v1/int/archivos?entity=sales_orders&entity_id={$pedido['id']}")->json('total'));
     }
 
     public function test_el_despacho_programado_envia_lo_que_toca(): void
