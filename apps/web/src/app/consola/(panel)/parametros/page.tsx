@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { History, Pencil, Search } from "lucide-react";
-import { Alert, Button, Field, IconButton, Input, Modal, PageHeader, Textarea, toast } from "@/components/ui";
+import { Alert, Badge, Button, DataTable, Field, IconButton, Input, Modal, PageHeader, Textarea, toast } from "@/components/ui";
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { erroresDe, mensajeDe } from "@/lib/api";
 import { apiConsola } from "@/lib/consola";
@@ -10,8 +10,9 @@ import { fechaHora } from "@/lib/formato";
 
 type Parametro = {
   key: string; value: unknown; description: string; updated_at: string; updated_by: string | null; regla: [string, number?, number?] | null;
-  historial: { old_value: unknown; new_value: unknown; reason: string; changed_by_name: string; changed_at: string }[];
+  historial: { old_value: unknown; new_value: unknown; reason: string; changed_by_name: string; changed_at: string }[]; modificado: boolean;
 };
+type Cambio = { key: string; old_value: unknown; new_value: unknown; reason: string; changed_by_name: string; changed_at: string };
 
 const PRIORIDAD: Record<string, string> = { URGENT: "Urgente", HIGH: "Alta", NORMAL: "Normal", LOW: "Baja" };
 const mostrar = (v: unknown): string => {
@@ -33,6 +34,7 @@ export default function ParametrosPlataforma() {
   const [editando, setEditando] = useState<Parametro | null>(null);
   const [historia, setHistoria] = useState<Parametro | null>(null);
   const [buscar, setBuscar] = useState("");
+  const [cambios, setCambios] = useState<Cambio[]>([]);
   const grupos = useMemo(() => {
     const q = sinTildes(buscar.trim());
     const vistos = (lista ?? []).filter((p) => !q || sinTildes(`${p.key} ${p.description} ${mostrar(p.value)}`).includes(q));
@@ -40,7 +42,7 @@ export default function ParametrosPlataforma() {
   }, [lista, buscar]);
   const total = grupos.reduce((s, g) => s + g.items.length, 0);
 
-  const cargar = () => apiConsola<{ data: Parametro[] }>("/parametros").then((r) => { setLista(r.data); setError(""); }).catch((e) => setError(mensajeDe(e)));
+  const cargar = () => apiConsola<{ data: Parametro[]; historial: Cambio[] }>("/parametros").then((r) => { setLista(r.data); setCambios(r.historial); setError(""); }).catch((e) => setError(mensajeDe(e)));
   useEffect(() => { cargar(); }, []);
 
   return (
@@ -64,7 +66,8 @@ export default function ParametrosPlataforma() {
         {g.items.map((p) => (
           <section key={p.key} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-surface px-5 py-4 shadow-card">
             <div className="min-w-0 flex-1">
-              <p className="font-mono text-[12px] text-accent">{p.key}</p>
+              <p className="flex flex-wrap items-center gap-2"><span className="font-mono text-[12px] text-accent">{p.key}</span>
+                {p.modificado ? <Badge tone="warn">Modificado</Badge> : <Badge>Por defecto</Badge>}</p>
               <p className="text-[13.5px] text-ink">{p.description}</p>
               <p className="text-[12px] text-muted">Último cambio: {fechaHora(p.updated_at)}{p.updated_by ? ` · ${p.updated_by}` : " · valor inicial"}</p>
             </div>
@@ -77,6 +80,19 @@ export default function ParametrosPlataforma() {
         ))}
       </div>
       ))}
+      {lista && (
+        <div className="grid gap-2">
+          <p className="text-[12px] font-semibold tracking-wide text-muted uppercase">Historial de cambios</p>
+          <DataTable rows={cambios} rowKey={(c) => `${c.key}-${c.changed_at}`} empty="Sin cambios: todos los parámetros tienen su valor inicial." columns={[
+            { key: "changed_at", header: "Fecha", render: (c) => <span className="whitespace-nowrap">{fechaHora(c.changed_at)}</span> },
+            { key: "key", header: "Parámetro", cardTitle: true, render: (c) => <span className="text-[12.5px]">{lista.find((x) => x.key === c.key)?.description ?? c.key}</span> },
+            { key: "old_value", header: "Antes", render: (c) => mostrar(c.old_value) },
+            { key: "new_value", header: "Después", render: (c) => <span className="font-semibold text-ink">{mostrar(c.new_value)}</span> },
+            { key: "reason", header: "Motivo", hideOnMobile: true },
+            { key: "changed_by_name", header: "Por", hideOnMobile: true },
+          ]} />
+        </div>
+      )}
       {editando && <Editar p={editando} onClose={() => setEditando(null)} onGuardado={() => { setEditando(null); cargar(); }} />}
       {historia && (
         <Modal open onClose={() => setHistoria(null)} title={`Historial de ${historia.key}`} description={historia.description}>

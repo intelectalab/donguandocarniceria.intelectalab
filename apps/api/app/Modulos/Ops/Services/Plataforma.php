@@ -141,15 +141,25 @@ final class Plataforma
     public static function parametros(): array
     {
         $nombres = DB::table('platform_users')->pluck('full_name', 'id');
+        $cambiados = DB::table('platform_parameter_history')->distinct()->pluck('key')->flip();
 
         return DB::table('platform_parameters')->orderBy('key')->get()->map(fn ($p) => [
             'key' => $p->key, 'value' => json_decode($p->value, true), 'description' => trim(preg_replace('/\s*\((RN|D)-[A-Z]+-\d+\)/', '', $p->description)), 'updated_at' => $p->updated_at,
             'updated_by' => $p->updated_by ? ($nombres[$p->updated_by] ?? null) : null, 'regla' => self::REGLAS[$p->key] ?? null,
+            'modificado' => isset($cambiados[$p->key]),
             'historial' => DB::table('platform_parameter_history')->where('key', $p->key)->orderByDesc('changed_at')->limit(10)
                 ->get(['old_value', 'new_value', 'reason', 'changed_by_name', 'changed_at'])
                 ->map(fn ($h) => array_merge((array) $h, ['old_value' => json_decode($h->old_value ?? 'null', true), 'new_value' => json_decode($h->new_value, true),
                     'changed_by_name' => $h->changed_by_name === 'Servidor (ops:crear-admin)' ? UsuariosPlataforma::INSTALACION : $h->changed_by_name])),
         ])->all();
+    }
+
+    /** Historial general de cambios de parámetros (los últimos 200), como la tarjeta del prototipo. */
+    public static function historialParametros(): array
+    {
+        return DB::table('platform_parameter_history')->orderByDesc('changed_at')->limit(200)->get(['key', 'old_value', 'new_value', 'reason', 'changed_by_name', 'changed_at'])
+            ->map(fn ($h) => array_merge((array) $h, ['old_value' => json_decode($h->old_value ?? 'null', true), 'new_value' => json_decode($h->new_value, true),
+                'changed_by_name' => $h->changed_by_name === 'Servidor (ops:crear-admin)' ? UsuariosPlataforma::INSTALACION : $h->changed_by_name]))->all();
     }
 
     public static function cambiarParametro(string $key, mixed $valor, string $motivo, array $quien): array

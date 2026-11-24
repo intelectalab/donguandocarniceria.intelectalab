@@ -1187,3 +1187,23 @@ Antes solo se podía ordenar Empresas. Ahora se ordenan todas las listas de la c
 - `usePagina()` lleva también el orden (`pag.orden`) y al cambiarlo vuelve a la primera página.
 
 Prueba: en `test_bitacora_de_la_consola_con_filtros`, el orden ascendente y descendente, por nombre, y que un orden inválido (incluido un intento de inyectar SQL) se ignore. En total el sistema tiene 362 pruebas, todas correctas.
+
+# Última tanda: Tickets, Anuncios, Accesos, Complementos, Usuarios y Parámetros (24/11)
+
+- **Bandeja de tickets:**
+  - cifra nueva «Mediana de 1.ª respuesta», en horas, de los tickets de este mes;
+  - una línea con los plazos de primera respuesta por prioridad y el cierre automático de los resueltos (sale de los parámetros).
+- **Anuncios:**
+  - filtros por estado y tipo, en el servidor (el estado se arma con las mismas reglas que se muestran);
+  - al hacer clic en uno se abre el detalle: tipo, para quién (con los nombres de las empresas), fechas, quién lo redactó, el mantenimiento y «Así lo ve la empresa», con la franja como la ve el cliente.
+  - **No se agregó:** «Lecturas» y «Leído por». El sistema todavía no registra quién leyó cada anuncio.
+- **Accesos de soporte:**
+  - columna «Vence»; los módulos y si puede exportar ya estaban en «Alcance»;
+  - tarjeta «Cómo funciona», con los cinco pasos y sin códigos internos.
+- **Complementos:** filtro por estado y columna «Cobro» («Fijo al mes», «Por unidad» o «Por paquete de N»).
+- **Usuarios de plataforma:** tarjeta «Qué hace cada rol», con lo que puede cada uno en palabras. La API agrega `capacidades`, que sale de los mismos permisos que se aplican en la consola.
+- **Parámetros de plataforma:**
+  - marca «Modificado» o «Por defecto» en cada uno;
+  - tabla «Historial de cambios» con los últimos 200 cambios de todos los parámetros (fecha, parámetro, antes, después, motivo y quién).
+
+Pruebas: en `OpsTest` se revisan la mediana y los plazos de la bandeja, los filtros de anuncios, el origen y el historial de parámetros, y las capacidades por rol. En total el sistema tiene 362 pruebas, todas correctas.

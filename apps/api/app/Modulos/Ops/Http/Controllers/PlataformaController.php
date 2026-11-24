@@ -24,7 +24,7 @@ class PlataformaController extends Controller
 
     public function parametros()
     {
-        return response()->json(['data' => Plataforma::parametros()]);
+        return response()->json(['data' => Plataforma::parametros(), 'historial' => Plataforma::historialParametros()]);
     }
 
     public function cambiarParametro(Request $request, string $key)

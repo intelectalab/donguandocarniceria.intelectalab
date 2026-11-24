@@ -68,6 +68,7 @@ class ConsolaController extends Controller
             'data' => UsuariosPlataforma::lista(),
             'roles' => collect(Consola::ROLES)->map(fn ($n, $c) => ['code' => $c, 'name' => $n])->values(),
             'dominios' => Consola::dominios(),
+            'capacidades' => Consola::capacidades(),
         ]);
     }
 

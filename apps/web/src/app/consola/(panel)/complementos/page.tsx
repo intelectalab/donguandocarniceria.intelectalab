@@ -44,10 +44,12 @@ export default function ComplementosConsola() {
     }
   }
 
-  const ord = useOrdenLocal(datos?.data ?? [], { name: (c) => c.name, kind: (c) => c.kind, price_pen: (c) => c.price_pen, status: (c) => c.status_name });
+  const [estado, setEstado] = useState("");
+  const ord = useOrdenLocal((datos?.data ?? []).filter((c) => !estado || c.status === estado), { name: (c) => c.name, kind: (c) => c.kind, price_pen: (c) => c.price_pen, status: (c) => c.status_name });
   const columnas: Column<Complemento>[] = [
     { key: "name", sortable: true, header: "Complemento", cardTitle: true, render: (c) => <div><p className="font-semibold text-ink">{c.name}</p><p className="text-[12.5px] text-muted">{c.description}</p></div> },
     { key: "kind", sortable: true, header: "Qué hace", render: (c) => (c.kind === "MODULE" ? `Enciende ${c.module_name ?? c.module_code}` : `Suma ${c.unit_qty} ${c.unit_qty === 1 ? SINGULAR[c.limit_key ?? ""] : c.limit_name}`) },
+    { key: "cobro", header: "Cobro", hideOnMobile: true, render: (c) => (c.kind === "MODULE" ? "Fijo al mes" : c.unit_qty > 1 ? `Por paquete de ${c.unit_qty}` : "Por unidad") },
     { key: "price_pen", sortable: true, header: "Precio al mes", align: "right", render: (c) => (c.price_pen !== null ? soles(c.price_pen) : <span className="text-muted">Por definir</span>) },
     { key: "status", sortable: true, header: "Estado", render: (c) => <div className="grid gap-0.5"><Badge tone={TONO[c.status]} dot>{c.status_name}</Badge>{c.empresas > 0 && <span className="text-[12px] text-muted">{c.empresas} empresa(s)</span>}</div> },
     ...(puede ? [{ key: "acciones", header: "", align: "right" as const, render: (c: Complemento) => (
@@ -63,6 +65,10 @@ export default function ComplementosConsola() {
     <div className="grid gap-5">
       <PageHeader description="Un complemento enciende un módulo que el plan no trae o suma unidades a un límite (usuarios, marcas, locales). Nace en borrador y se publica con su precio; se cobra en la corrida del mes. Retirado ya no se contrata."
         actions={puede ? <Button variant="primary" icon={Plus} onClick={() => setEditando("nuevo")}>Nuevo complemento</Button> : undefined} />
+      <div className="w-full sm:w-[260px]">
+        <Select aria-label="Estado" value={estado} onChange={(e) => setEstado(e.target.value)} placeholder="Todos los estados"
+          options={[...new Map((datos?.data ?? []).map((c) => [c.status, c.status_name])).entries()].map(([value, label]) => ({ value, label }))} />
+      </div>
       <DataTable {...ord.orden} columns={columnas} rows={ord.filas} rowKey={(c) => c.code} loading={!datos && !error} error={error} onRetry={cargar} empty="No hay complementos." />
       {editando && datos && <FormComplemento modulos={datos.modulos} actual={editando === "nuevo" ? undefined : editando} onClose={() => setEditando(null)} onListo={() => { setEditando(null); cargar(); }} />}
     </div>

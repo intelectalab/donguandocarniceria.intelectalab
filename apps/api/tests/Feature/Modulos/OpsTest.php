@@ -488,6 +488,16 @@ class OpsTest extends TestCase
         $this->consola($tokenL1)->getJson('/api/v1/consola/parametros')->assertOk();
         $this->consola($tokenL1)->putJson('/api/v1/consola/parametros/ops_console_session_minutes', ['value' => 20, 'reason' => 'Intento'])
             ->assertStatus(422)->assertJsonPath('code', 'RN-OPS-10');
+
+        // Origen (modificado o por defecto) e historial general de cambios.
+        $lista = $this->consola($token)->getJson('/api/v1/consola/parametros')->assertOk();
+        $porClave = collect($lista->json('data'))->keyBy('key');
+        $this->assertSame([true, false], [$porClave['ops_console_session_minutes']['modificado'], $porClave['ops_ticket_auto_close_days']['modificado']]);
+        $this->assertEqualsCanonicalizing(['Turnos largos de soporte', 'Oficina y local'], array_column($lista->json('historial'), 'reason'));
+        // Qué hace cada rol: administración puede todo; solo consulta, nada.
+        $caps = collect($this->consola($token)->getJson('/api/v1/consola/usuarios')->json('capacidades'))->keyBy('code');
+        $this->assertStringStartsWith('Todo', $caps['PLATFORM_ADMIN']['puede'][0]);
+        $this->assertSame([], $caps['READ_ONLY']['puede']);
     }
 
     public function test_catalogos_globales_se_revisan_antes_de_importar(): void
@@ -629,6 +639,9 @@ class OpsTest extends TestCase
         $this->assertSame(2, $b->json('cifras.abiertos'));
         $this->assertSame(2, $b->json('cifras.sin_asignar'));
         $this->assertNotEmpty($b->json('data.0.tenant_short'));
+        // Sin respuestas todavía no hay mediana; los plazos llegan para la línea que los explica.
+        $this->assertNull($b->json('cifras.mediana_primera_respuesta'));
+        $this->assertSame([1, 7], [$b->json('plazos.primera_respuesta_horas.URGENT'), $b->json('plazos.cierre_automatico_dias')]);
         // Paginada: una por página, pero las cifras son de todo lo filtrado.
         $p = $this->consola($lectura)->getJson('/api/v1/consola/tickets?per_page=1&page=2')->assertOk();
         $this->assertSame([1, 2, 2, 2, 2], [count($p->json('data')), $p->json('total'), $p->json('last_page'), $p->json('current_page'), $p->json('cifras.abiertos')]);
@@ -939,6 +952,11 @@ class OpsTest extends TestCase
         $this->assertCount(1, $this->desde(self::DG, $gerente)->getJson('/api/v1/anuncios')->json('data'));
         $this->consola($admin)->postJson("/api/v1/consola/anuncios/{$m}/cancelar")->assertOk()->assertJsonPath('status', 'CANCELLED');
         $this->assertSame([], $this->desde(self::DG, $gerente)->getJson('/api/v1/anuncios')->json('data'));
+
+        // Filtros de la consola por estado y tipo.
+        $this->assertSame([$prog], array_column($this->consola($admin)->getJson('/api/v1/consola/anuncios?status=SCHEDULED')->json('data'), 'id'));
+        $this->assertSame([$m], array_column($this->consola($admin)->getJson('/api/v1/consola/anuncios?status=CANCELLED')->json('data'), 'id'));
+        $this->assertSame(['MAINTENANCE'], array_values(array_unique(array_column($this->consola($admin)->getJson('/api/v1/consola/anuncios?kind=MAINTENANCE')->json('data'), 'kind'))));
     }
 
     /* ---------------------------------------------------------------- tanda 9a: facturación, cobros y mora del SaaS */

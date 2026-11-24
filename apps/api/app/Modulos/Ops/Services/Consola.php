@@ -41,6 +41,14 @@ final class Consola
         'billing.manage' => 'facturar, cobrar ni gestionar la mora', 'metrics.freeze' => 'congelar métricas del negocio',
         'health.recompute' => 'recalcular la salud de las empresas'];
 
+    /** Qué hace cada rol, en palabras (para la tarjeta de Usuarios de plataforma). Las frases de ACCION son de los avisos «No puedes…», por eso «ni» pasa a «y». */
+    public static function capacidades(): array
+    {
+        return collect(self::ROLES)->map(fn ($nombre, $rol) => ['code' => $rol, 'name' => $nombre, 'puede' => in_array('*', self::PUEDE[$rol] ?? [], true)
+            ? ['Todo: usuarios, parámetros, empresas, planes, cobranza, soporte, salud, incidentes y anuncios']
+            : array_values(array_map(fn ($a) => str_replace(' ni ', ' y ', self::ACCION[$a]), array_filter(self::PUEDE[$rol] ?? [], fn ($a) => isset(self::ACCION[$a]))))])->values()->all();
+    }
+
     /** Todas las acciones con permiso (las que ve la pantalla para mostrar u ocultar botones). */
     public static function acciones(): array
     {

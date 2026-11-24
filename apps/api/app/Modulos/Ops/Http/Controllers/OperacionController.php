@@ -113,9 +113,11 @@ class OperacionController extends Controller
 
     /* ------------------------------------------------------------------ OPS-11 */
 
-    public function anuncios()
+    public function anuncios(Request $request)
     {
-        return response()->json(Anuncios::lista() + ['tipos' => Anuncios::TIPOS, 'publicos' => Anuncios::PUBLICOS, 'estados' => Anuncios::ESTADOS]);
+        $f = $request->validate(['kind' => ['nullable', Rule::in(array_keys(Anuncios::TIPOS))], 'status' => ['nullable', Rule::in(array_keys(Anuncios::ESTADOS))]]);
+
+        return response()->json(Anuncios::lista($f) + ['tipos' => Anuncios::TIPOS, 'publicos' => Anuncios::PUBLICOS, 'estados' => Anuncios::ESTADOS]);
     }
 
     public function guardarAnuncio(Request $request, ?string $id = null)

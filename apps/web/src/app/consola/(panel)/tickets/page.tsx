@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, Inbox, KeyRound, Send, UserPlus } from "lucide-react";
+import { AlertTriangle, Clock, Inbox, KeyRound, Send, UserPlus } from "lucide-react";
 import { Alert, Button, Cifra, DataTable, Field, Input, Modal, PageHeader, Select, Textarea, toast, type Column } from "@/components/ui";
 import { Conversacion, EstadoTicket, PlazoTicket, PrioridadTicket, type Ticket, type TicketFila } from "@/components/soporte/tickets";
 import { useUsuarioConsola } from "@/components/consola/sesion";
@@ -15,7 +15,8 @@ import { fechaHora } from "@/lib/formato";
 type Persona = { id: string; full_name: string; role: string };
 type Bandeja = {
   data: TicketFila[]; current_page: number; last_page: number; per_page: number; total: number;
-  cifras: { abiertos: number; sin_respuesta: number; vencidos: number; sin_asignar: number };
+  cifras: { abiertos: number; sin_respuesta: number; vencidos: number; sin_asignar: number; mediana_primera_respuesta: number | null };
+  plazos: { primera_respuesta_horas: Record<"URGENT" | "HIGH" | "NORMAL" | "LOW", number>; cierre_automatico_dias: number };
   personal: Persona[]; empresas: { id: string; short: string }[];
   categorias: Record<string, string>; prioridades: Record<string, string>; estados: Record<string, string>;
 };
@@ -60,12 +61,18 @@ function Contenido() {
     <div className="grid gap-5">
       <PageHeader description="Los pedidos de ayuda de todas las empresas. Urgentes y los que vencen antes van primero; urgente cuenta las 24 horas, el resto el horario de soporte (lunes a sábado de 9 a 18)." />
       {b && (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
           <Cifra titulo="Abiertos" valor={String(b.cifras.abiertos)} icono={Inbox} destacada />
           <Cifra titulo="Sin primera respuesta" valor={String(b.cifras.sin_respuesta)} tono={b.cifras.sin_respuesta ? "warn" : undefined} />
           <Cifra titulo="Plazo vencido" valor={String(b.cifras.vencidos)} tono={b.cifras.vencidos ? "bad" : "ok"} icono={AlertTriangle} />
           <Cifra titulo="Sin asignar" valor={String(b.cifras.sin_asignar)} tono={b.cifras.sin_asignar ? "warn" : undefined} />
+          <Cifra titulo="Mediana de 1.ª respuesta" valor={b.cifras.mediana_primera_respuesta === null ? "—" : `${b.cifras.mediana_primera_respuesta.toLocaleString("es-PE")} h`} detalle="Tickets de este mes" icono={Clock} />
         </div>
+      )}
+      {b && (
+        <p className="text-[12.5px] text-muted">
+          Plazos de primera respuesta: urgente {b.plazos.primera_respuesta_horas.URGENT} h (las 24 horas) · alta {b.plazos.primera_respuesta_horas.HIGH} h · normal {b.plazos.primera_respuesta_horas.NORMAL} h · baja {b.plazos.primera_respuesta_horas.LOW} h, en horario de soporte (lunes a sábado de 9 a 18). Un ticket resuelto sin respuesta del cliente se cierra solo a los {b.plazos.cierre_automatico_dias} días.
+        </p>
       )}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Input aria-label="Buscar" placeholder="Buscar asunto, número o empresa" value={f.search} onChange={(e) => setF({ ...f, search: e.target.value })} />

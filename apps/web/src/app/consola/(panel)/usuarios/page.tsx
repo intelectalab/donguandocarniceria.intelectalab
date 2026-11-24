@@ -13,7 +13,7 @@ type Usuario = {
   id: string; email: string; full_name: string; role: string; role_name: string; status: string; status_name: string;
   twofa_enabled_at: string | null; last_login_at: string | null; disabled_reason: string | null; sesiones: number;
 };
-type Respuesta = { data: Usuario[]; roles: { code: string; name: string }[]; dominios: string[] };
+type Respuesta = { data: Usuario[]; roles: { code: string; name: string }[]; dominios: string[]; capacidades: { code: string; name: string; puede: string[] }[] };
 
 const ESTADOS: Record<string, [string, "ok" | "warn" | "bad" | "neutral"]> = {
   ACTIVE: ["Activo", "ok"], INVITED: ["Invitado", "warn"], LOCKED: ["Bloqueado", "bad"], DISABLED: ["De baja", "neutral"],
@@ -108,6 +108,19 @@ export default function UsuariosPlataforma() {
         <p className="flex items-center gap-2 text-[13px] text-muted"><KeyRound size={14} /> Solo un administrador de plataforma crea o cambia cuentas. Tú puedes consultarlas.</p>
       )}
       <DataTable {...ord.orden} columns={columnas} rows={ord.filas} loading={!datos && !error} error={error} onRetry={cargar} empty="Aún no hay usuarios de plataforma." />
+      {datos && (
+        <section className="grid gap-2 rounded-xl border border-line bg-surface p-4 shadow-card text-[13px]">
+          <p className="font-semibold text-ink">Qué hace cada rol</p>
+          <ul className="grid gap-2">
+            {datos.capacidades.map((c) => (
+              <li key={c.code} className="grid gap-0.5 border-b border-line pb-2 last:border-0 sm:grid-cols-[200px_1fr] sm:gap-3">
+                <span className="font-semibold text-ink">{c.name}</span>
+                <span className="text-muted">{c.puede.length ? c.puede.map((x) => x.charAt(0).toUpperCase() + x.slice(1)).join(" · ") : "Solo consulta: ve todo, no cambia nada"}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {editando && datos && (
         <FormularioUsuario usuario={editando === "nuevo" ? null : editando} roles={datos.roles} dominios={datos.dominios}
           onClose={() => setEditando(null)} onGuardado={() => { setEditando(null); cargar(); }} />

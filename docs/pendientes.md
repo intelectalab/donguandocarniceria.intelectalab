@@ -53,7 +53,7 @@ PLT, SEG, MAE, INT y AUD son de cada empresa, pero algunas pantallas tocan datos
 - **Bitácora de accesos** (`access_log`, AUD-03) y **despacho del outbox** de eventos (INT-06).
 
 ## 4. Consola: lo que falta del prototipo 2.5
-*Anotado el 24/11/2026.* Ella pidió conservar el diseño actual y agregar lo que el prototipo muestra. Ya hechas: Bitácora, Salud, Incidentes, Mora, Cobros y conciliación, Facturación, Catálogo de planes, Suscripciones, Empresas, Ficha de empresa, Registros y demos y Métricas (24/11). Todas las listas se ordenan por columna.
+*Anotado el 24/11/2026.* Ella pidió conservar el diseño actual y agregar lo que el prototipo muestra. Ya hechas: Bitácora, Salud, Incidentes, Mora, Cobros y conciliación, Facturación, Catálogo de planes, Suscripciones, Empresas, Ficha de empresa, Registros y demos, Métricas, Tickets, Anuncios, Accesos, Complementos, Usuarios y Parámetros (24/11). Todas las listas se ordenan por columna. Lo que queda abajo necesita datos que el sistema todavía no guarda.
 
 | Pantalla | Lo que falta |
 |---|---|
@@ -61,10 +61,5 @@ PLT, SEG, MAE, INT y AUD son de cada empresa, pero algunas pantallas tocan datos
 | Ficha de empresa | Volumen mensual de pedidos y mensajes (no se mide todavía); sumar OSE y WhatsApp a la salud cuando existan |
 | Registros y demos | Tabla de altas en curso y tiempo de alta (falta guardar el avance del asistente de alta) |
 | Métricas | Volumen por empresa (pedidos y mensajes del mes; no se mide todavía) |
-| Anuncios | Filtros por estado y tipo, panel de detalle. *Por decidir:* lecturas (no se registran) |
-| Tickets | Cifra de la mediana de primera respuesta del mes |
-| Complementos | Filtro por estado, columna de forma de cobro |
-| Usuarios | Tarjeta «Qué hace cada rol» |
-| Accesos de soporte | Columnas: módulos, exportar y vence. Tarjeta «Cómo funciona» |
-| Parámetros | Marca «modificado / por defecto» e historial general de cambios |
+| Anuncios | Lecturas y «Leído por» (no se registra quién lee cada anuncio) |
 | Salud | Tarjeta «Versiones desplegadas» (no se guarda la versión de cada despliegue) |
