@@ -99,9 +99,8 @@ class SegIngresoTest extends TestCase
     public function test_el_codigo_de_recuperacion_vence_a_los_30_minutos_y_al_usarlo_se_cierran_las_sesiones(): void
     {
         $codigos = [];
-        Mail::shouldReceive('raw')->twice()->andReturnUsing(function (string $texto) use (&$codigos) {
-            preg_match('/es ([A-Z0-9]{6})\./', $texto, $m);
-            $codigos[] = $m[1];
+        Mail::shouldReceive('send')->twice()->andReturnUsing(function ($vistas, array $datos) use (&$codigos) {
+            $codigos[] = $datos['codigo'];
         });
         $reset = fn (string $codigo) => $this->desde(self::DG)->postJson('/api/v1/auth/reset', ['email' => self::VENDEDORA, 'code' => $codigo, 'password' => self::NUEVA]);
 

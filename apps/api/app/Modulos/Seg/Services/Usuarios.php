@@ -12,7 +12,7 @@ use App\Support\RuleError;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
+use App\Support\Correo;
 use Illuminate\Support\Str;
 
 /**
@@ -275,12 +275,16 @@ final class Usuarios
             'expires_at' => now()->addHours(self::INVITACION_HORAS), 'requested_at' => now(), 'requested_ip' => request()?->ip(),
         ]);
         $horas = self::INVITACION_HORAS;
-        Mail::raw(
-            "Hola {$u->name}:\n\n{$quien->name} te invitó a GestionCarnica. Entra a «Olvidé mi contraseña», elige «Ya tengo un código» "
-            ."y usa el código {$codigo} con tu correo {$u->email} para crear tu contraseña.\n"
-            ."El código vence en {$horas} horas. Si no esperabas esta invitación, ignora este correo.",
-            fn ($m) => $m->to($u->email)->subject('Invitación a GestionCarnica')
-        );
+        Correo::enviar($u->email, 'Invitación a GestionCarnica', [
+            'titulo' => 'Te invitaron a GestionCarnica',
+            'saludo' => "Hola {$u->name}:",
+            'parrafos' => ["{$quien->name} te invitó a GestionCarnica. Para entrar, primero crea tu contraseña con este código:"],
+            'codigo' => $codigo,
+            'vence' => "Vence en {$horas} horas.",
+            'pasos' => ['En el ingreso, entra a «Olvidé mi contraseña» y elige «Ya tengo un código».', "Escribe tu correo {$u->email} y el código, y crea tu contraseña."],
+            'boton' => ['texto' => 'Crear mi contraseña', 'ruta' => '/forgot-password'],
+            'nota' => 'Si no esperabas esta invitación, ignora este correo.',
+        ]);
         Bitacora::registrar('USER_INVITED', ['user' => $quien, 'entity' => 'users', 'entity_id' => $u->id, 'detail' => "Invitó a {$u->email}"]);
     }
 

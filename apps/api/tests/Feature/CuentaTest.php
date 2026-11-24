@@ -33,9 +33,8 @@ class CuentaTest extends TestCase
     public function test_recuperar_contrasena_con_codigo(): void
     {
         $codigo = null;
-        Mail::shouldReceive('raw')->once()->andReturnUsing(function (string $texto) use (&$codigo) {
-            preg_match('/es ([A-Z0-9]{6})\./', $texto, $m);
-            $codigo = $m[1];
+        Mail::shouldReceive('send')->once()->andReturnUsing(function ($vistas, array $datos) use (&$codigo) {
+            $codigo = $datos['codigo'];
         });
 
         $this->desde(self::DG)->postJson('/api/v1/auth/forgot', ['email' => 'ana.torres@donguando.pe'])->assertOk();
