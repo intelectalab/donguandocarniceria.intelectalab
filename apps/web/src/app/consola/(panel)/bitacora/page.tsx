@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Activity, CalendarDays, Headset, ShieldAlert } from "lucide-react";
-import { Button, Cifra, DataTable, DetailList, Input, Modal, PageHeader, Select, type Column } from "@/components/ui";
+import { Button, Cifra, DataTable, DetailList, FiltroFecha, FiltroSelect, Modal, PageHeader, type Column } from "@/components/ui";
 import { mensajeDe } from "@/lib/api";
 import { apiConsola } from "@/lib/consola";
 import { fechaHora } from "@/lib/formato";
@@ -67,29 +67,19 @@ export default function BitacoraConsola() {
           <Cifra titulo="Intentos rechazados" valor={num(c.rechazados)} tono={c.rechazados ? "warn" : undefined} icono={ShieldAlert} />
         </div>
       )}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="sm:col-span-2">
-          <Input type="search" aria-label="Buscar" placeholder="Buscar por persona, motivo, empresa o IP" value={f.search} onChange={(e) => poner("search", e.target.value)} />
-        </div>
-        <Select value={f.action} onChange={(e) => poner("action", e.target.value)} aria-label="Acción" placeholder="Todas las acciones"
-          options={(r?.acciones ?? []).map((a) => ({ value: a.code, label: a.name }))} />
-        <Select value={f.user} onChange={(e) => poner("user", e.target.value)} aria-label="Usuario" placeholder="Todos los usuarios"
-          options={(r?.usuarios ?? []).map((u) => ({ value: u.id, label: u.full_name }))} />
-        <Select value={f.tenant} onChange={(e) => poner("tenant", e.target.value)} aria-label="Empresa" placeholder="Todas las empresas"
-          options={(r?.empresas ?? []).map((t) => ({ value: t.id, label: t.short }))} />
-        <label className="flex items-center gap-2 text-[13px] text-muted">
-          <span className="w-12 shrink-0">Desde</span>
-          <Input type="date" value={f.desde} max={f.hasta || undefined} onChange={(e) => poner("desde", e.target.value)} aria-label="Desde" />
-        </label>
-        <label className="flex items-center gap-2 text-[13px] text-muted">
-          <span className="w-12 shrink-0">Hasta</span>
-          <Input type="date" value={f.hasta} min={f.desde || undefined} onChange={(e) => poner("hasta", e.target.value)} aria-label="Hasta" />
-        </label>
-        <div className="flex items-center">
-          {filtrado && <Button variant="ghost" onClick={() => setF({ ...vacio, per_page: f.per_page, sort: f.sort })}>Limpiar filtros</Button>}
-        </div>
-      </div>
-      <DataTable columns={columnas} rows={r?.data ?? []} loading={!r && !error} error={error} empty="No hay acciones con esos filtros." onRowClick={setVisto} sort={f.sort} onSortChange={(v) => poner("sort", v)}
+      <DataTable search={{ value: f.search, onChange: (v) => poner("search", v), placeholder: "Buscar por persona, motivo, empresa o IP…" }}
+        toolbar={<>
+          <FiltroSelect etiqueta="Acción" todos="todas" ancho={200} value={f.action} onChange={(v) => poner("action", v)}
+            options={(r?.acciones ?? []).map((a) => ({ value: a.code, label: a.name }))} />
+          <FiltroSelect etiqueta="Usuario" ancho={180} value={f.user} onChange={(v) => poner("user", v)}
+            options={(r?.usuarios ?? []).map((u) => ({ value: u.id, label: u.full_name }))} />
+          <FiltroSelect etiqueta="Empresa" todos="todas" ancho={170} value={f.tenant} onChange={(v) => poner("tenant", v)}
+            options={(r?.empresas ?? []).map((t) => ({ value: t.id, label: t.short }))} />
+          <FiltroFecha etiqueta="Desde" visible value={f.desde} max={f.hasta || undefined} onChange={(v) => poner("desde", v)} />
+          <FiltroFecha etiqueta="Hasta" visible value={f.hasta} min={f.desde || undefined} onChange={(v) => poner("hasta", v)} />
+          {filtrado && <Button size="sm" variant="ghost" onClick={() => setF({ ...vacio, per_page: f.per_page, sort: f.sort })}>Limpiar filtros</Button>}
+        </>}
+        columns={columnas} rows={r?.data ?? []} loading={!r && !error} error={error} empty="No hay acciones con esos filtros." onRowClick={setVisto} sort={f.sort} onSortChange={(v) => poner("sort", v)}
         pagination={r ? { page: r.current_page, lastPage: r.last_page, total: r.total, perPage: r.per_page, onPageChange: (p) => poner("page", p),
           onPerPageChange: (n) => poner("per_page", n) } : undefined} />
       {visto && <DetalleAccion a={visto} onClose={() => setVisto(null)} />}

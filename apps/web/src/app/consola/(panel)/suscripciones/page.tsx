@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Building2, TrendingUp } from "lucide-react";
-import { Alert, Cifra, DataTable, Modal, PageHeader, Select, StatusBadge, type Column } from "@/components/ui";
+import { Alert, Cifra, DataTable, FiltroSelect, Modal, PageHeader, StatusBadge, type Column } from "@/components/ui";
 import { AccionesSuscripcion } from "@/components/consola/AccionesSuscripcion";
 import { BarraUso, ESTADOS_SUSCRIPCION, type Uso } from "@/components/consola/empresas";
 import { useUsuarioConsola } from "@/components/consola/sesion";
@@ -83,8 +83,8 @@ export default function Suscripciones() {
       )}
       <DataTable {...ord.orden} columns={columnas} rows={pagina.filas} pagination={pagina.props} loading={!filas && !error} onRowClick={(s) => abrir(s.id)}
         empty="Aún no hay suscripciones: las empresas que se dan de alta desde la consola aparecen aquí."
-        toolbar={<Select value={estado} onChange={(e) => setEstado(e.target.value)} aria-label="Estado"
-          options={[{ value: "", label: "Todos los estados" }, ...Object.entries(ESTADOS_SUSCRIPCION).map(([v, [l]]) => ({ value: v, label: l }))]} />} />
+        toolbar={<FiltroSelect etiqueta="Estado" ancho={170} value={estado} onChange={setEstado}
+          options={Object.entries(ESTADOS_SUSCRIPCION).map(([v, [l]]) => ({ value: v, label: l }))} />} />
 
       {abierta && (
         <Modal open onClose={() => setAbierta(null)} size="lg" title={`${abierta.short} · ${abierta.plan_name}`}

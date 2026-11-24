@@ -3,14 +3,13 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Copy, Inbox, RotateCcw, ShieldAlert, Timer, TriangleAlert } from "lucide-react";
-import { Alert, Button, Cifra, DataTable, DetailList, Input, Modal, PageHeader, Select, StatusBadge, toast, type Column, type Tone } from "@/components/ui";
+import { Alert, Button, Cifra, DataTable, DetailList, FiltroFecha, FiltroSelect, Modal, PageHeader, StatusBadge, toast, type Column, type Tone } from "@/components/ui";
 import { api, mensajeDe } from "@/lib/api";
 import { fechaHora, numero } from "@/lib/formato";
 import { usePagina, type Pagina } from "@/lib/paginas";
 import { useSesion } from "@/lib/sesion";
 import { nombreModulo } from "@/modulos/int/tipos";
 
-const FILTRO = "!min-h-9 h-9 py-1.5 text-[13px]";
 type Evento = {
   id: string; received_at: string; connector_id: string | null; connector_name: string | null; endpoint_name: string | null; event_key: string | null;
   owner_module: string | null; module_name: string; duplicates: number; attempts: number; processed_at: string | null; segundos: number | null;
@@ -95,9 +94,9 @@ function Bitacora() {
       )}
       <DataTable search={{ value: buscar, onChange: (v) => setBuscar(v), placeholder: "Buscar en la clave o el cuerpo…" }}
         toolbar={<>
-          <div className="w-full sm:w-[150px]"><Select className={FILTRO} aria-label="Estado" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} placeholder="Estado: todos" options={Object.entries(lista?.estados ?? {}).map(([value, label]) => ({ value, label }))} /></div>
-          <div className="w-full sm:w-[210px]"><Select className={FILTRO} aria-label="Conector" value={f.connector} onChange={(e) => setF({ ...f, connector: e.target.value })} placeholder="Conector: todos" options={(lista?.conectores ?? []).map((x) => ({ value: x.id, label: x.name }))} /></div>
-          <div className="w-full sm:w-[160px]"><Input className={FILTRO} type="date" aria-label="Fecha de recepción" title="Fecha de recepción" value={f.dia} onChange={(e) => setF({ ...f, dia: e.target.value })} /></div>
+          <FiltroSelect etiqueta="Estado" ancho={150} value={f.status} onChange={(v) => setF({ ...f, status: v })} options={Object.entries(lista?.estados ?? {}).map(([value, label]) => ({ value, label }))} />
+          <FiltroSelect etiqueta="Conector" ancho={210} value={f.connector} onChange={(v) => setF({ ...f, connector: v })} options={(lista?.conectores ?? []).map((x) => ({ value: x.id, label: x.name }))} />
+          <FiltroFecha etiqueta="Fecha de recepción" ancho={160} value={f.dia} onChange={(v) => setF({ ...f, dia: v })} />
         </>} {...pag.orden} columns={columnas} rows={lista?.data ?? []} pagination={pag.props(lista)} loading={!lista && !error} error={error} onRetry={cargar}
         onRowClick={(e) => ver(e.id)} empty="No hay webhooks con estos filtros." />
       {abierto && <FichaWebhook id={abierto} reprocesa={reprocesa} onClose={() => ver(null)} onCambio={cargar} />}

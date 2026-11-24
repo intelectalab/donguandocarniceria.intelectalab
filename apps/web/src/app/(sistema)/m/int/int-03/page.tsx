@@ -3,7 +3,7 @@
 import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Ban, KeyRound, Plus, RefreshCw } from "lucide-react";
-import { Alert, Badge, Button, DataTable, Field, Input, PageHeader, Select, StatusBadge, confirmAction, toast, type Column } from "@/components/ui";
+import { Alert, Badge, Button, confirmAction, DataTable, Field, FiltroSelect, Input, PageHeader, Select, StatusBadge, toast, type Column } from "@/components/ui";
 import { api, mensajeDe } from "@/lib/api";
 import { fecha } from "@/lib/formato";
 import { useOrdenLocal, usePaginaLocal } from "@/lib/paginas";
@@ -11,7 +11,6 @@ import { useSesion } from "@/lib/sesion";
 import { Dialogo } from "@/modulos/mae/Dialogo";
 import { CampoSecreto, ESTADOS_CREDENCIAL, useDatos, venceEn, type Credencial } from "@/modulos/int/tipos";
 
-const FILTRO = "!min-h-9 h-9 py-1.5 text-[13px]";
 /** Vigente en la base pero con la fecha de vencimiento ya pasada. */
 const vencida = (k: Credencial) => k.status === "ACTIVE" && k.dias_para_vencer !== null && k.dias_para_vencer < 0;
 
@@ -90,8 +89,8 @@ function Credenciales() {
         </Alert>
       )}
       <DataTable toolbar={<>
-          <div className="w-full sm:w-[210px]"><Select className={FILTRO} aria-label="Conector" value={f.connector} onChange={(e) => setF({ ...f, connector: e.target.value })} placeholder="Conector: todos" options={(datos?.conectores ?? []).map((c) => ({ value: c.id, label: c.name }))} /></div>
-          <div className="w-full sm:w-[150px]"><Select className={FILTRO} aria-label="Estado" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} placeholder="Estado: todos" options={Object.entries(datos?.estados ?? {}).map(([value, label]) => ({ value, label }))} /></div>
+          <FiltroSelect etiqueta="Conector" ancho={210} value={f.connector} onChange={(v) => setF({ ...f, connector: v })} options={(datos?.conectores ?? []).map((c) => ({ value: c.id, label: c.name }))} />
+          <FiltroSelect etiqueta="Estado" ancho={150} value={f.status} onChange={(v) => setF({ ...f, status: v })} options={Object.entries(datos?.estados ?? {}).map(([value, label]) => ({ value, label }))} />
         </>} {...ord.orden} columns={columnas} rows={pagina.filas} pagination={pagina.props} loading={!datos && !error} error={error} onRetry={recargar}
         empty={<span className="inline-flex items-center gap-2"><KeyRound size={16} aria-hidden="true" />No hay credenciales con estos filtros.</span>} />
 

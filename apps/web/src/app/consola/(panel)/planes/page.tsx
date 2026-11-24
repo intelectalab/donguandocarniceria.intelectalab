@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useOrdenLocal } from "@/lib/paginas";
 import { AlertTriangle, Building2, FilePen, Layers, Pencil, Plus, Send, Tag, Trash2 } from "lucide-react";
-import { Alert, Badge, Button, Checkbox, Cifra, DataTable, DetailList, Field, Input, Modal, PageHeader, Select, Textarea, VistaToggle, confirmAction, toast, useVista, type Column, type Tone } from "@/components/ui";
+import { Alert, Badge, Button, Checkbox, Cifra, confirmAction, DataTable, DetailList, Field, FiltroSelect, Input, Modal, PageHeader, Textarea, toast, useVista, VistaToggle, type Column, type Tone } from "@/components/ui";
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { erroresDe, mensajeDe } from "@/lib/api";
 import { apiConsola } from "@/lib/consola";
@@ -125,17 +125,13 @@ export default function CatalogoPlanes() {
           <Cifra titulo="Precio desde" valor={publicadas.length ? soles(Math.min(...publicadas.map((f) => f.price_pen))) : "—"} detalle="Al mes, más IGV" icono={Tag} />
         </div>
       )}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        {vista === "tabla" ? (
-          <div className="w-full sm:w-[260px]">
-            <Select aria-label="Estado" value={estado} onChange={(e) => setEstado(e.target.value)} placeholder="Todos los estados"
-              options={[{ value: "PUBLISHED", label: "Publicadas" }, { value: "DRAFT", label: "Borradores" }, { value: "RETIRED", label: "Retiradas" }]} />
-          </div>
-        ) : <span />}
+      <div className="flex justify-end">
         <VistaToggle value={vista} onChange={setVista} />
       </div>
       {vista === "tabla" && (
-        <DataTable {...ord.orden} columns={columnas} rows={ord.filas} rowKey={(f) => f.id} loading={!cat && !error}
+        <DataTable toolbar={<FiltroSelect etiqueta="Estado" ancho={170} value={estado} onChange={setEstado}
+          options={[{ value: "PUBLISHED", label: "Publicadas" }, { value: "DRAFT", label: "Borradores" }, { value: "RETIRED", label: "Retiradas" }]} />}
+          {...ord.orden} columns={columnas} rows={ord.filas} rowKey={(f) => f.id} loading={!cat && !error}
           onRowClick={setVisto} empty="No hay versiones con ese estado." />
       )}
 

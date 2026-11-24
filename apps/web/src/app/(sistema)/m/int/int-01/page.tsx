@@ -3,12 +3,11 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, FlaskConical, MessageCircle, Plug } from "lucide-react";
-import { Cifra, DataTable, PageHeader, Select, type Column } from "@/components/ui";
+import { Cifra, DataTable, FiltroSelect, PageHeader, type Column } from "@/components/ui";
 import { fechaHora } from "@/lib/formato";
 import { useOrdenLocal, usePaginaLocal } from "@/lib/paginas";
 import { Entorno, EstadoConector, nombreModulo, useDatos, type Conector } from "@/modulos/int/tipos";
 
-const FILTRO = "!min-h-9 h-9 py-1.5 text-[13px]";
 type Datos = {
   data: Conector[]; cifras: { activos: number; total: number; en_error: number; whatsapp: number; prueba: number };
   tipos: { code: string; name: string }[]; marcas: { id: string; name: string }[]; estados: Record<string, string>;
@@ -62,10 +61,10 @@ export default function Conectores() {
       )}
       <DataTable search={{ value: f.buscar, onChange: (v) => setF({ ...f, buscar: v }), placeholder: "Buscar por nombre, código o adaptador…" }}
         toolbar={<>
-          <div className="w-full sm:w-[170px]"><Select className={FILTRO} aria-label="Tipo" value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })} placeholder="Tipo: todos" options={(datos?.tipos ?? []).map((t) => ({ value: t.code, label: t.name }))} /></div>
-          <div className="w-full sm:w-[160px]"><Select className={FILTRO} aria-label="Marca" value={f.brand} onChange={(e) => setF({ ...f, brand: e.target.value })} placeholder="Marca: todas" options={(datos?.marcas ?? []).map((m) => ({ value: m.id, label: m.name }))} /></div>
-          <div className="w-full sm:w-[150px]"><Select className={FILTRO} aria-label="Entorno" value={f.environment} onChange={(e) => setF({ ...f, environment: e.target.value })} placeholder="Entorno: todos" options={[{ value: "PRODUCTION", label: "Producción" }, { value: "SANDBOX", label: "Prueba" }]} /></div>
-          <div className="w-full sm:w-[150px]"><Select className={FILTRO} aria-label="Estado" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} placeholder="Estado: todos" options={Object.entries(datos?.estados ?? {}).map(([value, label]) => ({ value, label }))} /></div>
+          <FiltroSelect etiqueta="Tipo" ancho={170} value={f.kind} onChange={(v) => setF({ ...f, kind: v })} options={(datos?.tipos ?? []).map((t) => ({ value: t.code, label: t.name }))} />
+          <FiltroSelect etiqueta="Marca" todos="todas" ancho={160} value={f.brand} onChange={(v) => setF({ ...f, brand: v })} options={(datos?.marcas ?? []).map((m) => ({ value: m.id, label: m.name }))} />
+          <FiltroSelect etiqueta="Entorno" ancho={150} value={f.environment} onChange={(v) => setF({ ...f, environment: v })} options={[{ value: "PRODUCTION", label: "Producción" }, { value: "SANDBOX", label: "Prueba" }]} />
+          <FiltroSelect etiqueta="Estado" ancho={150} value={f.status} onChange={(v) => setF({ ...f, status: v })} options={Object.entries(datos?.estados ?? {}).map(([value, label]) => ({ value, label }))} />
         </>} {...ord.orden} columns={columnas} rows={pagina.filas} pagination={pagina.props} loading={!datos && !error} error={error} onRetry={recargar}
         onRowClick={(x) => router.push(`/m/int/int-02?id=${x.id}`)} empty="No hay conectores con estos filtros." />
     </div>

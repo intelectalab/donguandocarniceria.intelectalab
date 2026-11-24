@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Archive, Pencil, Plus, Save, Send } from "lucide-react";
-import { Badge, Button, DataTable, Field, Input, Modal, PageHeader, Select, confirmAction, toast, type Column, type Tone } from "@/components/ui";
+import { Badge, Button, confirmAction, DataTable, Field, FiltroSelect, Input, Modal, PageHeader, Select, toast, type Column, type Tone } from "@/components/ui";
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { erroresDe, mensajeDe } from "@/lib/api";
 import { apiConsola } from "@/lib/consola";
@@ -65,11 +65,11 @@ export default function ComplementosConsola() {
     <div className="grid gap-5">
       <PageHeader description="Un complemento enciende un módulo que el plan no trae o suma unidades a un límite (usuarios, marcas, locales). Nace en borrador y se publica con su precio; se cobra en la corrida del mes. Retirado ya no se contrata."
         actions={puede ? <Button variant="primary" icon={Plus} onClick={() => setEditando("nuevo")}>Nuevo complemento</Button> : undefined} />
-      <div className="w-full sm:w-[260px]">
-        <Select aria-label="Estado" value={estado} onChange={(e) => setEstado(e.target.value)} placeholder="Todos los estados"
-          options={[...new Map((datos?.data ?? []).map((c) => [c.status, c.status_name])).entries()].map(([value, label]) => ({ value, label }))} />
-      </div>
-      <DataTable {...ord.orden} columns={columnas} rows={ord.filas} rowKey={(c) => c.code} loading={!datos && !error} error={error} onRetry={cargar} empty="No hay complementos." />
+      <DataTable toolbar={<>
+          <FiltroSelect etiqueta="Estado" ancho={170} value={estado} onChange={(v) => setEstado(v)}
+            options={[...new Map((datos?.data ?? []).map((c) => [c.status, c.status_name])).entries()].map(([value, label]) => ({ value, label }))} />
+        </>}
+        {...ord.orden} columns={columnas} rows={ord.filas} rowKey={(c) => c.code} loading={!datos && !error} error={error} onRetry={cargar} empty="No hay complementos." />
       {editando && datos && <FormComplemento modulos={datos.modulos} actual={editando === "nuevo" ? undefined : editando} onClose={() => setEditando(null)} onListo={() => { setEditando(null); cargar(); }} />}
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, CreditCard, FileClock, FileMinus, FilePlus2, Play, Receipt, Send, Trash2, Wallet } from "lucide-react";
-import { Alert, Badge, Button, Cifra, DataTable, Field, Input, Modal, PageHeader, Select, Tabs, VistaToggle, confirmAction, toast, useVista, type Column, type Tone } from "@/components/ui";
+import { Alert, Badge, Button, Cifra, confirmAction, DataTable, Field, FiltroFecha, FiltroSelect, Input, Modal, PageHeader, Tabs, toast, useVista, VistaToggle, type Column, type Tone } from "@/components/ui";
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { erroresDe, mensajeDe } from "@/lib/api";
 import { usePagina } from "@/lib/paginas";
@@ -111,18 +111,18 @@ export default function Facturacion() {
       ]} />
       {tab === "comprobantes" && (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <Select aria-label="Empresa" value={f.tenant} onChange={(e) => setF({ ...f, tenant: e.target.value })} placeholder="Todas las empresas"
-              options={(datos?.empresas ?? []).map((t) => ({ value: t.id, label: t.short }))} />
-            <Select aria-label="Tipo" value={f.doc_type} onChange={(e) => setF({ ...f, doc_type: e.target.value })} placeholder="Todo tipo"
-              options={Object.entries(datos?.tipos ?? {}).map(([value, label]) => ({ value, label }))} />
-            <Select aria-label="Estado" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} placeholder="Borradores y emitidos"
-              options={[{ value: "DRAFT", label: "Borradores" }, { value: "ISSUED", label: "Emitidos" }]} />
-            <Select aria-label="Pago" value={f.payment_status} onChange={(e) => setF({ ...f, payment_status: e.target.value })} placeholder="Todo estado de pago"
-              options={[{ value: "UNPAID", label: "Por cobrar" }, { value: "PAID", label: "Pagados" }, { value: "CREDITED", label: "Anulados con nota" }]} />
-            <Input aria-label="Período" type="month" value={f.period} onChange={(e) => setF({ ...f, period: e.target.value })} />
-          </div>
-          <DataTable {...pag.orden} columns={columnas} rows={datos?.data ?? []} loading={!datos && !error} error={error} onRetry={cargar} onRowClick={(c) => setAbierto(c.id)} pagination={pag.props(datos)}
+          <DataTable toolbar={<>
+              <FiltroSelect etiqueta="Empresa" todos="todas" ancho={170} value={f.tenant} onChange={(v) => setF({ ...f, tenant: v })}
+                options={(datos?.empresas ?? []).map((t) => ({ value: t.id, label: t.short }))} />
+              <FiltroSelect etiqueta="Tipo" ancho={160} value={f.doc_type} onChange={(v) => setF({ ...f, doc_type: v })}
+                options={Object.entries(datos?.tipos ?? {}).map(([value, label]) => ({ value, label }))} />
+              <FiltroSelect etiqueta="Estado" ancho={170} value={f.status} onChange={(v) => setF({ ...f, status: v })}
+                options={[{ value: "DRAFT", label: "Borradores" }, { value: "ISSUED", label: "Emitidos" }]} />
+              <FiltroSelect etiqueta="Pago" ancho={150} value={f.payment_status} onChange={(v) => setF({ ...f, payment_status: v })}
+                options={[{ value: "UNPAID", label: "Por cobrar" }, { value: "PAID", label: "Pagados" }, { value: "CREDITED", label: "Anulados con nota" }]} />
+              <FiltroFecha etiqueta="Período" tipo="month" value={f.period} onChange={(v) => setF({ ...f, period: v })} />
+            </>}
+            {...pag.orden} columns={columnas} rows={datos?.data ?? []} loading={!datos && !error} error={error} onRetry={cargar} onRowClick={(c) => setAbierto(c.id)} pagination={pag.props(datos)}
             empty="No hay comprobantes con estos filtros." />
         </>
       )}

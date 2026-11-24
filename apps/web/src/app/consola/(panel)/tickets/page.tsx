@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, Clock, Inbox, KeyRound, Send, UserPlus } from "lucide-react";
-import { Alert, Button, Cifra, DataTable, Field, Input, Modal, PageHeader, Select, Textarea, toast, type Column } from "@/components/ui";
+import { Alert, Button, Cifra, DataTable, Field, FiltroSelect, Modal, PageHeader, Select, Textarea, toast, type Column } from "@/components/ui";
 import { Conversacion, EstadoTicket, PlazoTicket, PrioridadTicket, type Ticket, type TicketFila } from "@/components/soporte/tickets";
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { PedirAcceso } from "@/components/consola/PedirAcceso";
@@ -74,17 +74,18 @@ function Contenido() {
           Plazos de primera respuesta: urgente {b.plazos.primera_respuesta_horas.URGENT} h (las 24 horas) · alta {b.plazos.primera_respuesta_horas.HIGH} h · normal {b.plazos.primera_respuesta_horas.NORMAL} h · baja {b.plazos.primera_respuesta_horas.LOW} h, en horario de soporte (lunes a sábado de 9 a 18). Un ticket resuelto sin respuesta del cliente se cierra solo a los {b.plazos.cierre_automatico_dias} días.
         </p>
       )}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <Input aria-label="Buscar" placeholder="Buscar asunto, número o empresa" value={f.search} onChange={(e) => setF({ ...f, search: e.target.value })} />
-        <Select aria-label="Estado" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} placeholder="Todos los estados"
-          options={[{ value: "ACTIVOS", label: "Por atender (abiertos)" }, ...opciones(b?.estados ?? {})]} />
-        <Select aria-label="Prioridad" value={f.priority} onChange={(e) => setF({ ...f, priority: e.target.value })} placeholder="Toda prioridad" options={opciones(b?.prioridades ?? {})} />
-        <Select aria-label="Empresa" value={f.tenant} onChange={(e) => setF({ ...f, tenant: e.target.value })} placeholder="Todas las empresas"
-          options={(b?.empresas ?? []).map((e) => ({ value: e.id, label: e.short }))} />
-        <Select aria-label="Atiende" value={f.assigned} onChange={(e) => setF({ ...f, assigned: e.target.value })} placeholder="Cualquiera"
-          options={[{ value: "NONE", label: "Sin asignar" }, ...(b?.personal ?? []).map((p) => ({ value: p.id, label: p.full_name }))]} />
-      </div>
-      <DataTable {...pag.orden} columns={columnas} rows={b?.data ?? []} loading={!b && !error} error={error} onRetry={cargar} onRowClick={(t) => ver(t.id)} pagination={pag.props(b)}
+      <DataTable search={{ value: f.search, onChange: (v) => setF({ ...f, search: v }), placeholder: "Buscar asunto, número o empresa…" }}
+        toolbar={<>
+          <FiltroSelect etiqueta="Estado" ancho={170} value={f.status} onChange={(v) => setF({ ...f, status: v })}
+            options={[{ value: "ACTIVOS", label: "Por atender (abiertos)" }, ...opciones(b?.estados ?? {})]} />
+          <FiltroSelect etiqueta="Prioridad" todos="todas" ancho={160} value={f.priority} onChange={(v) => setF({ ...f, priority: v })}
+            options={opciones(b?.prioridades ?? {})} />
+          <FiltroSelect etiqueta="Empresa" todos="todas" ancho={170} value={f.tenant} onChange={(v) => setF({ ...f, tenant: v })}
+            options={(b?.empresas ?? []).map((e) => ({ value: e.id, label: e.short }))} />
+          <FiltroSelect etiqueta="Atiende" todos="cualquiera" ancho={190} value={f.assigned} onChange={(v) => setF({ ...f, assigned: v })}
+            options={[{ value: "NONE", label: "Sin asignar" }, ...(b?.personal ?? []).map((p) => ({ value: p.id, label: p.full_name }))]} />
+        </>}
+        {...pag.orden} columns={columnas} rows={b?.data ?? []} loading={!b && !error} error={error} onRetry={cargar} onRowClick={(t) => ver(t.id)} pagination={pag.props(b)}
         empty="No hay tickets con estos filtros." />
       {abierto && b && <DetalleConsola key={abierto} id={abierto} personal={b.personal} onClose={() => ver(null)} onCambio={cargar} />}
     </div>
