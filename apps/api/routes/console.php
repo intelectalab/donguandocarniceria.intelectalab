@@ -26,6 +26,9 @@ Schedule::command('ped:vencer-borradores')->hourly()->withoutOverlapping();
 // OPS · RN-OPS-09: vence cada minuto los accesos de soporte cumplidos (desactiva su usuario técnico).
 // OPS · RN-OPS-15: cierra los tickets resueltos sin respuesta del cliente (ops_ticket_auto_close_days), cada mañana.
 Schedule::command('ops:vencer-accesos')->everyMinute()->withoutOverlapping();
+
+// INT-06: envía los mensajes salientes que tocan y reintenta los fallidos (RN-INT-08, RN-INT-09).
+Schedule::command('int:despachar')->everyMinute()->withoutOverlapping();
 // SUS · RN-SUS-10: mora diaria (deuda, reintentos, solo lectura, suspensión) y pruebas vencidas, en hora de Lima.
 Schedule::command('sus:mora')->dailyAt('06:20')->timezone('America/Lima')->withoutOverlapping();
 // SUS · SUS-12: corrida de cobro del mes, el día 1 (sin RUC emisor quedan en borrador).

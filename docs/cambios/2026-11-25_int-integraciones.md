@@ -83,3 +83,64 @@ Antes de migrar se revisó que los datos de demostración cumplieran todo.
 - las credenciales cifradas: cargar, una sola vigente, rotar, revocar, permisos, y que ni la respuesta ni la bitácora traigan el secreto.
 
 En total el sistema tiene 366 pruebas, todas correctas. Revisado en el navegador contra `aycha_test` (1440 y 375 px).
+
+---
+
+# Tanda 2: mensajes salientes, cola muerta y despacho (INT-06 e INT-07)
+
+## Base de datos
+
+Migración `2026_11_25_000200_int_mensajes_salientes`:
+- los intentos pasan a número entero;
+- columnas nuevas `manual` (las acciones a mano, con quién, cuándo y motivo) y `cancel_reason`;
+- reglas en la base para el estado y el tipo, e intentos nunca negativos;
+- la clave de idempotencia es única por empresa (RN-INT-11);
+- índice por estado y próximo intento, para que el despacho encuentre rápido lo que toca.
+
+El número OB-000168… sigue al último de la empresa. Se calcula al registrar el mensaje, con un bloqueo hasta que termina la transacción, para que dos mensajes a la vez no reciban el mismo número.
+
+## Reglas (Services\Salientes)
+
+- **RN-INT-08:** `Salientes::encolar()` se llama dentro de la transacción del cambio de negocio. Si esa transacción se revierte, el mensaje no existe.
+- **RN-INT-14:** con el módulo apagado (el que registra el mensaje o el dueño del conector), el mensaje no se crea.
+- **RN-INT-09:** si un envío falla, se reintenta con una espera de 30 s × 2^(intento − 1), con tope de 1 hora (parámetros `int_outbox_base_delay_seconds` e `int_outbox_max_delay_seconds`). Cada intento queda guardado con su error y su espera. Al fallar 8 veces (`int_outbox_max_attempts`), el mensaje pasa a la cola muerta: se registra el evento `outbox.dead` y llega un aviso crítico a la administración del sistema, con enlace al mensaje.
+- **RN-INT-10:** un mensaje de la cola muerta solo se reintenta o cancela a mano. Hace falta el permiso `int.outbox.retry` y un motivo de al menos 10 caracteres, y la acción queda en la bitácora. Si el reintento vuelve a fallar, el mensaje sigue en la cola muerta.
+- **RN-INT-11:** la clave de idempotencia va al proveedor, así un reintento no duplica el envío.
+- **Conectores:** las fallas del proveedor cuentan para pasar el conector a «En error» (RN-INT-19). Si falta el adaptador real, el mensaje no sale, pero eso no se cuenta contra el conector. Un envío correcto lo vuelve a poner en «Activo».
+- **Despacho:** dos despachos a la vez no envían el mismo mensaje, porque cada uno toma el mensaje con bloqueo.
+- **Éxito de entrega (KPI-INT-01):** enviados sobre enviados más muertos, en los 30 días que terminan en el último mensaje registrado. En operación esos 30 días terminan hoy. En los datos de demostración, que son de octubre, terminan en el último mensaje, así la cifra no queda vacía.
+
+## Despacho programado
+
+- Comando `int:despachar` (programado cada minuto, sin superponerse): recorre las empresas activas y envía lo pendiente y los reintentos cuya espera ya pasó. Si una empresa da error, las demás se despachan igual.
+- «Procesar la cola» en la pantalla envía todo lo pendiente y lo que espera reintento, sin esperar. Pide el permiso de la cola.
+
+## Pantallas
+
+- **INT-06 Mensajes salientes:**
+  - cifras: éxito de entrega (con meta ≥ 99,5 % y aviso si está debajo), pendientes, reintentando y cola muerta, que abre la cola muerta;
+  - pestaña «Mensajes»: filtros por estado, conector, módulo, tipo y fecha. Columnas: número, creado, módulo (por su nombre), evento, tipo, conector, referencia, intentos, próximo intento, estado y último error. Todas se ordenan en el servidor;
+  - pestaña «Eventos de dominio»: fecha y hora, evento, usuario, datos y estado, con filtro por evento y el detalle al hacer clic.
+- **Ficha del mensaje:** se abre al hacer clic en una fila de INT-06 o INT-07. Muestra:
+  - los datos y la clave de idempotencia;
+  - cada intento con su error y la espera hasta el siguiente;
+  - las acciones a mano con su motivo y el contenido;
+  - «Reintentar» y «Cancelar el mensaje», si está en la cola muerta y la persona tiene el permiso.
+- **INT-07 Cola muerta:**
+  - cifras: en cola muerta (meta 0) y atendidos a mano;
+  - la lista con los muertos y los ya atendidos. Columnas: número, cayó, conector, evento, referencia, intentos, último error y estado;
+  - «Reintentar» y «Cancelar» con motivo;
+  - un aviso para quien solo puede consultar.
+
+**Diferencia con el prototipo:** los eventos de dominio no tienen todavía suscriptores que los consuman, así que su estado se muestra como «Registrado», no como «Despachado».
+
+## Pruebas
+
+En `IntTest` hay 3 casos nuevos, 7 en total:
+- registrar dentro de la transacción (si se revierte, no existe), el módulo apagado, el envío por el adaptador falso, la clave repetida y el número que sigue al último;
+- las esperas 30 s, 1 min, 2 min… con tope de 1 h, la cola muerta al octavo intento con su aviso y su evento, y el conector en error;
+- reintentar y cancelar a mano: motivo, permiso, bitácora, y que un cancelado no se toca otra vez;
+- filtros, ficha y eventos;
+- el comando programado y «Procesar la cola» con y sin permiso.
+
+En total el sistema tiene 369 pruebas, todas correctas. Revisado en el navegador contra `aycha_test` (1440 y 375 px), sin errores en la consola.

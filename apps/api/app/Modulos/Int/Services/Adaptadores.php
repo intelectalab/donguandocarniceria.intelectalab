@@ -48,6 +48,31 @@ final class Adaptadores
     }
 
     /**
+     * Envía un mensaje saliente por el adaptador del conector, con su clave de idempotencia (RN-INT-11: el proveedor
+     * que la admite no duplica el efecto en un reintento).
+     *
+     * @return array{ok: bool, ref: ?string, error: ?string, del_proveedor: bool} del_proveedor = la falla es del proveedor (cuenta para RN-INT-19)
+     */
+    public static function enviar(object $c, object $m): array
+    {
+        if ($c->environment === 'SANDBOX' || $c->adapter === 'FAKE') {
+            if ($c->simulate_down) {
+                return ['ok' => false, 'ref' => null, 'error' => 'HTTP 503 Service Unavailable: el proveedor no respondió', 'del_proveedor' => true];
+            }
+
+            return ['ok' => true, 'ref' => 'FAKE-'.substr(hash('sha256', $m->idempotency_key), 0, 16), 'error' => null, 'del_proveedor' => false];
+        }
+        $clase = self::INSTALADOS[$c->adapter] ?? null;
+        if (! $clase || ! method_exists($clase, 'enviar')) {
+            return ['ok' => false, 'ref' => null, 'del_proveedor' => false,
+                'error' => 'El adaptador de '.self::nombreAdaptador($c).' todavía no está instalado: el mensaje no puede salir.'];
+        }
+        $r = (new $clase)->enviar($c, $m);
+
+        return ['ok' => (bool) $r['ok'], 'ref' => $r['ref'] ?? null, 'error' => $r['ok'] ? null : mb_substr((string) ($r['error'] ?? 'Error del proveedor'), 0, 255), 'del_proveedor' => ! $r['ok']];
+    }
+
+    /**
      * Prueba la conexión con el adaptador del conector.
      *
      * @return array{ok: ?bool, mensaje: string, latencia: ?int, error: ?string} ok = null cuando no hay con qué probar

@@ -3,12 +3,15 @@
 namespace Tests\Feature\Modulos;
 
 use App\Modulos\Int\Services\Credenciales;
+use App\Modulos\Int\Services\Salientes;
+use App\Support\RuleError;
 use App\Support\TenantContext;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-/** INT · Integraciones. Tanda 1: conectores (INT-01, INT-02) y credenciales (INT-03). */
+/** INT · Integraciones. Conectores (INT-01, INT-02), credenciales (INT-03), mensajes salientes y cola muerta (INT-06, INT-07). */
 class IntTest extends TestCase
 {
     private const ADMIN = 'lccahuana@donguando.pe';     // administración del sistema
@@ -155,5 +158,105 @@ class IntTest extends TestCase
         $this->como(self::ADMIN)->postJson("/api/v1/int/credenciales/{$n->json('id')}/revocar", ['reason' => 'Se filtró el secreto en un chat'])->assertOk()
             ->assertJsonPath('status', 'REVOKED')->assertJsonPath('revoked_reason', 'Se filtró el secreto en un chat');
         $this->como(self::SIN_PERMISO)->postJson('/api/v1/int/credenciales', ['connector_id' => $c['id'], 'name' => 'api_key', 'secret' => 'otro_secreto_99'])->assertForbidden();
+    }
+
+    public function test_encolar_en_la_transaccion_despachar_con_espera_exponencial_y_cola_muerta(): void
+    {
+        $falso = $this->conector(fn ($c) => $c['environment'] === 'SANDBOX' && $c['kind'] === 'MESSAGING' && $c['status'] === 'ACTIVE');
+        $tel = $this->conector(fn ($c) => $c['kind'] === 'TELEPHONY');
+
+        $this->enDonGuando(function () use ($falso, $tel) {
+            // RN-INT-08: si la transacción del cambio de negocio se revierte, el mensaje no existe.
+            try {
+                DB::transaction(function () use ($falso) {
+                    Salientes::encolar($falso['id'], 'CRM', 'MESSAGE', 'order.confirmed', ['to' => '+51999000111'], 'P-REVERTIDO');
+                    throw new \RuntimeException('falla el pedido');
+                });
+            } catch (\RuntimeException) {
+            }
+            $this->assertFalse(DB::table('outbox_messages')->where('ref', 'P-REVERTIDO')->exists());
+            // RN-INT-14: con el módulo apagado (Telefonía) no se crea.
+            $this->assertNull(Salientes::encolar($tel['id'], 'TEL', 'MESSAGE', 'call.missed', []));
+
+            // Enviado por el adaptador falso, con su clave de idempotencia (RN-INT-11).
+            $id = Salientes::encolar($falso['id'], 'CRM', 'MESSAGE', 'order.confirmed', ['to' => '+51999000111'], 'P-000900', 'ob-prueba-900');
+            $m = Salientes::despachar($id);
+            $this->assertSame(['SENT', 1], [$m->status, (int) $m->attempts]);
+            $this->assertStringStartsWith('FAKE-', $m->provider_ref);
+            $this->assertMatchesRegularExpression('/^OB-\d{6}$/', $m->number);
+            $this->assertGreaterThan(167, (int) substr($m->number, 3), 'Sigue al último de la demostración (OB-000167)');
+            $this->assertSame('SENT', Salientes::despachar($id)->status, 'Un enviado no se vuelve a enviar');
+            try {
+                Salientes::encolar($falso['id'], 'CRM', 'MESSAGE', 'order.confirmed', [], null, 'ob-prueba-900');
+                $this->fail('La clave repetida debía rechazarse');
+            } catch (RuleError $e) {
+                $this->assertSame('RN-INT-11', $e->rule);
+            }
+
+            // RN-INT-09: espera 30 s × 2^(n−1) con tope de 1 hora.
+            $this->assertSame([30, 60, 120, 3600], [Salientes::espera(1), Salientes::espera(2), Salientes::espera(3), Salientes::espera(8)]);
+            DB::table('integration_connectors')->where('id', $falso['id'])->update(['simulate_down' => true]);
+            $id2 = Salientes::encolar($falso['id'], 'CRM', 'MESSAGE', 'order.confirmed', ['to' => '+51999000222'], 'P-000901');
+            $m = Salientes::despachar($id2);
+            $this->assertSame(['RETRYING', 1], [$m->status, (int) $m->attempts]);
+            $this->assertEqualsWithDelta(now()->addSeconds(30)->timestamp, Carbon::parse($m->next_attempt_at)->timestamp, 2);
+            foreach (range(2, 8) as $n) {
+                $m = Salientes::despachar($id2);
+            }
+            $this->assertSame(['DEAD', 8], [$m->status, (int) $m->attempts]);
+            $this->assertCount(8, json_decode($m->tries, true));
+            $this->assertDatabaseHas('notifications', ['module' => 'INT', 'severity' => 'CRITICAL', 'title' => "Mensaje {$m->number} en la cola muerta"]);
+            $this->assertDatabaseHas('domain_events', ['event_name' => 'outbox.dead', 'aggregate_id' => $id2]);
+            $this->assertSame('ERROR', DB::table('integration_connectors')->where('id', $falso['id'])->value('status'), 'Las caídas del proveedor cuentan para el conector');
+        });
+    }
+
+    public function test_cola_muerta_se_reintenta_o_cancela_a_mano_con_motivo(): void
+    {
+        $l = $this->como(self::ADMIN)->getJson('/api/v1/int/salientes?muertos=1')->assertOk();
+        $muertos = $l->json('cifras.muertos');
+        $this->assertGreaterThanOrEqual(2, $muertos, 'La demostración trae mensajes en la cola muerta');
+        $this->assertSame(8, $l->json('max_intentos'));
+        $this->assertNotNull($l->json('cifras.exito'));
+        $vivos = array_values(array_filter($l->json('data'), fn ($m) => $m['status'] === 'DEAD'));
+        [$a, $b] = $vivos;
+
+        $this->como(self::SIN_PERMISO)->postJson("/api/v1/int/salientes/{$a['id']}/reintentar", ['reason' => 'Ya se corrigió la plantilla'])->assertForbidden();
+        $this->como(self::ADMIN)->postJson("/api/v1/int/salientes/{$a['id']}/reintentar", ['reason' => 'corto'])->assertStatus(422);
+
+        // Reintento a mano: si su conector es real y sin adaptador instalado, vuelve a fallar y sigue en la cola muerta.
+        $r = $this->como(self::ADMIN)->postJson("/api/v1/int/salientes/{$a['id']}/reintentar", ['reason' => 'Ya se corrigió la plantilla en Meta'])->assertOk();
+        $this->assertContains($r->json('status'), ['DEAD', 'SENT']);
+        $this->assertSame(['RETRY', 'Ya se corrigió la plantilla en Meta'], [$r->json('manual.0.action'), $r->json('manual.0.reason')]);
+
+        // Cancelar con motivo; uno cancelado ya no se toca.
+        $c = $this->como(self::ADMIN)->postJson("/api/v1/int/salientes/{$b['id']}/cancelar", ['reason' => 'El comprobante se anuló con nota de crédito'])->assertOk();
+        $this->assertSame(['CANCELLED', 'El comprobante se anuló con nota de crédito'], [$c->json('status'), $c->json('cancel_reason')]);
+        $this->como(self::ADMIN)->postJson("/api/v1/int/salientes/{$b['id']}/cancelar", ['reason' => 'Otra vez cancelado'])->assertStatus(422)->assertJsonPath('code', 'RN-INT-10');
+
+        // La cola muerta muestra también los atendidos a mano.
+        $l2 = $this->como(self::ADMIN)->getJson('/api/v1/int/salientes?muertos=1&per_page=100')->assertOk();
+        $this->assertSame($muertos - 1 - ($r->json('status') === 'SENT' ? 1 : 0), $l2->json('cifras.muertos'));
+        $this->assertContains($b['id'], array_column($l2->json('data'), 'id'));
+        $this->enDonGuando(fn () => $this->assertDatabaseHas('domain_events', ['event_name' => 'outbox.cancelled', 'aggregate_id' => $b['id']]));
+
+        // Filtros, detalle y eventos de dominio.
+        $estados = array_unique(array_column($this->como(self::ADMIN)->getJson('/api/v1/int/salientes?status=RETRYING')->assertOk()->json('data'), 'status'));
+        $this->assertContains(array_values($estados), [[], ['RETRYING']]);
+        $v = $this->como(self::ADMIN)->getJson("/api/v1/int/salientes/{$a['id']}")->assertOk();
+        $this->assertNotEmpty($v->json('kind_name'));
+        $this->assertIsArray($v->json('tries'));
+        $this->assertContains('outbox.cancelled', $this->como(self::ADMIN)->getJson('/api/v1/int/salientes/eventos')->assertOk()->json('eventos'));
+    }
+
+    public function test_el_despacho_programado_envia_lo_que_toca(): void
+    {
+        $falso = $this->conector(fn ($c) => $c['environment'] === 'SANDBOX' && $c['kind'] === 'MESSAGING' && $c['status'] === 'ACTIVE');
+        $id = $this->enDonGuando(fn () => Salientes::encolar($falso['id'], 'CRM', 'MESSAGE', 'order.confirmed', ['to' => '+51999000333'], 'P-000902'));
+        $this->artisan('int:despachar')->assertSuccessful();
+        $this->assertSame('SENT', $this->enDonGuando(fn () => DB::table('outbox_messages')->where('id', $id)->value('status')));
+        // «Procesar ahora» desde la pantalla: solo con el permiso de la cola.
+        $this->como(self::SIN_PERMISO)->postJson('/api/v1/int/salientes/procesar')->assertForbidden();
+        $this->como(self::ADMIN)->postJson('/api/v1/int/salientes/procesar')->assertOk();
     }
 }
