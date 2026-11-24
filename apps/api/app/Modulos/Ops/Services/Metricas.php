@@ -84,7 +84,7 @@ final class Metricas
             return round((float) $s->price_pen * (1 - (float) ($s->discount_pct ?? 0) / 100) + $extra, 2);
         };
 
-        $mrrIni = $mrrFin = $mrrCancelado = $contraccion = $mrrCohorteFin = $mora = $soloLectura = 0.0;
+        $mrrIni = $mrrFin = $mrrCancelado = $contraccion = $expansion = $mrrNuevo = $mrrCohorteFin = $mora = $soloLectura = 0.0;
         $activosIni = $activosFin = $cancelados = 0;
         $pruebasTerminadas = $pruebasConvertidas = 0;
         $porPlan = [];
@@ -102,7 +102,11 @@ final class Metricas
                     $mrrCancelado += $ci;
                 } elseif ($cf < $ci) {
                     $contraccion += $ci - $cf;
+                } elseif ($cf > $ci) {
+                    $expansion += $cf - $ci;
                 }
+            } else {
+                $mrrNuevo += $cf;   // clientes que no estaban activos al inicio del mes
             }
             if (in_array($ef, self::VIVAS, true)) {
                 $activosFin++;
@@ -177,6 +181,8 @@ final class Metricas
             'resolucion_horas' => $resolucion,                                                           // KPI-OPS-14
             'horas_acceso_soporte' => round($horasAcceso, 1),                                            // KPI-OPS-15
             'mrr_inicio' => round($mrrIni, 2), 'clientes_inicio' => $activosIni, 'cancelaciones' => $cancelados,
+            // Movimiento del MRR (como el prototipo): inicio + nuevo + expansión − contracción − cancelado = cierre.
+            'mrr_nuevo' => round($mrrNuevo, 2), 'mrr_expansion' => round($expansion, 2), 'mrr_contraccion' => round($contraccion, 2), 'mrr_cancelado' => round($mrrCancelado, 2),
             'pruebas_terminadas' => $pruebasTerminadas, 'pruebas_convertidas' => $pruebasConvertidas, 'tickets' => $tickets->count(),
             'facturado' => round($facturado, 2), 'cobrado' => round($cobrado, 2),
         ];

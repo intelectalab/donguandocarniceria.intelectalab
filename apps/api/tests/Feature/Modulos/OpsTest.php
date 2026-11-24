@@ -442,6 +442,29 @@ class OpsTest extends TestCase
         $this->assertSame('20100047218', $r->json('data.0.detail.ruc'), 'El detalle llega como datos, no como texto');
         $this->assertGreaterThan(0, $this->consola($token)->getJson('/api/v1/consola/bitacora?search=ana')->json('total'));
         $this->assertNotEmpty($r->json('acciones'));
+
+        // Cifras de la cabecera (como el prototipo): no dependen de los filtros.
+        $c = $r->json('cifras');
+        $this->assertGreaterThanOrEqual(2, $c['registradas'], 'Al menos el ingreso del administrador y el alta');
+        $this->assertSame($c['registradas'], $c['hoy']);
+        $this->assertSame(0, $c['soporte']);
+        $this->assertSame(0, $c['rechazados']);
+        $this->consola()->postJson('/api/v1/consola/ingreso', ['email' => 'nadie@intelectalab.com', 'password' => 'Incorrecta-2026', 'codigo' => '000000']);
+        $this->assertSame(1, $this->consola($token)->getJson('/api/v1/consola/bitacora')->json('cifras.rechazados'), 'Un ingreso fallido cuenta como rechazado');
+
+        // Orden por columna en el servidor: ?sort=campo o -campo; un campo que no está en la lista se ignora (no llega al SQL).
+        $asc = array_column($this->consola($token)->getJson('/api/v1/consola/bitacora?sort=occurred_at&per_page=100')->json('data'), 'occurred_at');
+        $desc = array_column($this->consola($token)->getJson('/api/v1/consola/bitacora?sort=-occurred_at&per_page=100')->json('data'), 'occurred_at');
+        $esperado = $asc;
+        sort($esperado);
+        $this->assertSame($esperado, $asc);
+        $this->assertSame(array_reverse($esperado), $desc);
+        $nombres = array_column($this->consola($token)->getJson('/api/v1/consola/bitacora?sort=actor_name&per_page=100')->json('data'), 'actor_name');
+        $ordenados = $nombres;
+        usort($ordenados, fn ($x, $y) => strcmp(mb_strtolower($x), mb_strtolower($y)));
+        $this->assertSame(array_map('mb_strtolower', $ordenados), array_map('mb_strtolower', $nombres));
+        $this->consola($token)->getJson('/api/v1/consola/bitacora?sort=occurred_at;DROP%20TABLE%20tenants')->assertOk();
+        $this->assertSame($desc, array_column($this->consola($token)->getJson('/api/v1/consola/bitacora?sort=password&per_page=100')->json('data'), 'occurred_at'), 'Sin orden válido queda el de siempre (lo más nuevo primero)');
     }
 
     public function test_parametros_de_plataforma_con_motivo_historial_y_reglas(): void
@@ -465,6 +488,16 @@ class OpsTest extends TestCase
         $this->consola($tokenL1)->getJson('/api/v1/consola/parametros')->assertOk();
         $this->consola($tokenL1)->putJson('/api/v1/consola/parametros/ops_console_session_minutes', ['value' => 20, 'reason' => 'Intento'])
             ->assertStatus(422)->assertJsonPath('code', 'RN-OPS-10');
+
+        // Origen (modificado o por defecto) e historial general de cambios.
+        $lista = $this->consola($token)->getJson('/api/v1/consola/parametros')->assertOk();
+        $porClave = collect($lista->json('data'))->keyBy('key');
+        $this->assertSame([true, false], [$porClave['ops_console_session_minutes']['modificado'], $porClave['ops_ticket_auto_close_days']['modificado']]);
+        $this->assertEqualsCanonicalizing(['Turnos largos de soporte', 'Oficina y local'], array_column($lista->json('historial'), 'reason'));
+        // Qué hace cada rol: administración puede todo; solo consulta, nada.
+        $caps = collect($this->consola($token)->getJson('/api/v1/consola/usuarios')->json('capacidades'))->keyBy('code');
+        $this->assertStringStartsWith('Todo', $caps['PLATFORM_ADMIN']['puede'][0]);
+        $this->assertSame([], $caps['READ_ONLY']['puede']);
     }
 
     public function test_catalogos_globales_se_revisan_antes_de_importar(): void
@@ -529,7 +562,7 @@ class OpsTest extends TestCase
         }
         $this->assertNotEmpty(UsuariosPlataforma::primeraCuenta('yadira@gmail.com', 'Yadira Prueba', true));
         $this->assertContains('gmail.com', json_decode(DB::table('platform_parameters')->where('key', 'ops_platform_email_domains')->value('value'), true));
-        $this->assertDatabaseHas('platform_parameter_history', ['key' => 'ops_platform_email_domains', 'changed_by_name' => 'Servidor (ops:crear-admin)']);
+        $this->assertDatabaseHas('platform_parameter_history', ['key' => 'ops_platform_email_domains', 'changed_by_name' => 'Instalación del servidor']);
     }
 
     /* ------------------------------------------------------------------ tanda 5: registros y pedidos de demo */
@@ -606,6 +639,9 @@ class OpsTest extends TestCase
         $this->assertSame(2, $b->json('cifras.abiertos'));
         $this->assertSame(2, $b->json('cifras.sin_asignar'));
         $this->assertNotEmpty($b->json('data.0.tenant_short'));
+        // Sin respuestas todavía no hay mediana; los plazos llegan para la línea que los explica.
+        $this->assertNull($b->json('cifras.mediana_primera_respuesta'));
+        $this->assertSame([1, 7], [$b->json('plazos.primera_respuesta_horas.URGENT'), $b->json('plazos.cierre_automatico_dias')]);
         // Paginada: una por página, pero las cifras son de todo lo filtrado.
         $p = $this->consola($lectura)->getJson('/api/v1/consola/tickets?per_page=1&page=2')->assertOk();
         $this->assertSame([1, 2, 2, 2, 2], [count($p->json('data')), $p->json('total'), $p->json('last_page'), $p->json('current_page'), $p->json('cifras.abiertos')]);
@@ -814,7 +850,11 @@ class OpsTest extends TestCase
 
         // Vuelve: la disponibilidad del día baja en proporción (2 caídas de 3 lecturas → 33,33 %).
         $this->consola($ing)->postJson('/api/v1/consola/salud/OSE/lecturas', ['status' => 'UP', 'detail' => 'El proveedor normalizó'])->assertOk();
-        $this->assertEquals(33.33, collect($this->consola($ing)->getJson('/api/v1/consola/salud')->json('data'))->firstWhere('code', 'OSE')['disponibilidad_24h']);
+        $tablero = $this->consola($ing)->getJson('/api/v1/consola/salud')->json();
+        $this->assertEquals(33.33, collect($tablero['data'])->firstWhere('code', 'OSE')['disponibilidad_24h']);
+        // Cifras de cabecera: el incidente sigue abierto hasta resolverlo, y la disponibilidad total queda bajo 100 %.
+        $this->assertSame(1, $tablero['incidentes_abiertos']);
+        $this->assertLessThan(100, $tablero['disponibilidad_7d']);
 
         // Las lecturas son de solo inserción.
         $this->expectException(QueryException::class);
@@ -847,6 +887,14 @@ class OpsTest extends TestCase
         $this->consola($ing)->postJson("/api/v1/consola/tickets/{$t['id']}/incidente", ['incident_id' => $i['id']])->assertNoContent();
         $this->assertSame($t['number'], $this->consola($ing)->getJson("/api/v1/consola/incidentes/{$i['id']}")->json('tickets.0.number'));
 
+        // Ficha de la empresa: los incidentes que la afectaron, sus tickets abiertos y las acciones con su nombre.
+        $this->assertSame([$i['id']], array_column($this->consola($ing)->getJson("/api/v1/consola/incidentes?tenant={$dg}")->json('data'), 'id'));
+        $this->assertSame([], $this->consola($ing)->getJson("/api/v1/consola/incidentes?tenant={$norte}")->json('data'), 'No afectó a la otra empresa');
+        $ficha = $this->consola($admin)->getJson("/api/v1/consola/empresas/{$dg}")->assertOk();
+        $this->assertSame([1, 0], [$ficha->json('tickets_abiertos'), $ficha->json('accesos_vigentes')]);
+        $this->assertSame(1, collect($this->consola($admin)->getJson('/api/v1/consola/empresas')->json('data'))->firstWhere('id', $dg)['tickets_abiertos']);
+        $this->assertSame('Alta de empresa', collect($this->consola($admin)->getJson("/api/v1/consola/empresas/{$norte}")->json('acciones_consola'))->last()['action_name']);
+
         // RN-OPS-08: sin causa raíz no se resuelve; la hora de cierre va después del inicio.
         $this->consola($ing)->postJson("/api/v1/consola/incidentes/{$i['id']}/resolver", [])->assertStatus(422)->assertJsonValidationErrors(['root_cause']);
         $this->consola($ing)->postJson("/api/v1/consola/incidentes/{$i['id']}/resolver", ['root_cause' => 'Caída del proveedor', 'resolved_at' => now()->subHour()->toIso8601String()])
@@ -855,6 +903,16 @@ class OpsTest extends TestCase
         $this->assertSame(['RESOLVED', 10], [$r->json('status'), $r->json('duracion_min')]);
         $this->assertSame('Resuelto: Boletas sin respuesta del OSE', $this->desde(self::DG, $gerente)->getJson('/api/v1/anuncios')->json('data.0.title'));
         $this->assertDatabaseHas('platform_audit_log', ['action' => 'INCIDENT_RESOLVED', 'entity_id' => $i['id']]);
+
+        // Cifras de la cabecera: ya no hay abiertos, el SEV1 cuenta en el mes, se avisó a tiempo y la mediana es 10 min.
+        $c = $this->consola($ing)->getJson('/api/v1/consola/incidentes?status=ABIERTOS')->json('cifras');
+        $this->assertSame([0, 1, 0, 0.2, 30], [$c['abiertos'], $c['graves_mes'], $c['fuera_de_plazo'], $c['mediana_horas'], $c['plazo_minutos']]);
+
+        // Un SEV2 abierto sin aviso pasado el plazo cuenta como fuera de plazo.
+        $this->consola($ing)->postJson('/api/v1/consola/incidentes', ['title' => 'Pagos lentos', 'severity' => 'SEV2', 'component_code' => 'PAYMENTS',
+            'affects_all' => true, 'started_at' => now()->subMinutes(31)->toIso8601String()])->assertCreated();
+        $c = $this->consola($ing)->getJson('/api/v1/consola/incidentes')->json('cifras');
+        $this->assertSame([1, 1], [$c['abiertos'], $c['fuera_de_plazo']]);
         unset($norte);
     }
 
@@ -894,6 +952,11 @@ class OpsTest extends TestCase
         $this->assertCount(1, $this->desde(self::DG, $gerente)->getJson('/api/v1/anuncios')->json('data'));
         $this->consola($admin)->postJson("/api/v1/consola/anuncios/{$m}/cancelar")->assertOk()->assertJsonPath('status', 'CANCELLED');
         $this->assertSame([], $this->desde(self::DG, $gerente)->getJson('/api/v1/anuncios')->json('data'));
+
+        // Filtros de la consola por estado y tipo.
+        $this->assertSame([$prog], array_column($this->consola($admin)->getJson('/api/v1/consola/anuncios?status=SCHEDULED')->json('data'), 'id'));
+        $this->assertSame([$m], array_column($this->consola($admin)->getJson('/api/v1/consola/anuncios?status=CANCELLED')->json('data'), 'id'));
+        $this->assertSame(['MAINTENANCE'], array_values(array_unique(array_column($this->consola($admin)->getJson('/api/v1/consola/anuncios?kind=MAINTENANCE')->json('data'), 'kind'))));
     }
 
     /* ---------------------------------------------------------------- tanda 9a: facturación, cobros y mora del SaaS */
@@ -932,12 +995,22 @@ class OpsTest extends TestCase
         [, $l1] = $this->cuenta($admin, 'luis.soporte@intelectalab.com', 'SUPPORT_L1');
         $this->consola($l1)->postJson('/api/v1/consola/facturacion/corridas', ['period' => '2026-11'])->assertStatus(422)->assertJsonPath('code', 'RN-OPS-10');
 
+        // Vista previa (como el prototipo): lo que armaría la corrida, sin grabar nada; soporte no la ve.
+        $this->consola($l1)->getJson('/api/v1/consola/facturacion/vista-previa?period=2026-11')->assertStatus(422)->assertJsonPath('code', 'RN-OPS-10');
+        $vp = $this->consola($admin)->getJson('/api/v1/consola/facturacion/vista-previa?period=2026-11')->assertOk();
+        $fila = collect($vp->json('data'))->firstWhere('tenant_short', 'Carnes del Norte');
+        $this->assertEquals(['Factura', $precio, round($precio * 0.18, 2)], [$fila['doc_type_name'], $fila['subtotal'], $fila['igv']]);
+        $this->assertSame(0, DB::table('saas_invoices')->count(), 'La vista previa no graba');
+
         // D-SUS-06: sin RUC emisor la corrida arma el borrador y no emite. Una segunda corrida no duplica.
         $r = $this->consola($admin)->postJson('/api/v1/consola/facturacion/corridas', ['period' => '2026-11'])->assertCreated();
         $this->assertSame([1, 0, 1], [$r->json('drafts'), $r->json('issued'), $r->json('run_no')]);
         $this->assertStringContainsString('RUC emisor', implode(' ', $r->json('notes')));
         $this->assertSame(0, $this->consola($admin)->postJson('/api/v1/consola/facturacion/corridas', ['period' => '2026-11'])->assertCreated()->json('drafts'));
-        $f = $this->consola($admin)->getJson("/api/v1/consola/facturacion?tenant={$norte}")->assertOk()->json('data.0');
+        $lf = $this->consola($admin)->getJson("/api/v1/consola/facturacion?tenant={$norte}")->assertOk();
+        $f = $lf->json('data.0');
+        $this->assertSame([1, 0], [$lf->json('cifras.borradores'), $lf->json('cifras.por_cobrar')]);
+        $this->assertSame('Carnes del Norte', $lf->json('empresas.0.short'));
         $igv = round($precio * 0.18, 2);
         $this->assertSame(['DRAFT', 'INVOICE', 'RUC', round($precio + $igv, 2)], [$f['status'], $f['doc_type'], $f['customer_doc_type'], $f['total']]);
         $this->consola($admin)->postJson("/api/v1/consola/facturacion/{$f['id']}/emitir")->assertStatus(422)->assertJsonPath('code', 'RN-SUS-19');
@@ -946,12 +1019,16 @@ class OpsTest extends TestCase
         $this->emisor($admin);
         $e = $this->consola($admin)->postJson("/api/v1/consola/facturacion/{$f['id']}/emitir")->assertOk();
         $this->assertSame(['ISSUED', 'F001-00000001', today()->addDays(5)->toDateString()], [$e->json('status'), $e->json('number'), substr($e->json('due_date'), 0, 10)]);
+        $c = $this->consola($admin)->getJson('/api/v1/consola/facturacion')->json('cifras');
+        $this->assertSame([0, 1, 0], [$c['borradores'], $c['por_cobrar'], $c['vencidos']]);
+        $this->assertEquals($e->json('total'), $c['emitido_mes']);
 
         // Cobro rechazado: queda con deuda. Con otra tarjeta, aprobado: pagado y activa (RN-SUS-14, RN-SUS-10).
         $this->medioDePago($norte, 'fake_tok_declined');
         $this->consola($admin)->postJson("/api/v1/consola/facturacion/{$f['id']}/cobrar")->assertOk()->assertJsonPath('status', 'DECLINED');
         $this->assertSame('PAST_DUE', DB::table('subscriptions')->where('id', $sub)->value('status'));
         $this->medioDePago($norte, 'fake_tok_ok');
+        $this->travel(1)->seconds();   // la hora se guarda al segundo: el segundo intento va después
         $this->consola($admin)->postJson("/api/v1/consola/facturacion/{$f['id']}/cobrar")->assertOk()->assertJsonPath('status', 'APPROVED');
         $v = $this->consola($admin)->getJson("/api/v1/consola/facturacion/{$f['id']}")->assertOk();
         $this->assertSame(['PAID', 0, 2], [$v->json('payment_status'), $v->json('saldo'), count($v->json('cobros'))]);
@@ -959,6 +1036,7 @@ class OpsTest extends TestCase
 
         // RN-SUS-13: el aviso repetido no tiene efecto; uno sin firma válida tampoco.
         $cobros = $this->consola($admin)->getJson('/api/v1/consola/cobros?status=APPROVED')->assertOk()->json('data');
+        $this->assertSame(2, $cobros[0]['attempt_no'], 'El aprobado fue el segundo intento de ese comprobante');
         $evento = json_encode($cobros[0]['raw_event']);
         $this->postJson('/api/v1/publico/pasarela/fake', json_decode($evento, true), ['X-Firma' => str_repeat('0', 64)])
             ->assertStatus(401)->assertJsonPath('result', 'Firma inválida: sin efecto');
@@ -968,10 +1046,17 @@ class OpsTest extends TestCase
         $this->assertSame(1, DB::table('saas_payments')->where('invoice_id', $f['id'])->where('status', 'APPROVED')->count());
         TenantContext::set(null);
 
+        // Cifras de la cabecera (sin depender del filtro) y los cobros por conciliar agrupados por día.
+        $l = $this->consola($admin)->getJson('/api/v1/consola/cobros?status=DECLINED')->assertOk();
+        $this->assertSame([1, 1, 1, 1], [$l->json('cifras.aprobados'), $l->json('cifras.rechazados'), $l->json('cifras.por_conciliar'), $l->json('cifras.avisos_repetidos')]);
+        $this->assertEquals($cobros[0]['amount'], $l->json('cifras.por_conciliar_monto'));
+        $this->assertSame([$cobros[0]['id']], $l->json('por_dia.0.ids'));
+
         // Conciliación: el abono menor que lo cobrado deja la comisión.
         $abono = $this->consola($admin)->postJson('/api/v1/consola/cobros/conciliar', ['payments' => [$cobros[0]['id']], 'reference' => 'ABONO-001',
             'settled_on' => today()->toDateString(), 'amount' => round($cobros[0]['amount'] - 10, 2)])->assertCreated();
         $this->assertEquals(10, $abono->json('fee'));
+        $this->assertSame([0, []], [$this->consola($admin)->getJson('/api/v1/consola/cobros')->json('cifras.por_conciliar'), $this->consola($admin)->getJson('/api/v1/consola/cobros')->json('por_dia')]);
         $this->consola($admin)->postJson('/api/v1/consola/cobros/conciliar', ['payments' => [$cobros[0]['id']], 'reference' => 'ABONO-002',
             'settled_on' => today()->toDateString(), 'amount' => 1])->assertStatus(422)->assertJsonPath('code', 'RN-SUS-13');
 
@@ -1018,14 +1103,62 @@ class OpsTest extends TestCase
         // CA-SUS-04: el pago confirmado la devuelve a activa en el momento.
         $this->medioDePago($norte, 'fake_tok_ok');
         $token = $this->entrar('ana.rios@intelectalab.com', $this->secretoAdmin);
-        $cola = $this->consola($token)->getJson('/api/v1/consola/mora')->assertOk()->json('data.0');
+        $r = $this->consola($token)->getJson('/api/v1/consola/mora')->assertOk();
+        $cola = $r->json('data.0');
         $this->assertSame(['SUSPENDED', 22], [$cola['status'], $cola['dias']]);
+        $this->assertMatchesRegularExpression('/^[A-Z0-9]{4}-\d{8}$/', $cola['factura_numero'], 'El número del comprobante que se debe');
+        // Cifras de la cabecera y la última corrida de la tarea diaria (queda en la bitácora).
+        $this->assertSame([1, 0, 1], [$r->json('cifras.en_mora'), $r->json('cifras.solo_lectura'), $r->json('cifras.suspendidas')]);
+        $this->assertEquals($cola['deuda'], $r->json('cifras.deuda_vencida'));
+        $this->assertSame(['Tarea diaria', 1], [$r->json('ultima_corrida.actor_name'), $r->json('ultima_corrida.resumen.suspendidas')]);
+        // A mano desde la consola: solo administración y cobranza; queda con su nombre.
+        [, $l1] = $this->cuenta($token, 'luis.soporte@intelectalab.com', 'SUPPORT_L1');
+        $this->consola($l1)->postJson('/api/v1/consola/mora/proceso')->assertStatus(422)->assertJsonPath('code', 'RN-OPS-10');
+        $this->consola($token)->postJson('/api/v1/consola/mora/proceso')->assertOk()->assertJsonPath('suspendidas', 0);
+        $this->assertSame('Ana Ríos Paredes', $this->consola($token)->getJson('/api/v1/consola/mora')->json('ultima_corrida.actor_name'));
         $this->consola($token)->postJson("/api/v1/consola/mora/{$sub}/cobrar")->assertOk()->assertJsonPath('status', 'APPROVED');
         $this->assertSame('ACTIVE', $estado());
         $this->assertSame('ACTIVE', DB::table('tenants')->where('id', $norte)->value('status'));
         $this->assertSame(['PAST_DUE', 'READ_ONLY', 'SUSPENDED', 'ACTIVE'], DB::table('subscription_events')->where('subscription_id', $sub)->where('event', 'STATUS_CHANGED')
             ->where('actor_type', 'SYSTEM')->orderBy('occurred_at')->pluck('to_status')->all());
         $this->assertSame([], $this->consola($token)->getJson('/api/v1/consola/mora')->json('data'));
+    }
+
+    public function test_salud_de_empresas_con_niveles_fotos_diarias_y_cortes(): void
+    {
+        [$admin, $sub, $norte] = $this->empresaActiva();
+        $salud = fn () => collect($this->consola($admin)->getJson('/api/v1/consola/empresas')->assertOk()->json('data'))->firstWhere('id', $norte)['salud'];
+
+        // Activa, su administradora ingresó hoy y sin tickets: 100, saludable.
+        $s = $salud();
+        $this->assertSame([100, 'HEALTHY'], [$s['score'], $s['level']]);
+        $this->assertSame(['Actividad', 'Cobro', 'Soporte'], array_column($s['parts'], 'label'));
+
+        // Suspendida: el cobro pesa 35 → 65, en riesgo (corte 70).
+        TenantContext::platform();
+        DB::table('subscriptions')->where('id', $sub)->update(['status' => 'SUSPENDED']);
+        TenantContext::set(null);
+        $this->assertSame([65, 'AT_RISK'], [$salud()['score'], $salud()['level']]);
+
+        // Recalcular guarda una foto por día; soporte nivel 1 no puede.
+        [, $l1] = $this->cuenta($admin, 'luis.soporte@intelectalab.com', 'SUPPORT_L1');
+        $this->consola($l1)->postJson('/api/v1/consola/empresas/salud')->assertStatus(422)->assertJsonPath('code', 'RN-OPS-10');
+        $this->consola($admin)->postJson('/api/v1/consola/empresas/salud')->assertOk();
+        $this->consola($admin)->postJson('/api/v1/consola/empresas/salud')->assertOk();
+        $ficha = $this->consola($admin)->getJson("/api/v1/consola/empresas/{$norte}")->assertOk();
+        $this->assertSame([[65, 'AT_RISK']], array_map(fn ($x) => [$x['score'], $x['level']], $ficha->json('salud_evolucion')), 'Una sola foto por día');
+        $this->assertSame([70, 40], $ficha->json('salud_cortes'));
+        $this->assertDatabaseHas('platform_audit_log', ['action' => 'HEALTH_RECOMPUTED']);
+
+        // Los cortes se cambian en Parámetros, pero «crítica» no puede quedar sobre «en riesgo».
+        $this->consola($admin)->putJson('/api/v1/consola/parametros/ops_health_critical_below', ['value' => 80, 'reason' => 'Prueba de cortes'])
+            ->assertStatus(422)->assertJsonPath('code', 'RN-OPS-05');
+        $this->consola($admin)->putJson('/api/v1/consola/parametros/ops_health_risk_below', ['value' => 60, 'reason' => 'Bajar el corte de riesgo'])->assertOk();
+        $this->assertSame('HEALTHY', $salud()['level'], 'Con el corte en 60, 65 ya es saludable');
+
+        // Sin suscripción (Don Guando, piloto) el cobro cuenta como al día.
+        $dg = collect($this->consola($admin)->getJson('/api/v1/consola/empresas')->json('data'))->firstWhere('short', 'Don Guando')['salud'];
+        $this->assertSame(100, $dg['parts'][1]['score']);
     }
 
     public function test_prueba_vencida_sin_medio_de_pago_pasa_a_solo_lectura(): void
@@ -1277,6 +1410,8 @@ class OpsTest extends TestCase
         $dic = collect($this->consola($token)->getJson('/api/v1/consola/metricas')->json('meses'))->last();
         $this->assertSame(['2026-12', 50.0, 33.26, 66.74, 299, 1], [$dic['period'], (float) $dic['churn_clientes'], (float) $dic['churn_mrr'], (float) $dic['retencion_neta'],
             (int) $dic['mrr'], $dic['clientes_activos']]);
+        // Movimiento del MRR: 448 al inicio, se cancelan 149, sin nuevos ni cambios de plan; cierra en 299.
+        $this->assertEquals([448, 0, 0, 0, 149], [$dic['mrr_inicio'], $dic['mrr_nuevo'], $dic['mrr_expansion'], $dic['mrr_contraccion'], $dic['mrr_cancelado']]);
 
         // RN-OPS-17: noviembre se congela; recalcular pide motivo y crea otra corrida; el mes en curso no se congela.
         [, $l1] = $this->cuenta($token, 'luis.soporte@intelectalab.com', 'SUPPORT_L1');

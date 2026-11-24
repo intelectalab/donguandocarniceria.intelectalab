@@ -4,6 +4,7 @@ namespace App\Modulos\Ops\Services;
 
 use App\Modulos\Mae\Services\CatalogosGlobales;
 use App\Modulos\Plt\Services\Ruc;
+use App\Support\Paginas;
 use App\Support\RuleError;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -29,6 +30,16 @@ final class Plataforma
         'PLAN_DRAFT_CREATED' => 'Borrador de plan', 'PLAN_DRAFT_DELETED' => 'Borrador de plan borrado', 'PLAN_PUBLISHED' => 'Plan publicado',
         'PLAN_RETIRED' => 'Plan retirado', 'PARAMETER_CHANGED' => 'Parámetro cambiado', 'CATALOG_IMPORTED' => 'Catálogo global importado',
         'TENANT_SIGNUP' => 'Empresa creada por registro', 'SIGNUP_REJECTED' => 'Registro rechazado', 'DEMO_ATTENDED' => 'Pedido de demo atendido', 'DEMO_REOPENED' => 'Pedido de demo reabierto',
+        'DUNNING_RUN' => 'Proceso de mora ejecutado', 'HEALTH_RECOMPUTED' => 'Salud de las empresas recalculada', 'DUNNING_REMINDER' => 'Recordatorio de pago enviado', 'DUNNING_EXTENSION' => 'Prórroga de mora',
+        'TICKET_ANSWERED' => 'Ticket respondido', 'TICKET_ASSIGNED' => 'Ticket asignado',
+        'ACCESS_REQUESTED' => 'Acceso de soporte pedido', 'ACCESS_CANCELLED' => 'Acceso de soporte cancelado', 'ACCESS_SESSION_STARTED' => 'Sesión de soporte iniciada',
+        'ACCESS_FINISHED' => 'Acceso de soporte terminado',
+        'HEALTH_RECORDED' => 'Lectura de salud registrada', 'INCIDENT_OPENED' => 'Incidente abierto', 'INCIDENT_EDITED' => 'Incidente editado',
+        'INCIDENT_UPDATED' => 'Actualización de incidente', 'INCIDENT_RESOLVED' => 'Incidente resuelto',
+        'ANNOUNCEMENT_SAVED' => 'Anuncio guardado', 'ANNOUNCEMENT_PUBLISHED' => 'Anuncio publicado', 'ANNOUNCEMENT_CANCELLED' => 'Anuncio cancelado',
+        'BILLING_RUN' => 'Corrida de facturación', 'INVOICE_DRAFT_DELETED' => 'Borrador de comprobante borrado', 'CREDIT_NOTE_ISSUED' => 'Nota de crédito emitida',
+        'PAYMENT_ATTEMPTED' => 'Cobro intentado', 'PAYMENTS_RECONCILED' => 'Cobros conciliados con un abono', 'METRICS_FROZEN' => 'Métricas congeladas',
+        'ADDON_SAVED' => 'Complemento guardado', 'ADDON_PUBLISHED' => 'Complemento publicado', 'ADDON_RETIRED' => 'Complemento retirado',
     ];
 
     /** Reglas de cada parámetro de plataforma: tipo y rango, para no guardar un valor que rompa la consola. */
@@ -47,6 +58,11 @@ final class Plataforma
         'ops_incident_notify_minutes' => ['entero', 5, 240],
         'ops_maintenance_notice_hours' => ['entero', 1, 336],
         'ops_component_check_seconds' => ['entero', 60, 3600],
+        'ops_health_weight_activity' => ['entero', 0, 100],
+        'ops_health_weight_billing' => ['entero', 0, 100],
+        'ops_health_weight_support' => ['entero', 0, 100],
+        'ops_health_risk_below' => ['entero', 1, 100],
+        'ops_health_critical_below' => ['entero', 1, 100],
         'sus_invoice_due_days' => ['entero', 1, 60],
         'sus_grace_days' => ['entero', 1, 60],
         'sus_read_only_days' => ['entero', 1, 90],
@@ -82,16 +98,42 @@ final class Plataforma
             $q->where(fn ($w) => $w->whereRaw('lower(a.actor_name) LIKE ?', [$texto])->orWhereRaw('lower(a.reason) LIKE ?', [$texto])
                 ->orWhereRaw('lower(t.short) LIKE ?', [$texto])->orWhereRaw('a.ip LIKE ?', [$texto]));
         }
-        $pagina = $q->orderByDesc('a.occurred_at')->paginate(min(100, max(10, (int) ($f['per_page'] ?? 25))));
+        $q->orderByDesc('a.occurred_at')->orderBy('a.id');
+        Paginas::ordenar($q, ['occurred_at' => 'a.occurred_at', 'action_name' => 'a.action', 'actor_name' => 'a.actor_name', 'tenant_short' => 't.short', 'ip' => 'a.ip'], 'a.id', $f);
+        $pagina = $q->paginate(min(100, max(10, (int) ($f['per_page'] ?? 25))));
         // array_merge (no «+»): el detalle viene como texto JSON y debe reemplazarse por su valor.
+        // Las filas viejas de la primera cuenta guardaron el nombre del comando: se muestran como «Instalación del servidor».
         $pagina->getCollection()->transform(fn ($r) => array_merge((array) $r, ['action_name' => self::ACCIONES[$r->action] ?? $r->action,
+            'actor_name' => $r->actor_name === 'Servidor (ops:crear-admin)' ? UsuariosPlataforma::INSTALACION : $r->actor_name,
             'detail' => json_decode($r->detail, true)]));
 
         return $pagina->toArray() + [
+            'cifras' => self::cifrasBitacora(),
             'acciones' => collect(self::ACCIONES)->map(fn ($n, $c) => ['code' => $c, 'name' => $n])->values(),
             'usuarios' => DB::table('platform_users')->orderBy('full_name')->get(['id', 'full_name']),
             'empresas' => DB::table('tenants')->orderBy('short')->get(['id', 'short']),
         ];
+    }
+
+    /**
+     * Cifras de cabecera de la bitácora, como en el prototipo (OPS-13); no dependen de los filtros:
+     * acciones registradas, las de hoy (hora de Lima), acciones del soporte dentro de empresas (consultas, cambios y
+     * exportaciones de los accesos aprobados) e intentos rechazados (ingresos fallidos o bloqueados y pedidos del
+     * soporte fuera de lo aprobado).
+     */
+    private static function cifrasBitacora(): array
+    {
+        $hoy = Carbon::now('America/Lima')->startOfDay();
+        $a = DB::table('platform_audit_log')->selectRaw(
+            "count(*) AS registradas, count(*) FILTER (WHERE occurred_at >= ?) AS hoy,
+             count(*) FILTER (WHERE action IN ('CONSOLE_LOGIN_FAILED', 'CONSOLE_LOGIN_BLOCKED')) AS rechazados", [$hoy]
+        )->first();
+        $s = DB::table('support_access_events')->selectRaw(
+            "count(*) FILTER (WHERE kind IN ('READ', 'WRITE', 'EXPORT')) AS soporte, count(*) FILTER (WHERE kind = 'DENIED') AS denegados"
+        )->first();
+
+        return ['registradas' => (int) $a->registradas, 'hoy' => (int) $a->hoy, 'soporte' => (int) $s->soporte,
+            'rechazados' => (int) $a->rechazados + (int) $s->denegados];
     }
 
     /* ------------------------------------------------------------------ OPS-16 */
@@ -99,14 +141,25 @@ final class Plataforma
     public static function parametros(): array
     {
         $nombres = DB::table('platform_users')->pluck('full_name', 'id');
+        $cambiados = DB::table('platform_parameter_history')->distinct()->pluck('key')->flip();
 
         return DB::table('platform_parameters')->orderBy('key')->get()->map(fn ($p) => [
             'key' => $p->key, 'value' => json_decode($p->value, true), 'description' => trim(preg_replace('/\s*\((RN|D)-[A-Z]+-\d+\)/', '', $p->description)), 'updated_at' => $p->updated_at,
             'updated_by' => $p->updated_by ? ($nombres[$p->updated_by] ?? null) : null, 'regla' => self::REGLAS[$p->key] ?? null,
+            'modificado' => isset($cambiados[$p->key]),
             'historial' => DB::table('platform_parameter_history')->where('key', $p->key)->orderByDesc('changed_at')->limit(10)
                 ->get(['old_value', 'new_value', 'reason', 'changed_by_name', 'changed_at'])
-                ->map(fn ($h) => array_merge((array) $h, ['old_value' => json_decode($h->old_value ?? 'null', true), 'new_value' => json_decode($h->new_value, true)])),
+                ->map(fn ($h) => array_merge((array) $h, ['old_value' => json_decode($h->old_value ?? 'null', true), 'new_value' => json_decode($h->new_value, true),
+                    'changed_by_name' => $h->changed_by_name === 'Servidor (ops:crear-admin)' ? UsuariosPlataforma::INSTALACION : $h->changed_by_name])),
         ])->all();
+    }
+
+    /** Historial general de cambios de parámetros (los últimos 200), como la tarjeta del prototipo. */
+    public static function historialParametros(): array
+    {
+        return DB::table('platform_parameter_history')->orderByDesc('changed_at')->limit(200)->get(['key', 'old_value', 'new_value', 'reason', 'changed_by_name', 'changed_at'])
+            ->map(fn ($h) => array_merge((array) $h, ['old_value' => json_decode($h->old_value ?? 'null', true), 'new_value' => json_decode($h->new_value, true),
+                'changed_by_name' => $h->changed_by_name === 'Servidor (ops:crear-admin)' ? UsuariosPlataforma::INSTALACION : $h->changed_by_name]))->all();
     }
 
     public static function cambiarParametro(string $key, mixed $valor, string $motivo, array $quien): array
@@ -122,6 +175,16 @@ final class Plataforma
         }
         if ($key === 'sus_trial_max_days' && $valor < (int) Consola::param('sus_trial_days_default', 14)) {
             RuleError::fail('RN-OPS-05', 'El tope no puede ser menor que los días de prueba por defecto.');
+        }
+        if ($key === 'ops_health_critical_below' && $valor >= (int) Consola::param('ops_health_risk_below', 70)) {
+            RuleError::fail('RN-OPS-05', 'El corte de «crítica» tiene que ser menor que el de «en riesgo».');
+        }
+        if ($key === 'ops_health_risk_below' && $valor <= (int) Consola::param('ops_health_critical_below', 40)) {
+            RuleError::fail('RN-OPS-05', 'El corte de «en riesgo» tiene que ser mayor que el de «crítica».');
+        }
+        $pesos = ['ops_health_weight_activity', 'ops_health_weight_billing', 'ops_health_weight_support'];
+        if (in_array($key, $pesos, true) && $valor + array_sum(array_map(fn ($k) => (int) Consola::param($k, 0), array_diff($pesos, [$key]))) === 0) {
+            RuleError::fail('RN-OPS-05', 'Al menos una parte de la salud tiene que pesar algo.');
         }
         // RN-OPS-16: quien cambia las redes permitidas no puede dejarse afuera a sí mismo.
         if ($key === 'ops_console_ip_allowlist' && $valor && ! Consola::ipPermitida(request()?->ip(), $valor)) {

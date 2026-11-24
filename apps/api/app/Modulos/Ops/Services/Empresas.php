@@ -53,8 +53,10 @@ final class Empresas
         // La suscripción viva o, si ya no hay, la última cancelada.
         $subs = DB::table('subscriptions')->orderByRaw("status = 'CANCELLED' DESC")->orderBy('started_at')->get()->keyBy('tenant_id');
         $modulos = collect(DB::select('SELECT tenant_id, count(*) AS n FROM platform_tenant_modules() WHERE enabled GROUP BY tenant_id'))->pluck('n', 'tenant_id');
+        [$tickets, $accesos] = self::soporte();
+        $salud = SaludEmpresas::calcular();
 
-        return DB::table('tenants')->orderBy('name')->get()->map(function ($t) use ($uso, $planes, $versiones, $subs, $modulos) {
+        return DB::table('tenants')->orderBy('name')->get()->map(function ($t) use ($uso, $planes, $versiones, $subs, $modulos, $tickets, $accesos, $salud) {
             $s = $subs[$t->id] ?? null;
             // Los límites y el precio son los de la versión que contrató (RN-SUS-02).
             $p = $s ? ($versiones[$s->plan_version_id] ?? null) ?? $planes[$s->plan_code] : null;
@@ -74,6 +76,8 @@ final class Empresas
                 'uso' => self::uso($u, $p),
                 'modulos' => (int) ($modulos[$t->id] ?? 0),
                 'last_login' => $u->last_login ?? null,
+                'tickets_abiertos' => (int) ($tickets[$t->id] ?? 0), 'accesos_vigentes' => (int) ($accesos[$t->id] ?? 0),
+                'salud' => $salud[$t->id] ?? null,
             ];
         })->all();
     }
@@ -91,6 +95,7 @@ final class Empresas
         $nombresModulo = DB::table('platform_modules')->pluck('name', 'code');
 
         return $fila + [
+            'salud_evolucion' => SaludEmpresas::evolucion($id), 'salud_cortes' => SaludEmpresas::cortes(),
             'hostname' => $t->hostname, 'contact_name' => $t->contact_name, 'contact_email' => $t->contact_email, 'contact_phone' => $t->contact_phone,
             'dominios' => DB::table('tenant_hostnames')->where('tenant_id', $id)->orderByDesc('is_primary')->get(['hostname', 'is_primary', 'status']),
             'creada_por' => $t->created_by_platform_user ? DB::table('platform_users')->where('id', $t->created_by_platform_user)->value('full_name') : null,
@@ -105,11 +110,24 @@ final class Empresas
             'modulos_encendidos' => collect(DB::select('SELECT module_code, phase, sus_source FROM platform_tenant_modules() WHERE tenant_id = ? AND enabled ORDER BY phase, module_code', [$id]))
                 ->map(fn ($m) => (array) $m + ['name' => $nombresModulo[$m->module_code] ?? $m->module_code])->values(),
             'acciones_consola' => DB::table('platform_audit_log')->where('target_tenant_id', $id)->orderByDesc('occurred_at')->limit(50)
-                ->get(['action', 'actor_name', 'reason', 'occurred_at']),
+                ->get(['action', 'actor_name', 'reason', 'occurred_at'])->map(fn ($a) => (array) $a + ['action_name' => Plataforma::ACCIONES[$a->action] ?? $a->action]),
         ];
     }
 
     /** Opciones del formulario de alta: planes activos con sus límites y módulos, rubros y días de prueba. */
+    /**
+     * Tickets abiertos y accesos de soporte vigentes por empresa (para la lista y la ficha, como el prototipo).
+     *
+     * @return array{0: \Illuminate\Support\Collection, 1: \Illuminate\Support\Collection}
+     */
+    private static function soporte(): array
+    {
+        return [
+            DB::table('support_tickets')->whereIn('status', ['OPEN', 'IN_PROGRESS', 'WAITING_CUSTOMER'])->selectRaw('tenant_id, count(*) AS n')->groupBy('tenant_id')->pluck('n', 'tenant_id'),
+            DB::table('support_accesses')->where('status', 'ACTIVE')->where('expires_at', '>', now())->selectRaw('tenant_id, count(*) AS n')->groupBy('tenant_id')->pluck('n', 'tenant_id'),
+        ];
+    }
+
     public static function opcionesAlta(): array
     {
         $modulos = DB::table('saas_plan_modules')->get()->groupBy('plan_code');

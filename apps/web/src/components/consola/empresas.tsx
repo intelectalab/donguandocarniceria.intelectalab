@@ -1,4 +1,4 @@
-import type { Tone } from "@/components/ui";
+import { Badge, type Tone } from "@/components/ui";
 
 /** Una empresa en la lista de la consola (OPS-02). */
 export type Empresa = {
@@ -6,8 +6,17 @@ export type Empresa = {
   business_type: string | null; business_type_name: string | null; created_at: string;
   plan_code: string | null; plan_name: string | null;
   subscription_status: string | null; subscription_status_name: string; days_in_status: number | null; trial_ends_at: string | null;
-  mrr: number; uso: Uso[]; modulos: number; last_login: string | null;
+  mrr: number; uso: Uso[]; modulos: number; last_login: string | null; tickets_abiertos: number; accesos_vigentes: number; salud: Salud | null;
 };
+export type ParteSalud = { label: string; weight: number; score: number; detail: string };
+export type Salud = { score: number; level: "HEALTHY" | "AT_RISK" | "CRITICAL"; level_name: string; parts: ParteSalud[] };
+export const TONO_SALUD: Record<Salud["level"], "ok" | "warn" | "bad"> = { HEALTHY: "ok", AT_RISK: "warn", CRITICAL: "bad" };
+
+/** Puntaje de salud con su nivel, como en el prototipo («72 · En riesgo»). */
+export function SaludBadge({ s }: { s: Salud | null }) {
+  if (!s) return <span className="text-muted">—</span>;
+  return <Badge tone={TONO_SALUD[s.level]} dot>{s.score} · {s.level_name}</Badge>;
+}
 export type Uso = { clave: string; nombre: string; usado: number; limite: number | null; pct: number | null };
 
 /** Estados de la suscripción (RN-SUS-04) con su color. Sin suscripción: piloto o interna. */

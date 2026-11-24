@@ -20,12 +20,26 @@ final class Anuncios
 
     public const ESTADOS = ['DRAFT' => 'Borrador', 'SCHEDULED' => 'Programado', 'ACTIVE' => 'Publicado', 'ENDED' => 'Terminado', 'CANCELLED' => 'Cancelado'];
 
-    public static function lista(): array
+    public static function lista(array $f = []): array
     {
         $q = DB::table('platform_announcements as a')->leftJoin('platform_incidents as i', 'i.id', '=', 'a.incident_id')
             ->select('a.*', 'i.number as incident_number')->orderByDesc('a.created_at')->orderBy('a.id');
+        if (! empty($f['kind'])) {
+            $q->where('a.kind', $f['kind']);
+        }
+        match ($f['status'] ?? null) {
+            'CANCELLED' => $q->whereNotNull('a.cancelled_at'),
+            'DRAFT' => $q->whereNull('a.cancelled_at')->where('a.published', false),
+            'ENDED' => $q->whereNull('a.cancelled_at')->where('a.published', true)->whereNotNull('a.ends_at')->where('a.ends_at', '<', now()),
+            'SCHEDULED' => $q->whereNull('a.cancelled_at')->where('a.published', true)->where('a.starts_at', '>', now())
+                ->where(fn ($w) => $w->whereNull('a.ends_at')->orWhere('a.ends_at', '>=', now())),
+            'ACTIVE' => $q->whereNull('a.cancelled_at')->where('a.published', true)->where('a.starts_at', '<=', now())
+                ->where(fn ($w) => $w->whereNull('a.ends_at')->orWhere('a.ends_at', '>=', now())),
+            default => null,
+        };
+        Paginas::ordenar($q, ['title' => 'a.title', 'kind' => 'a.kind', 'audience' => 'a.audience', 'starts_at' => 'a.starts_at'], 'a.id', $f);
 
-        return Paginas::de($q, fn ($a) => self::presentar($a)) + [
+        return Paginas::de($q, fn ($a) => self::presentar($a), $f) + [
             'planes' => DB::table('saas_plans')->orderBy('sort_order')->get(['code', 'name']),
             'empresas' => DB::table('tenants')->where('status', 'ACTIVE')->orderBy('short')->get(['id', 'short']),
             'aviso_horas' => self::anticipacion(),

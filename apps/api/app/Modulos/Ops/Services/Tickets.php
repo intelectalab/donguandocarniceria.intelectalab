@@ -135,9 +135,18 @@ final class Tickets
         $q->orderByRaw("k.status IN ('RESOLVED','CLOSED')")
             ->orderByRaw("CASE k.priority WHEN 'URGENT' THEN 0 WHEN 'HIGH' THEN 1 WHEN 'NORMAL' THEN 2 ELSE 3 END")
             ->orderBy('k.first_response_due_at')->orderBy('k.id');
+        Paginas::ordenar($q, ['subject' => 'k.subject', 'number' => 'k.number', 'tenant_short' => 't.short', 'status' => 'k.status', 'assigned_name' => 'p.full_name',
+            'opened_at' => 'k.opened_at', 'priority' => "CASE k.priority WHEN 'URGENT' THEN 0 WHEN 'HIGH' THEN 1 WHEN 'NORMAL' THEN 2 ELSE 3 END"], 'k.id', $f);
 
         return Paginas::de($q, fn ($t) => self::fila($t), $f) + [
-            'cifras' => ['abiertos' => (int) $c->abiertos, 'sin_respuesta' => (int) $c->sin_respuesta, 'vencidos' => (int) $c->vencidos, 'sin_asignar' => (int) $c->sin_asignar],
+            'cifras' => ['abiertos' => (int) $c->abiertos, 'sin_respuesta' => (int) $c->sin_respuesta, 'vencidos' => (int) $c->vencidos, 'sin_asignar' => (int) $c->sin_asignar,
+                // Mediana de horas hasta la primera respuesta de los tickets abiertos este mes (hora de Lima), sin depender de los filtros.
+                'mediana_primera_respuesta' => ($m = DB::selectOne(<<<'SQL'
+                    SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM first_response_at - opened_at) / 3600) AS h
+                    FROM support_tickets WHERE first_response_at IS NOT NULL AND opened_at >= ?
+                    SQL, [now('America/Lima')->startOfMonth()])->h) === null ? null : round((float) $m, 1)],
+            'plazos' => ['primera_respuesta_horas' => array_replace(['URGENT' => 1, 'HIGH' => 4, 'NORMAL' => 8, 'LOW' => 24], (array) Consola::param('ops_ticket_first_response_hours', [])),
+                'cierre_automatico_dias' => (int) Consola::param('ops_ticket_auto_close_days', 7)],
             'personal' => DB::table('platform_users')->where('status', 'ACTIVE')->orderBy('full_name')->get(['id', 'full_name', 'role']),
             'empresas' => DB::table('tenants')->orderBy('short')->get(['id', 'short']),
         ];

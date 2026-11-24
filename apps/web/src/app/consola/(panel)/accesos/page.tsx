@@ -55,19 +55,20 @@ function Contenido() {
   }
 
   const columnas: Column<Acceso>[] = [
-    { key: "tenant_short", header: "Empresa y motivo", cardTitle: true, render: (a) => (
+    { key: "tenant_short", sortable: true, header: "Empresa y motivo", cardTitle: true, render: (a) => (
       <div><p className="font-semibold text-ink">{a.tenant_short}</p>
         <p className="line-clamp-2 text-[12.5px] text-muted">{a.ticket_number ? `${a.ticket_number} · ` : ""}{a.reason}</p></div>
     ) },
-    { key: "platform_user_name", header: "Para", hideOnMobile: true, render: (a) => a.platform_user_name },
-    { key: "level", header: "Alcance", render: (a) => <Alcance a={a} /> },
-    { key: "status", header: "Estado", render: (a) => (
+    { key: "platform_user_name", sortable: true, header: "Para", hideOnMobile: true, render: (a) => a.platform_user_name },
+    { key: "level", sortable: true, header: "Alcance", render: (a) => <Alcance a={a} /> },
+    { key: "status", sortable: true, header: "Estado", render: (a) => (
       <div className="grid gap-0.5">
         <StatusBadge status={a.status} labels={ESTADOS_ACCESO} />
         {a.status === "ACTIVE" && <span className="text-[12px] text-muted">Quedan {quedan(a.expires_at)}</span>}
         {a.status === "PENDING" && <span className="text-[12px] text-muted">Pedido el {fechaHora(a.created_at)}</span>}
       </div>
     ) },
+    { key: "expires_at", sortable: true, header: "Vence", hideOnMobile: true, render: (a) => (a.expires_at ? <span className="whitespace-nowrap">{fechaHora(a.expires_at)}</span> : <span className="text-muted">Al aprobarse</span>) },
     { key: "acciones", header: "", align: "right", render: (a) => {
       const mio = a.platform_user_id === yo.id;
       const admin = yo.role === "PLATFORM_ADMIN";
@@ -91,8 +92,18 @@ function Contenido() {
         <Select aria-label="Empresa" value={f.tenant} onChange={(e) => setF({ ...f, tenant: e.target.value })} placeholder="Todas las empresas"
           options={empresas.map((t) => ({ value: t.id, label: t.short }))} />
       </div>
-      <DataTable columns={columnas} rows={filas?.data ?? []} loading={!filas && !error} error={error} onRetry={cargar} onRowClick={(a) => ver(a.id)} pagination={pag.props(filas)}
+      <DataTable {...pag.orden} columns={columnas} rows={filas?.data ?? []} loading={!filas && !error} error={error} onRetry={cargar} onRowClick={(a) => ver(a.id)} pagination={pag.props(filas)}
         empty={<span className="inline-flex items-center gap-2"><KeyRound size={16} aria-hidden="true" />No hay accesos con estos filtros.</span>} />
+      <section className="grid gap-2 rounded-xl border border-line bg-surface p-4 shadow-card text-[13px]">
+        <p className="font-semibold text-ink">Cómo funciona</p>
+        <ol className="grid list-decimal gap-1 pl-5 text-muted">
+          <li>El pedido llega a los administradores de la empresa (gerencia y administración del sistema), por la campana y en Ayuda y soporte.</li>
+          <li>La empresa lo aprueba con la duración que elija; si no la cambia, vale las horas que se pidieron.</li>
+          <li>Con el acceso vigente, quien lo pidió entra a la empresa con su propio usuario de soporte: es personal.</li>
+          <li>Cada consulta, cambio y exportación queda en la bitácora del acceso, que ven la empresa y la consola.</li>
+          <li>Al vencer, terminarse o revocarse, ya no se puede entrar.</li>
+        </ol>
+      </section>
       {pedir && <PedirAcceso onClose={() => setPedir(false)} onPedido={() => { setPedir(false); cargar(); }} />}
       {abierto && <DetalleConsola key={abierto} id={abierto} onClose={() => ver(null)} />}
     </div>

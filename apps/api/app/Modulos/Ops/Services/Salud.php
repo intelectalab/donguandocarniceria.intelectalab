@@ -69,6 +69,12 @@ final class Salud
         return [
             'data' => $filas,
             'resumen' => collect($filas)->countBy('status')->all(),
+            // Cifras de cabecera (como el prototipo): disponibilidad de 7 días de todos los componentes juntos e incidentes abiertos.
+            'disponibilidad_7d' => ($t = DB::selectOne(<<<'SQL'
+                SELECT round(100.0 * sum(CASE status WHEN 'UP' THEN 1 WHEN 'DEGRADED' THEN 0.5 ELSE 0 END) / nullif(count(*), 0), 2) AS pct
+                FROM platform_health_readings WHERE status <> 'UNKNOWN' AND read_at >= ?
+                SQL, [now()->subDays(7)])->pct) === null ? null : (float) $t,
+            'incidentes_abiertos' => DB::table('platform_incidents')->where('status', '!=', 'RESOLVED')->count(),
             'estados' => self::ESTADOS,
         ];
     }

@@ -20,6 +20,9 @@ use Illuminate\Validation\ValidationException;
  */
 final class UsuariosPlataforma
 {
+    /** Quién figura en la bitácora cuando la primera cuenta se crea desde el servidor. */
+    public const INSTALACION = 'Instalación del servidor';
+
     private const ALFABETO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
     private const INTENTOS = 5;
@@ -73,7 +76,7 @@ final class UsuariosPlataforma
         if (DB::table('platform_users')->where('role', 'PLATFORM_ADMIN')->where('status', 'ACTIVE')->exists()) {
             RuleError::fail('RN-OPS-10', 'Ya hay un administrador de plataforma activo: crea las demás cuentas en Usuarios de plataforma.');
         }
-        $sistema = ['id' => null, 'full_name' => 'Servidor (ops:crear-admin)', 'role' => 'PLATFORM_ADMIN'];
+        $sistema = ['id' => null, 'full_name' => self::INSTALACION, 'role' => 'PLATFORM_ADMIN'];
         // Sin administrador no hay quien cambie los dominios en la consola: desde el servidor se agrega el de esta cuenta.
         $dominio = mb_strtolower(mb_substr(strrchr(trim($email), '@') ?: '', 1));
         $dominios = Consola::dominios();
@@ -325,7 +328,7 @@ final class UsuariosPlataforma
     public static function publico(array $u): array
     {
         return ['id' => $u['id'], 'email' => $u['email'], 'full_name' => $u['full_name'], 'role' => $u['role'], 'role_name' => Consola::ROLES[$u['role']],
-            'status' => $u['status'], 'puede' => collect(['users.manage', 'tenant.create', 'tenant.status', 'plans.manage', 'params.manage', 'catalogs.import', 'ticket.manage', 'access.request_ro', 'access.request_rw', 'health.record', 'incident.manage', 'announce.manage', 'billing.manage', 'metrics.freeze'])->mapWithKeys(fn ($c) => [$c => Consola::puede($u, $c)])->all()];
+            'status' => $u['status'], 'puede' => collect(Consola::acciones())->mapWithKeys(fn ($c) => [$c => Consola::puede($u, $c)])->all()];
     }
 
     /* ------------------------------------------------------------------ internos */

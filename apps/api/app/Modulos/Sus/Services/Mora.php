@@ -82,6 +82,43 @@ final class Mora
         return $r;
     }
 
+    /**
+     * Corre el proceso diario y lo deja en la bitácora de la consola: desde la tarea programada ($quien nulo) o a mano
+     * desde la pantalla de Mora (administración y cobranza). Solo corre para hoy: no se simula otra fecha.
+     */
+    public static function ejecutar(?array $quien): array
+    {
+        if ($quien) {
+            Consola::exigir($quien, 'billing.manage');
+        }
+        $r = self::diaria();
+        Consola::bitacora('DUNNING_RUN', $quien, ['actor' => 'Tarea diaria', 'entity' => 'subscriptions',
+            'reason' => $quien ? 'Ejecutado a mano desde la consola' : 'Tarea programada', 'detail' => $r]);
+
+        return $r;
+    }
+
+    /** Cifras de cabecera de la mora (como el prototipo), sobre toda la cola. */
+    public static function cifras(array $cola): array
+    {
+        $enMora = array_filter($cola, fn ($f) => $f['dias'] > 0 || in_array($f['status'], ['PAST_DUE', 'READ_ONLY', 'SUSPENDED'], true));
+
+        return [
+            'en_mora' => count($enMora),
+            'deuda_vencida' => round(array_sum(array_map(fn ($f) => $f['dias'] > 0 ? $f['deuda'] : 0, $cola)), 2),
+            'solo_lectura' => count(array_filter($cola, fn ($f) => $f['status'] === 'READ_ONLY')),
+            'suspendidas' => count(array_filter($cola, fn ($f) => $f['status'] === 'SUSPENDED')),
+        ];
+    }
+
+    /** Última vez que corrió el proceso diario, con su resumen. */
+    public static function ultimaCorrida(): ?array
+    {
+        $u = DB::table('platform_audit_log')->where('action', 'DUNNING_RUN')->orderByDesc('occurred_at')->first(['actor_name', 'reason', 'detail', 'occurred_at']);
+
+        return $u ? ['actor_name' => $u->actor_name, 'reason' => $u->reason, 'resumen' => json_decode($u->detail, true), 'at' => $u->occurred_at] : null;
+    }
+
     /** El pago confirmado la devuelve a activa si ya no debe nada vencido (RN-SUS-10). */
     public static function alPagar(string $sub): void
     {
@@ -134,7 +171,7 @@ final class Mora
             $filas[] = [
                 'subscription_id' => $s->id, 'tenant_id' => $s->tenant_id, 'tenant_short' => $s->tenant_short, 'plan_code' => $s->plan_code,
                 'status' => $s->status, 'status_name' => Empresas::ESTADOS[$s->status], 'deuda' => round((float) $d->deuda, 2), 'comprobantes' => (int) $d->n,
-                'factura' => $d->factura, 'vence' => $vence->toDateString(), 'dias' => $dias, 'proximo_reintento' => $proximo?->toDateString(),
+                'factura' => $d->factura, 'factura_numero' => self::numero($d->factura), 'vence' => $vence->toDateString(), 'dias' => $dias, 'proximo_reintento' => $proximo?->toDateString(),
                 'pasa_a_solo_lectura' => in_array($s->status, ['ACTIVE', 'PAST_DUE'], true) ? $aLectura->toDateString() : null,
                 'pasa_a_suspension' => in_array($s->status, ['ACTIVE', 'PAST_DUE', 'READ_ONLY'], true) ? $aSuspension->toDateString() : null,
                 'grace_until' => $s->grace_until, 'medio_pago' => $medio ? "{$medio->brand} ···· {$medio->last4}".($medio->auto_pay ? '' : ' (sin cobro automático)') : null,
@@ -144,6 +181,12 @@ final class Mora
         usort($filas, fn ($a, $b) => $b['dias'] <=> $a['dias']);
 
         return $filas;
+    }
+
+    /** Número del comprobante (ya trae la serie, p. ej. F001-00000001). */
+    private static function numero(string $factura): ?string
+    {
+        return DB::table('saas_invoices')->where('id', $factura)->value('number');
     }
 
     public static function recordatorio(string $sub, array $quien): void

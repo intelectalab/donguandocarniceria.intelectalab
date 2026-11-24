@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Ban, Megaphone, Pencil, Plus, Save, Send } from "lucide-react";
-import { Badge, Button, Checkbox, DataTable, Field, Input, Modal, PageHeader, Select, StatusBadge, Textarea, confirmAction, toast, type Column, type Tone } from "@/components/ui";
+import { Alert, Badge, Button, Checkbox, DataTable, DetailList, Field, Input, Modal, PageHeader, Select, StatusBadge, Textarea, confirmAction, toast, type Column, type Tone } from "@/components/ui";
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { erroresDe, mensajeDe } from "@/lib/api";
 import { usePagina } from "@/lib/paginas";
@@ -14,7 +14,7 @@ type Anuncio = {
   starts_at: string; ends_at: string | null; maintenance_starts_at: string | null; maintenance_ends_at: string | null; status: string; status_name: string;
   published_at: string | null; incident_id: string | null; incident_number: string | null; created_by_name: string; created_at: string;
 };
-type Lista = { data: Anuncio[]; current_page: number; last_page: number; per_page: number; total: number; planes: { code: string; name: string }[]; empresas: { id: string; short: string }[]; aviso_horas: number };
+type Lista = { data: Anuncio[]; current_page: number; last_page: number; per_page: number; total: number; planes: { code: string; name: string }[]; empresas: { id: string; short: string }[]; aviso_horas: number; tipos: Record<string, string> };
 
 const ESTADOS: Record<string, [string, Tone]> = { DRAFT: ["Borrador", "neutral"], SCHEDULED: ["Programado", "info"], ACTIVE: ["Publicado", "ok"], ENDED: ["Terminado", "neutral"], CANCELLED: ["Cancelado", "neutral"] };
 const TONO_TIPO: Record<string, Tone> = { INFO: "info", MAINTENANCE: "warn", INCIDENT: "bad", FEATURE: "primary" };
@@ -29,11 +29,14 @@ export default function Anuncios() {
   const [lista, setLista] = useState<Lista | null>(null);
   const [error, setError] = useState("");
   const [editando, setEditando] = useState<Anuncio | "nuevo" | null>(null);
-  const pag = usePagina();
+  const [f, setF] = useState({ kind: "", status: "" });
+  const [visto, setVisto] = useState<Anuncio | null>(null);
+  const pag = usePagina(JSON.stringify(f));
 
   const cargar = useCallback(() => {
-    apiConsola<Lista>(`/anuncios?${pag.qs}`).then((r) => { setLista(r); setError(""); }).catch((e) => setError(mensajeDe(e)));
-  }, [pag.qs]);
+    const q = new URLSearchParams(Object.entries(f).filter(([, v]) => v) as [string, string][]);
+    apiConsola<Lista>(`/anuncios?${q}&${pag.qs}`).then((r) => { setLista(r); setError(""); }).catch((e) => setError(mensajeDe(e)));
+  }, [f, pag.qs]);
   useEffect(() => cargar(), [cargar]);
 
   async function accion(a: Anuncio, ruta: "publicar" | "cancelar") {
@@ -48,15 +51,15 @@ export default function Anuncios() {
   }
 
   const columnas: Column<Anuncio>[] = [
-    { key: "title", header: "Anuncio", cardTitle: true, render: (a) => (
+    { key: "title", sortable: true, header: "Anuncio", cardTitle: true, render: (a) => (
       <div><p className="font-semibold text-ink">{a.title}</p><p className="line-clamp-2 text-[12.5px] text-muted">{a.body}</p></div>
     ) },
-    { key: "kind", header: "Tipo", render: (a) => <Badge tone={TONO_TIPO[a.kind]}>{a.kind_name}{a.incident_number ? ` · ${a.incident_number}` : ""}</Badge> },
-    { key: "audience", header: "Para", hideOnMobile: true, render: (a) => (
+    { key: "kind", sortable: true, header: "Tipo", render: (a) => <Badge tone={TONO_TIPO[a.kind]}>{a.kind_name}{a.incident_number ? ` · ${a.incident_number}` : ""}</Badge> },
+    { key: "audience", sortable: true, header: "Para", hideOnMobile: true, render: (a) => (
       <span>{a.audience === "PLANS" ? `Plan ${a.audience_plans.map((p) => lista?.planes.find((x) => x.code === p)?.name ?? p).join(", ")}`
-        : a.audience === "TENANTS" ? `${a.audience_tenants.length} empresa(s)` : a.audience_name}</span>
+        : a.audience === "TENANTS" ? `${a.audience_tenants.length} ${a.audience_tenants.length === 1 ? "empresa" : "empresas"}` : a.audience_name}</span>
     ) },
-    { key: "starts_at", header: "Se ve", hideOnMobile: true, render: (a) => (
+    { key: "starts_at", sortable: true, header: "Se ve", hideOnMobile: true, render: (a) => (
       <div className="text-[12.5px]"><p>Desde {fechaHora(a.starts_at)}</p>{a.ends_at && <p className="text-muted">Hasta {fechaHora(a.ends_at)}</p>}
         {a.maintenance_starts_at && <p className="text-warn">Mantenimiento {fechaHora(a.maintenance_starts_at)}</p>}</div>
     ) },
@@ -74,8 +77,34 @@ export default function Anuncios() {
     <div className="grid gap-5">
       <PageHeader description={`Las empresas ven solo los anuncios dirigidos a ellas, como una franja en su sistema mientras dure la ventana. Un mantenimiento se anuncia con al menos ${lista?.aviso_horas ?? 48} horas de anticipación. Los de incidentes se publican desde el incidente.`}
         actions={puede ? <Button variant="primary" icon={Plus} onClick={() => setEditando("nuevo")}>Nuevo anuncio</Button> : undefined} />
-      <DataTable columns={columnas} rows={lista?.data ?? []} loading={!lista && !error} error={error} onRetry={cargar} pagination={pag.props(lista)}
+      <div className="grid gap-3 sm:grid-cols-2 lg:max-w-2xl">
+        <Select aria-label="Estado" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} placeholder="Todos los estados"
+          options={Object.entries(ESTADOS).map(([value, [label]]) => ({ value, label }))} />
+        <Select aria-label="Tipo" value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })} placeholder="Todos los tipos"
+          options={Object.entries(lista?.tipos ?? {}).map(([value, label]) => ({ value, label }))} />
+      </div>
+      <DataTable {...pag.orden} columns={columnas} rows={lista?.data ?? []} loading={!lista && !error} error={error} onRetry={cargar} pagination={pag.props(lista)} onRowClick={setVisto}
         empty={<span className="inline-flex items-center gap-2"><Megaphone size={16} aria-hidden="true" />Todavía no hay anuncios.</span>} />
+      {visto && lista && (
+        <Modal open onClose={() => setVisto(null)} size="lg" title={visto.title} description={<StatusBadge status={visto.status} labels={ESTADOS} />}>
+          <div className="grid gap-5">
+            <DetailList items={[
+              { label: "Tipo", value: visto.kind_name },
+              { label: "Para", value: visto.audience === "PLANS" ? `Plan ${visto.audience_plans.map((p) => lista.planes.find((x) => x.code === p)?.name ?? p).join(", ")}`
+                : visto.audience === "TENANTS" ? visto.audience_tenants.map((id) => lista.empresas.find((x) => x.id === id)?.short ?? "Empresa").join(", ") : "Todas las empresas" },
+              { label: "Desde", value: fechaHora(visto.starts_at) },
+              { label: "Hasta", value: visto.ends_at ? fechaHora(visto.ends_at) : "Sin fecha de fin" },
+              { label: "Publicado", value: visto.published_at ? fechaHora(visto.published_at) : "Todavía no" },
+              { label: "Redactado por", value: visto.created_by_name },
+              ...(visto.maintenance_starts_at ? [{ label: "Mantenimiento", value: `${fechaHora(visto.maintenance_starts_at)}${visto.maintenance_ends_at ? ` a ${fechaHora(visto.maintenance_ends_at)}` : ""}` }] : []),
+            ]} />
+            <div className="grid gap-2">
+              <p className="text-[13px] font-semibold text-ink">Así lo ve la empresa</p>
+              <Alert tone={visto.kind === "MAINTENANCE" ? "warn" : visto.kind === "INCIDENT" ? "bad" : "info"} title={visto.title}>{visto.body}</Alert>
+            </div>
+          </div>
+        </Modal>
+      )}
       {editando && lista && <FormAnuncio lista={lista} actual={editando === "nuevo" ? undefined : editando} onClose={() => setEditando(null)} onListo={() => { setEditando(null); cargar(); }} />}
     </div>
   );

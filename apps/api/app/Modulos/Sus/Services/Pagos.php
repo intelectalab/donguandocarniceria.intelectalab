@@ -130,7 +130,9 @@ final class Pagos
     {
         $q = DB::table('saas_payments as p')->join('tenants as t', 't.id', '=', 'p.tenant_id')->join('saas_invoices as f', 'f.id', '=', 'p.invoice_id')
             ->leftJoin('saas_payment_methods as m', 'm.id', '=', 'p.payment_method_id')->leftJoin('saas_settlements as s', 's.id', '=', 'p.settlement_id')
-            ->select('p.*', 't.short as tenant_short', 'f.number as invoice_number', 'm.brand', 'm.last4', 's.reference as settlement_reference');
+            ->select('p.*', 't.short as tenant_short', 'f.number as invoice_number', 'm.brand', 'm.last4', 's.reference as settlement_reference')
+            // Nº de intento: cuántos cobros tuvo ese comprobante hasta este (el prototipo lo muestra en su columna).
+            ->selectRaw('(SELECT count(*) FROM saas_payments x WHERE x.invoice_id = p.invoice_id AND (x.created_at, x.id) <= (p.created_at, p.id)) AS attempt_no');
         if (! empty($f['status'])) {
             $q->where('p.status', $f['status']);
         }
@@ -141,24 +143,62 @@ final class Pagos
             $f['conciliado'] ? $q->whereNotNull('p.settlement_id') : $q->whereNull('p.settlement_id')->where('p.status', 'APPROVED');
         }
 
-        return Paginas::de($q->orderByDesc('p.created_at')->orderBy('p.id'), fn ($p) => [
+        $q->orderByDesc('p.created_at')->orderBy('p.id');
+        Paginas::ordenar($q, ['created_at' => 'p.created_at', 'tenant_short' => 't.short', 'invoice_number' => 'f.number', 'attempt_no' => 'attempt_no',
+            'origin_name' => 'p.origin', 'amount' => 'p.amount', 'status' => 'p.status', 'error' => 'p.error', 'gateway_ref' => 'p.gateway_ref',
+            'settlement_reference' => 's.reference'], 'p.id', $f);
+
+        return Paginas::de($q, fn ($p) => [
             'id' => $p->id, 'tenant_short' => $p->tenant_short, 'invoice_id' => $p->invoice_id, 'invoice_number' => $p->invoice_number, 'gateway' => $p->gateway,
             'gateway_ref' => $p->gateway_ref, 'amount' => (float) $p->amount, 'status' => $p->status, 'status_name' => self::ESTADOS[$p->status],
             'origin' => $p->origin, 'origin_name' => self::ORIGENES[$p->origin], 'error' => $p->error, 'tarjeta' => $p->brand ? "{$p->brand} ···· {$p->last4}" : null,
             'raw_event' => $p->raw_event ? json_decode($p->raw_event, true) : null, 'created_at' => $p->created_at, 'confirmed_at' => $p->confirmed_at,
-            'settlement_reference' => $p->settlement_reference,
-        ], $f);
+            'settlement_reference' => $p->settlement_reference, 'attempt_no' => (int) $p->attempt_no,
+        ], $f) + ['cifras' => self::cifras(), 'por_dia' => self::porConciliarPorDia(),
+            'empresas' => DB::table('tenants as t')->whereExists(fn ($w) => $w->from('saas_payments as x')->whereColumn('x.tenant_id', 't.id'))->orderBy('t.short')->get(['t.id', 't.short'])];
+    }
+
+    /** Cifras de cabecera de Cobros (como el prototipo), sin depender de los filtros. */
+    private static function cifras(): array
+    {
+        $r = DB::selectOne(<<<'SQL'
+            SELECT count(*) FILTER (WHERE status = 'APPROVED') AS aprobados, coalesce(sum(amount) FILTER (WHERE status = 'APPROVED'), 0) AS aprobado,
+                   count(*) FILTER (WHERE status = 'DECLINED') AS rechazados,
+                   count(*) FILTER (WHERE status = 'APPROVED' AND settlement_id IS NULL) AS por_conciliar,
+                   coalesce(sum(amount) FILTER (WHERE status = 'APPROVED' AND settlement_id IS NULL), 0) AS por_conciliar_monto
+            FROM saas_payments
+            SQL);
+        $repetidos = DB::table('saas_gateway_events')->where('result', 'Aviso repetido: sin efecto')->count();
+
+        return ['aprobados' => (int) $r->aprobados, 'aprobado' => round((float) $r->aprobado, 2), 'rechazados' => (int) $r->rechazados,
+            'por_conciliar' => (int) $r->por_conciliar, 'por_conciliar_monto' => round((float) $r->por_conciliar_monto, 2), 'avisos_repetidos' => $repetidos];
+    }
+
+    /**
+     * Cobros aprobados sin conciliar agrupados por el día en que se confirmaron (hora de Lima), como la tarjeta de
+     * conciliación del prototipo. La comisión real se conoce recién con el abono, así que aquí no se estima.
+     */
+    private static function porConciliarPorDia(): array
+    {
+        return array_map(fn ($d) => ['dia' => $d->dia, 'cobros' => (int) $d->cobros, 'bruto' => round((float) $d->bruto, 2), 'ids' => json_decode($d->ids, true)],
+            DB::select(<<<'SQL'
+                SELECT (coalesce(confirmed_at, created_at) AT TIME ZONE 'America/Lima')::date AS dia, count(*) AS cobros, sum(amount) AS bruto, json_agg(id ORDER BY created_at) AS ids
+                FROM saas_payments WHERE status = 'APPROVED' AND settlement_id IS NULL
+                GROUP BY 1 ORDER BY 1 DESC LIMIT 31
+                SQL));
     }
 
     public static function eventos(): array
     {
-        return Paginas::de(DB::table('saas_gateway_events')->orderByDesc('received_at')->orderByDesc('id'),
+        return Paginas::de(Paginas::ordenar(DB::table('saas_gateway_events')->orderByDesc('received_at')->orderByDesc('id'),
+            ['signature_ok' => 'signature_ok', 'result' => 'result', 'received_at' => 'received_at'], 'id'),
             fn ($e) => array_merge((array) $e, ['payload' => json_decode($e->payload, true)]));
     }
 
     public static function abonos(): array
     {
-        return Paginas::de(DB::table('saas_settlements')->orderByDesc('settled_on')->orderBy('id'), fn ($a) => $a);
+        return Paginas::de(Paginas::ordenar(DB::table('saas_settlements')->orderByDesc('settled_on')->orderBy('id'),
+            ['reference' => 'reference', 'gross' => 'gross', 'amount' => 'amount', 'fee' => 'fee'], 'id'), fn ($a) => $a);
     }
 
     /* ------------------------------------------------------------------ internos */

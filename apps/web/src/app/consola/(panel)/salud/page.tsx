@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Activity, PenLine } from "lucide-react";
-import { Alert, Badge, Button, Field, Input, Modal, PageHeader, Select, Textarea, toast, type Tone } from "@/components/ui";
+import { Activity, AlertTriangle, CheckCircle2, CircleSlash, Gauge, PenLine, Siren } from "lucide-react";
+import { Alert, Badge, Button, Cifra, DataTable, Field, Input, Modal, PageHeader, Select, Textarea, VistaToggle, toast, useVista, type Column, type Tone } from "@/components/ui";
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { erroresDe, mensajeDe } from "@/lib/api";
+import { useOrdenLocal } from "@/lib/paginas";
 import { apiConsola } from "@/lib/consola";
 import { fechaHora } from "@/lib/formato";
 
@@ -15,19 +16,22 @@ type Componente = {
   disponibilidad_24h: number | null; disponibilidad_7d: number | null; incidentes: { id: string; number: string; severity: string }[];
 };
 type Lectura = { status: string; latency_ms: number | null; error_rate: number | null; queue_depth: number | null; detail: string | null; source: string; registered_by: string | null; read_at: string };
+type Tablero = { data: Componente[]; resumen: Record<string, number>; disponibilidad_7d: number | null; incidentes_abiertos: number };
 
 const TONO_SALUD: Record<string, Tone> = { UP: "ok", DEGRADED: "warn", DOWN: "bad", UNKNOWN: "neutral" };
 const NOMBRE: Record<string, string> = { UP: "Operativo", DEGRADED: "Degradado", DOWN: "Caído", UNKNOWN: "Sin lectura" };
 const pct = (v: number | null) => (v === null ? "—" : `${v.toLocaleString("es-PE", { maximumFractionDigits: 2 })} %`);
+const enCola = (n: number) => `${n} ${n === 1 ? "trabajo" : "trabajos"} en cola`;
 
-/** Salud de componentes: estado, latencia, cola y disponibilidad de cada pieza de la plataforma. */
+/** Salud de componentes: estado, latencia, cola y disponibilidad de cada pieza de la plataforma, en tabla (como el prototipo) o en tarjetas. */
 export default function SaludComponentes() {
-  const [datos, setDatos] = useState<{ data: Componente[]; resumen: Record<string, number> } | null>(null);
+  const [datos, setDatos] = useState<Tablero | null>(null);
   const [error, setError] = useState("");
   const [abierto, setAbierto] = useState<string | null>(null);
+  const [vista, setVista] = useVista("consola.salud", "tabla");
 
   const cargar = useCallback(() => {
-    apiConsola<{ data: Componente[]; resumen: Record<string, number> }>("/salud").then((r) => { setDatos(r); setError(""); }).catch((e) => setError(mensajeDe(e)));
+    apiConsola<Tablero>("/salud").then((r) => { setDatos(r); setError(""); }).catch((e) => setError(mensajeDe(e)));
   }, []);
   useEffect(() => {
     cargar();
@@ -35,35 +39,64 @@ export default function SaludComponentes() {
     return () => clearInterval(t);
   }, [cargar]);
 
+  const n = (k: string) => datos?.resumen[k] ?? 0;
+  const ord = useOrdenLocal(datos?.data ?? [], {
+    name: (c) => c.name, status: (c) => c.status_name, latency_ms: (c) => c.latency_ms, error_rate: (c) => c.error_rate, queue_depth: (c) => c.queue_depth,
+    disponibilidad_24h: (c) => c.disponibilidad_24h, disponibilidad_7d: (c) => c.disponibilidad_7d, last_read_at: (c) => c.last_read_at,
+  });
+  const columnas: Column<Componente>[] = [
+    { key: "name", sortable: true, header: "Componente", cardTitle: true, render: (c) => <span className="font-semibold text-ink">{c.name}</span> },
+    { key: "status", sortable: true, header: "Estado", render: (c) => <Badge tone={TONO_SALUD[c.status]} dot>{c.status_name}</Badge> },
+    { key: "latency_ms", sortable: true, header: "Latencia", align: "right", render: (c) => (c.latency_ms === null ? "—" : `${c.latency_ms.toLocaleString("es-PE")} ms`) },
+    { key: "error_rate", sortable: true, header: "Errores", align: "right", hideOnMobile: true, render: (c) => pct(c.error_rate) },
+    { key: "queue_depth", sortable: true, header: "Cola", align: "right", hideOnMobile: true, render: (c) => (c.queue_depth === null ? "—" : c.queue_depth.toLocaleString("es-PE")) },
+    { key: "disponibilidad_24h", sortable: true, header: "Disp. 24 h", align: "right", render: (c) => pct(c.disponibilidad_24h) },
+    { key: "disponibilidad_7d", sortable: true, header: "Disp. 7 días", align: "right", render: (c) => pct(c.disponibilidad_7d) },
+    { key: "last_read_at", sortable: true, header: "Última lectura", hideOnMobile: true, render: (c) => (c.last_read_at ? <span className="whitespace-nowrap">{fechaHora(c.last_read_at)}</span> : <span className="text-muted">Sin lecturas</span>) },
+    { key: "incidentes", header: "Incidente", render: (c) => (c.incidentes.length
+      ? <span className="flex flex-wrap gap-1">{c.incidentes.map((i) => <Badge key={i.id} tone="bad">{i.number}</Badge>)}</span> : <span className="text-muted">—</span>) },
+  ];
+
   return (
     <div className="grid gap-5">
       <PageHeader description="Se leen solos cada minuto la aplicación, la base de datos, las colas y el almacenamiento. Los servicios externos todavía no tienen adaptador: quedan «sin lectura» hasta que ingeniería registre su estado a mano. Disponibilidad: lecturas operativas sobre el total (degradado cuenta la mitad)." />
       {error && <Alert tone="bad">{error}</Alert>}
       {datos && (
-        <div className="flex flex-wrap gap-2">
-          {(["UP", "DEGRADED", "DOWN", "UNKNOWN"] as const).map((s) => <Badge key={s} tone={TONO_SALUD[s]} dot>{NOMBRE[s]}: {datos.resumen[s] ?? 0}</Badge>)}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          <Cifra titulo="Operativos" valor={String(n("UP"))} tono="ok" icono={CheckCircle2} detalle={n("UNKNOWN") ? `${n("UNKNOWN")} sin lectura` : `de ${datos.data.length}`} />
+          <Cifra titulo="Degradados" valor={String(n("DEGRADED"))} tono={n("DEGRADED") ? "warn" : undefined} icono={AlertTriangle} />
+          <Cifra titulo="Caídos" valor={String(n("DOWN"))} tono={n("DOWN") ? "bad" : undefined} icono={CircleSlash} />
+          <Cifra titulo="Disponibilidad 7 días" valor={pct(datos.disponibilidad_7d)} detalle="Todos los componentes" icono={Gauge} destacada />
+          <Link href="/consola/incidentes" title="Ver incidentes" className="col-span-2 rounded-xl focus-visible:outline-2 focus-visible:outline-primary lg:col-span-1">
+            <Cifra titulo="Incidentes abiertos" valor={String(datos.incidentes_abiertos)} tono={datos.incidentes_abiertos ? "bad" : "ok"} icono={Siren} detalle="Ver incidentes" />
+          </Link>
         </div>
       )}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {(datos?.data ?? []).map((c) => (
-          <button key={c.code} type="button" onClick={() => setAbierto(c.code)}
-            className={`grid cursor-pointer gap-2 rounded-xl border bg-surface p-4 text-left shadow-card transition-colors hover:bg-surface-2 ${c.status === "DOWN" ? "border-bad/60" : c.status === "DEGRADED" ? "border-warn/60" : "border-line"}`}>
-            <div className="flex items-start justify-between gap-2">
-              <span className="font-semibold text-ink">{c.name}</span>
-              <Badge tone={TONO_SALUD[c.status]} dot>{c.status_name}</Badge>
-            </div>
-            <dl className="grid grid-cols-3 gap-2 text-[12px]">
-              <div><dt className="text-muted">Latencia</dt><dd className="text-ink">{c.latency_ms === null ? "—" : `${c.latency_ms} ms`}</dd></div>
-              <div><dt className="text-muted">24 h</dt><dd className="text-ink">{pct(c.disponibilidad_24h)}</dd></div>
-              <div><dt className="text-muted">7 días</dt><dd className="text-ink">{pct(c.disponibilidad_7d)}</dd></div>
-            </dl>
-            {c.queue_depth !== null && <span className="text-[12px] text-muted">{c.queue_depth} trabajo(s) en cola</span>}
-            {c.detail && <span className="text-[12px] text-muted">{c.detail}</span>}
-            <span className="text-[11.5px] text-muted">{c.last_read_at ? `Última lectura: ${fechaHora(c.last_read_at)}` : "Todavía sin lecturas"}</span>
-            {c.incidentes.length > 0 && <span className="text-[12px] font-semibold text-bad">Incidente abierto: {c.incidentes.map((i) => i.number).join(", ")}</span>}
-          </button>
-        ))}
-      </div>
+      <div className="flex justify-end"><VistaToggle value={vista} onChange={setVista} /></div>
+      {vista === "tabla" ? (
+        <DataTable {...ord.orden} columns={columnas} rows={ord.filas} rowKey={(c) => c.code} loading={!datos && !error} onRowClick={(c) => setAbierto(c.code)} empty="No hay componentes." />
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {(datos?.data ?? []).map((c) => (
+            <button key={c.code} type="button" onClick={() => setAbierto(c.code)}
+              className={`grid cursor-pointer gap-2 rounded-xl border bg-surface p-4 text-left shadow-card transition-colors hover:bg-surface-2 ${c.status === "DOWN" ? "border-bad/60" : c.status === "DEGRADED" ? "border-warn/60" : "border-line"}`}>
+              <div className="flex items-start justify-between gap-2">
+                <span className="font-semibold text-ink">{c.name}</span>
+                <Badge tone={TONO_SALUD[c.status]} dot>{c.status_name}</Badge>
+              </div>
+              <dl className="grid grid-cols-3 gap-2 text-[12px]">
+                <div><dt className="text-muted">Latencia</dt><dd className="text-ink">{c.latency_ms === null ? "—" : `${c.latency_ms} ms`}</dd></div>
+                <div><dt className="text-muted">24 h</dt><dd className="text-ink">{pct(c.disponibilidad_24h)}</dd></div>
+                <div><dt className="text-muted">7 días</dt><dd className="text-ink">{pct(c.disponibilidad_7d)}</dd></div>
+              </dl>
+              {c.queue_depth !== null && <span className="text-[12px] text-muted">{enCola(c.queue_depth)}</span>}
+              {c.detail && <span className="text-[12px] text-muted">{c.detail}</span>}
+              <span className="text-[11.5px] text-muted">{c.last_read_at ? `Última lectura: ${fechaHora(c.last_read_at)}` : "Todavía sin lecturas"}</span>
+              {c.incidentes.length > 0 && <span className="text-[12px] font-semibold text-bad">Incidente abierto: {c.incidentes.map((i) => i.number).join(", ")}</span>}
+            </button>
+          ))}
+        </div>
+      )}
       {abierto && <DetalleComponente key={abierto} codigo={abierto} onClose={() => setAbierto(null)} onCambio={cargar} />}
     </div>
   );

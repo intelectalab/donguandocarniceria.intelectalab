@@ -65,6 +65,7 @@ Route::prefix('v1/consola')->group(function () {
         Route::post('/usuarios/{id}/reenviar', [ConsolaController::class, 'reenviarInvitacion'])->middleware('throttle:10,1')->whereUuid('id');
         // OPS-02 Empresas, OPS-03 Ficha y alta de empresa (solo PLATFORM_ADMIN da de alta; lo valida el servicio)
         Route::get('/empresas', [EmpresaController::class, 'index']);
+        Route::post('/empresas/salud', [EmpresaController::class, 'recalcularSalud'])->middleware('throttle:5,1');
         Route::get('/empresas/opciones', [EmpresaController::class, 'opciones']);
         Route::get('/empresas/{id}', [EmpresaController::class, 'show'])->whereUuid('id');
         Route::post('/empresas', [EmpresaController::class, 'store'])->middleware('throttle:10,1');
@@ -126,6 +127,7 @@ Route::prefix('v1/consola')->group(function () {
         Route::get('/facturacion', [CobroController::class, 'facturacion']);
         Route::get('/facturacion/{id}', [CobroController::class, 'comprobante'])->whereUuid('id');
         Route::post('/facturacion/corridas', [CobroController::class, 'corrida'])->middleware('throttle:10,1');
+        Route::get('/facturacion/vista-previa', [CobroController::class, 'vistaPrevia']);
         Route::post('/facturacion/{id}/emitir', [CobroController::class, 'emitir'])->whereUuid('id');
         Route::delete('/facturacion/{id}', [CobroController::class, 'borrar'])->whereUuid('id');
         Route::post('/facturacion/{id}/nota-credito', [CobroController::class, 'notaCredito'])->whereUuid('id');
@@ -144,6 +146,7 @@ Route::prefix('v1/consola')->group(function () {
         Route::put('/complementos/{code}', [ComplementoController::class, 'guardar'])->where('code', '[A-Z0-9_]{2,20}');
         Route::post('/complementos/{code}/publicar', [ComplementoController::class, 'publicar'])->where('code', '[A-Z0-9_]{2,20}');
         Route::post('/complementos/{code}/retirar', [ComplementoController::class, 'retirar'])->where('code', '[A-Z0-9_]{2,20}');
+        Route::post('/mora/proceso', [CobroController::class, 'procesar'])->middleware('throttle:5,1');
         Route::post('/mora/{sub}/recordatorio', [CobroController::class, 'recordatorio'])->middleware('throttle:20,1')->whereUuid('sub');
         Route::post('/mora/{sub}/prorroga', [CobroController::class, 'prorroga'])->whereUuid('sub');
         Route::post('/mora/{sub}/cobrar', [CobroController::class, 'cobrarAhora'])->middleware('throttle:20,1')->whereUuid('sub');

@@ -4,6 +4,7 @@ namespace App\Modulos\Ops\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modulos\Ops\Services\Empresas;
+use App\Modulos\Ops\Services\SaludEmpresas;
 use App\Modulos\Plt\Http\Controllers\EmpresaController as EmpresaPlt;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -13,7 +14,13 @@ class EmpresaController extends Controller
 {
     public function index()
     {
-        return response()->json(['data' => Empresas::lista()]);
+        return response()->json(['data' => Empresas::lista(), 'salud_cortes' => SaludEmpresas::cortes()]);
+    }
+
+    /** «Recalcular salud»: guarda la foto del día de todas las empresas. */
+    public function recalcularSalud(Request $request)
+    {
+        return response()->json(['empresas' => SaludEmpresas::guardarFotos($request->attributes->get('consola_usuario'))]);
     }
 
     public function show(string $id)

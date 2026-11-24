@@ -34,14 +34,45 @@ final class Incidentes
         if (! empty($f['severity'])) {
             $q->where('i.severity', $f['severity']);
         }
+        // Los que afectaron a una empresa (para su ficha): los de todas o los que la nombran.
+        if (! empty($f['tenant'])) {
+            $q->where(fn ($w) => $w->where('i.affects_all', true)
+                ->orWhereExists(fn ($x) => $x->from('platform_incident_tenants as it')->whereColumn('it.incident_id', 'i.id')->where('it.tenant_id', $f['tenant'])));
+        }
         $q->orderByRaw("i.status = 'RESOLVED'")->orderBy('i.severity')->orderByDesc('i.started_at')->orderBy('i.id');
+        Paginas::ordenar($q, ['title' => 'i.title', 'severity' => 'i.severity', 'component_name' => 'c.name', 'status' => 'i.status', 'started_at' => 'i.started_at',
+            'duracion_min' => 'coalesce(i.resolved_at, now()) - i.started_at', 'empresas' => 'i.affects_all', 'aviso' => 'i.customers_notified_at - i.started_at'], 'i.id', $f);
         $pagina = Paginas::de($q, fn ($i) => $i, $f);
         $ids = array_column($pagina['data'], 'id');
         $afectadas = DB::table('platform_incident_tenants')->whereIn('incident_id', $ids)->selectRaw('incident_id, count(*) AS n')->groupBy('incident_id')->pluck('n', 'incident_id');
         $tickets = DB::table('support_tickets')->whereIn('incident_id', $ids)->selectRaw('incident_id, count(*) AS n')->groupBy('incident_id')->pluck('n', 'incident_id');
         $pagina['data'] = array_map(fn ($i) => self::presentar($i) + ['empresas' => (int) ($afectadas[$i->id] ?? 0), 'tickets' => (int) ($tickets[$i->id] ?? 0)], $pagina['data']);
 
-        return $pagina;
+        return $pagina + ['cifras' => self::cifras()];
+    }
+
+    /**
+     * Cifras de cabecera (como el prototipo), sin depender de los filtros: abiertos, SEV1 y SEV2 que empezaron este mes
+     * (hora de Lima), SEV1 y SEV2 avisados fuera de plazo o abiertos sin aviso con el plazo vencido, y la mediana de horas
+     * hasta resolver.
+     */
+    private static function cifras(): array
+    {
+        $plazo = (int) Consola::param('ops_incident_notify_minutes', 30);
+        $mes = Carbon::now('America/Lima')->startOfMonth();
+        $r = DB::selectOne(<<<'SQL'
+            SELECT count(*) FILTER (WHERE status <> 'RESOLVED') AS abiertos,
+                   count(*) FILTER (WHERE severity IN ('SEV1', 'SEV2') AND started_at >= ?) AS graves_mes,
+                   count(*) FILTER (WHERE severity IN ('SEV1', 'SEV2') AND (
+                       customers_notified_at > started_at + make_interval(mins => ?)
+                       OR (customers_notified_at IS NULL AND status <> 'RESOLVED' AND now() > started_at + make_interval(mins => ?)))) AS fuera_de_plazo,
+                   percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM resolved_at - started_at) / 3600)
+                       FILTER (WHERE resolved_at IS NOT NULL) AS mediana_horas
+            FROM platform_incidents
+            SQL, [$mes, $plazo, $plazo]);
+
+        return ['abiertos' => (int) $r->abiertos, 'graves_mes' => (int) $r->graves_mes, 'fuera_de_plazo' => (int) $r->fuera_de_plazo,
+            'mediana_horas' => $r->mediana_horas === null ? null : round((float) $r->mediana_horas, 1), 'plazo_minutos' => $plazo];
     }
 
     public static function ver(string $id): array

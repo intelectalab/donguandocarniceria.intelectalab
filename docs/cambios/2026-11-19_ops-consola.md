@@ -972,3 +972,238 @@ Antes, varias listas traían de una vez un tope de 100 a 500 filas, sin avisar s
 - **Avisos y abonos de Cobros:** cada pestaña se carga por separado (`/consola/cobros/eventos` y `/consola/cobros/abonos`).
 
 Prueba: en la bandeja, una por página: página 2 de 2, total 2 y las cifras con los 2 abiertos. En total el sistema tiene 359 pruebas, todas correctas. Revisado en el navegador con 30 tickets: «Mostrando 1 a 25 de 30» y, en la página 2, «26 a 30».
+
+# Bitácora: filtros ordenados y cifras de cabecera (24/11)
+
+- **Filtros:** antes iban todos en una caja dentro de la tabla, y las fechas ocupaban el ancho completo sin decir cuál era cuál. Ahora van en una cuadrícula arriba, como en la Bandeja de tickets: el buscador ocupa dos columnas, al lado van acción y usuario, y en la fila de abajo empresa, «Desde», «Hasta» y «Limpiar filtros» (aparece solo si hay algún filtro). «Desde» no deja elegir una fecha posterior a «Hasta», ni al revés.
+- **Cifras, como en el prototipo** (no cambian con los filtros): acciones registradas, las de hoy (hora de Lima), acciones del soporte dentro de empresas (consultas, cambios y exportaciones de los accesos aprobados) e intentos rechazados (ingresos fallidos o bloqueados y pedidos del soporte fuera de lo aprobado), en ámbar si hay alguno.
+- La API agrega `cifras` a `/consola/bitacora` en una sola consulta.
+
+Prueba: `test_bitacora_de_la_consola_con_filtros` revisa que las cifras no dependan del filtro. Revisado en el navegador contra `aycha_test` (1440 y 375 px).
+
+# Salud de componentes: cifras y vista en tabla (24/11)
+
+- **Cifras del prototipo:**
+  - operativos, con cuántos están sin lectura;
+  - degradados;
+  - caídos;
+  - disponibilidad de 7 días de todos los componentes juntos;
+  - incidentes abiertos, que lleva a Incidentes.
+- La API agrega `disponibilidad_7d` e `incidentes_abiertos` a `/consola/salud`.
+- **Vista en tabla o en tarjetas** con `VistaToggle` (componente nuevo en `components/ui`, que recuerda la vista elegida en cada pantalla). La tabla es la del prototipo: componente, estado, latencia, errores, cola, disponibilidad de 24 h y de 7 días, última lectura e incidente. La primera vez se abre en tabla.
+- En la Bitácora y en el historial de Parámetros, la primera cuenta ya no figura como «Servidor (ops:crear-admin)» sino como «Instalación del servidor». Las claves del detalle se muestran en español (Correo, RUC, Plan…).
+- **Falta del prototipo:** la tarjeta «Versiones desplegadas». El sistema todavía no guarda la versión de cada despliegue.
+
+# Incidentes, Mora y Cobros con lo del prototipo; detalle en la Bitácora (24/11)
+
+Se conserva lo que ya había (pestañas, acciones, diseño) y se agrega lo que el prototipo muestra.
+
+## Incidentes
+
+- **Cifras** (sin depender de los filtros):
+  - abiertos;
+  - SEV1 y SEV2 que empezaron este mes;
+  - avisos fuera de plazo: SEV1 o SEV2 avisados después del plazo, o abiertos sin aviso con el plazo vencido;
+  - tiempo medio de resolución (mediana).
+- **Columnas del prototipo:** componente, inicio y duración por separado (con «en curso»), empresas («Todas» si afecta a todas) y aviso (minutos desde el inicio hasta que se avisó).
+
+## Mora
+
+- **Cifras:** en mora, deuda vencida, en solo lectura y suspendidas, sobre toda la cola.
+- **Columnas del prototipo:** plan, estado, comprobante (con «y N más»), deuda, días de mora, próximo reintento y paso previsto. El medio de pago queda bajo la empresa.
+- **Tarjeta «Proceso diario de mora»:**
+  - dice cuándo corre solo (6:20) y muestra la última ejecución con su resumen;
+  - administración y cobranza la pueden ejecutar a mano con «Ejecutar reintentos y cambios de estado» (`POST /consola/mora/proceso`, 5 por minuto).
+  - Solo corre para hoy: el prototipo deja elegir la fecha porque es una demo, y en el sistema real eso sería simular el paso del tiempo.
+  - Cada corrida, la programada (`sus:mora`) o la manual, queda en la bitácora como «Proceso de mora ejecutado».
+
+## Cobros y conciliación
+
+Las pestañas se quedan.
+- **Cifras:**
+  - cobros aprobados, con el monto;
+  - rechazados;
+  - por conciliar, con el monto;
+  - avisos repetidos descartados.
+- **Filtro por empresa.**
+- **Columnas del prototipo:** fecha, empresa, comprobante, intento (cuántos cobros tuvo ese comprobante hasta ese), origen, monto, resultado, motivo, pasarela y referencia, y conciliado («Sí» con el abono o «Pendiente»).
+- **Tarjeta «Conciliación con el abono de la pasarela»:** los cobros aprobados sin conciliar, agrupados por día, con el botón «Conciliar abono», que abre el mismo formulario de siempre. No se estima la comisión: se conoce recién con el abono.
+
+## Bitácora
+
+- Había acciones que se veían con su código interno (INCIDENT_OPENED, BILLING_RUN y 23 más) porque no tenían nombre. Ya lo tienen todas, y la prueba `tests/Unit/BitacoraTest.php` falla si se registra una acción nueva sin su nombre en español.
+- Al hacer clic en una fila se abre el detalle: quién, empresa, motivo, IP, el detalle con sus nombres en español y, plegado, el registro completo tal como se guardó.
+
+## Pruebas
+
+En `OpsTest` se agregó:
+- las cifras de incidentes, con un SEV2 sin aviso pasado el plazo;
+- las cifras y el número de comprobante de mora;
+- la última corrida y la corrida manual, que soporte nivel 1 no puede ejecutar;
+- en cobros, el número de intento, las cifras y la agrupación por día.
+
+# Facturación, Planes y Suscripciones con lo del prototipo (24/11)
+
+## Facturación del SaaS
+
+- Si hay RUC emisor, un aviso dice con qué RUC factura Intelectalab y el IGV.
+- **Cifras:** por cobrar (monto y cuántos), vencido, emitido este mes y borradores.
+- **Filtros nuevos:** empresa y tipo (factura, boleta, nota de crédito).
+- **Columnas del prototipo:** número, empresa, emitido (con su vencimiento), período (inicio y fin), subtotal, IGV, total, pago y estado en el OSE.
+- **Vista previa de la corrida** (pestaña Corridas):
+  - Se elige el mes y se ve qué se facturaría, sin grabar nada: empresa, tipo, plan, período, líneas, subtotal, IGV y total, más las notas de las que no se facturan.
+  - El botón «Emitir N comprobantes y cobrar» (o «Armar N borradores» si falta el RUC emisor) corre ese mes.
+  - La API agrega `GET /consola/facturacion/vista-previa`, solo para administración y cobranza. La corrida y la vista previa usan el mismo cálculo (`Facturacion::porFacturar`), así que no pueden diferir.
+- **Series en tabla** (como el prototipo, con la vista en tarjetas todavía disponible): serie, tipo, RUC emisor, siguiente número, último emitido y estado.
+
+## Catálogo de planes
+
+- **Cifras:** planes publicados (con los módulos del catálogo), borradores, empresas suscritas y precio desde.
+- **Vista en tabla** con `VistaToggle`. Las tarjetas siguen siendo la vista inicial.
+  - Una fila por versión (publicada, borrador y retiradas): plan, versión, estado, precio más IGV, módulos, límites, suscripciones, publicado y dependencias.
+  - Se puede filtrar por estado.
+- **Detalle de cada versión** al hacer clic en la tabla:
+  - precio, empresas que la usan y fechas;
+  - los límites con «Bloquea» (así funcionan en el sistema);
+  - los módulos incluidos con su dependencia, marcando la que falta;
+  - las acciones de siempre (editar, publicar, nueva versión, retirar).
+- **No se agregó del prototipo:** «Producto» y su filtro. El sistema vende un solo producto (GestionCarnica); la Granja del prototipo es para más adelante.
+
+## Suscripciones
+
+- **Cifras:** MRR (activas y con deuda, sin IGV), empresas con suscripción vigente y cuántas hay en prueba, activas, con deuda, en solo lectura y suspendidas. Al hacer clic en una de estado se filtra la lista.
+- **Columna nueva «Uso más alto»:** el porcentaje del límite más usado y de qué es; en ámbar desde 80 % y en rojo al llegar.
+- **No se agregó del prototipo:**
+  - «Producto», por lo mismo que en Planes;
+  - «Nueva suscripción»: una suscripción nace con el alta de la empresa (Empresas → Nueva empresa).
+
+Prueba: en `OpsTest` se revisa la vista previa (no graba y soporte no la ve), sus montos, las cifras de facturación y la lista de empresas del filtro.
+
+# Empresas y Ficha de empresa con lo del prototipo (24/11)
+
+## Empresas
+
+- **Cifras** (ahora con el mismo componente que el resto de la consola):
+  - clientes activos, de cuántas empresas;
+  - MRR con el ingreso promedio, que lleva a Métricas;
+  - en prueba;
+  - tickets abiertos, que lleva a la bandeja;
+  - accesos de soporte vigentes, que lleva a Accesos.
+- **Filtro nuevo:** plan.
+- **Columnas nuevas:** «Uso máx.» (el límite más usado, en ámbar desde 75 % y en rojo desde 90 %) y «Tickets» abiertos. Se mantienen las barras de usuarios, marcas y locales.
+- La API agrega `tickets_abiertos` y `accesos_vigentes` por empresa.
+
+## Ficha de empresa
+
+- **Botones del prototipo:** «Suspender o reactivar» (lleva a las acciones de la suscripción) y «Solicitar acceso de soporte» (abre el pedido con la empresa ya elegida).
+- **Cifras:** plan, estado con los días que lleva, MRR, tickets abiertos y accesos vigentes. Las dos últimas abren su pestaña.
+- **Pestañas del prototipo:**
+  - Resumen: todo lo que ya tenía la ficha.
+  - Comprobantes del SaaS, con los días de mora del vencido.
+  - Tickets.
+  - Incidentes que la afectaron. La API agrega el filtro `tenant` a `/consola/incidentes`: los de todas las empresas más los que la nombran.
+  - Accesos de soporte.
+- **Arreglos:**
+  - Los módulos encendidos ya no muestran su código interno (CLI, PED…), solo el nombre.
+  - Las acciones de la consola usan los nombres de la bitácora; antes la ficha tenía su propia lista incompleta.
+
+## Pendiente de decisión
+
+La salud ponderada de cada empresa (puntaje de 0 a 100 con «en riesgo» y «críticas», su pestaña y su evolución) y el volumen mensual de pedidos y mensajes. El sistema todavía no guarda esos datos. Las integraciones (OSE, WhatsApp) tampoco están construidas, así que esas partes de la salud no se pueden medir.
+
+# Salud de las empresas (24/11)
+
+Ella eligió calcularla ya con lo que el sistema mide; el OSE y WhatsApp se suman cuando existan esas integraciones.
+
+## Cómo se calcula (`App\Modulos\Ops\Services\SaludEmpresas`)
+
+| Parte | Peso | Puntaje |
+|---|---|---|
+| Actividad | 40 | Último ingreso de sus usuarios: hasta 3 días = 100, 7 días = 80, 14 días = 50, 30 días = 20, más = 0 (y 0 si nadie ingresó) |
+| Cobro | 35 | Activa, en prueba o sin suscripción = 100; con deuda = 60 menos 4 por día de mora (mínimo 20); solo lectura = 15; suspendida o cancelada = 0 |
+| Soporte | 25 | 100, menos 15 por ticket abierto y 25 más por cada urgente (mínimo 0) |
+
+- El puntaje es el promedio ponderado. Si un peso se pone en 0, el resto se reparte solo.
+- **Niveles:** crítica debajo de 40, en riesgo debajo de 70 y saludable desde 70.
+- Los pesos y los cortes son parámetros de plataforma (`ops_health_weight_activity`, `_billing`, `_support`, `ops_health_risk_below`, `ops_health_critical_below`). Se cambian en Parámetros con motivo. «Crítica» no puede quedar sobre «en riesgo», y no pueden pesar todos 0.
+
+## Fotos diarias
+
+- Migración `2026_11_24_000500_ops_salud_de_empresas`: tabla `tenant_health_snapshots`, con una foto por empresa y día. Solo la ve la consola: la empresa no ve su puntaje.
+- La tarea diaria (`ops:metricas uso`, 5:10) guarda la foto del día.
+- «Recalcular salud» la reemplaza en el mismo día y queda en la bitácora. La pueden usar administración, cobranza, soporte nivel 2 e ingeniería (permiso nuevo `health.recompute`).
+
+## Pantallas
+
+- **Empresas:**
+  - cifras: saludables, en riesgo y críticas, que filtran al hacer clic;
+  - columna Salud («46 · En riesgo»), filtro por salud y botón «Recalcular salud»;
+  - como en el prototipo, la lista se ordena por riesgo (la salud más baja primero);
+  - usuarios, marcas y locales pasan a una sola columna «Uso de límites», con sus tres barras, para que la tabla entre en el ancho.
+- **Ficha:**
+  - cifra Salud;
+  - pestaña Salud con cada parte (peso, puntaje, barra y detalle) y el botón «Guardar lectura de salud»;
+  - evolución de los últimos 90 días en barras, coloreadas por nivel y con la línea del corte de riesgo.
+
+## De paso
+
+La lista de permisos que recibe la pantalla de la consola se arma con todas las acciones de `Consola` (`Consola::acciones()`). Antes era una lista escrita a mano, y un permiso nuevo no aparecía.
+
+Prueba nueva `test_salud_de_empresas_con_niveles_fotos_diarias_y_cortes`. En total el sistema tiene 362 pruebas, todas correctas.
+
+# Registros y demos y Métricas con lo del prototipo; orden por columna en toda la consola (24/11)
+
+## Registros y demos
+
+- **Cifras:** por verificar, empresas creadas, rechazados, vencidos y demos por atender.
+- **Gráficos** «Registros por rubro» y «Registros por origen», en barras.
+- **Filtros** por estado, rubro y origen.
+- **Columnas nuevas:** origen y motivo del rechazo.
+- **No se agregó:** la tabla «Altas en curso» y el «Tiempo de alta». El sistema todavía no guarda el avance del asistente de alta de cada empresa.
+
+## Métricas del negocio
+
+- **Cifras nuevas:**
+  - tiempo de alta, que sigue sin datos hasta el primer comprobante aceptado;
+  - tickets por cliente;
+  - primera respuesta;
+  - disponibilidad promedio;
+  - resolución;
+  - horas de acceso de soporte.
+- **Gráfico nuevo** «Clientes activos por mes», junto al del MRR.
+- **Tarjeta «Movimiento del MRR»:** al inicio, clientes nuevos, expansión, contracción, cancelaciones, al cierre y retención neta. La API agrega `mrr_nuevo`, `mrr_expansion`, `mrr_contraccion` y `mrr_cancelado`. Los meses congelados antes de este cambio muestran «—» hasta recalcularlos.
+- **Lista de métricas congeladas:** cada corrida con quién, cuándo y su motivo.
+- **No se agregó:** el volumen por empresa (pedidos y mensajes del mes). Todavía no se mide.
+
+## Orden por columna
+
+Antes solo se podía ordenar Empresas. Ahora se ordenan todas las listas de la consola: haciendo clic en el encabezado o, en el celular, con el selector «Ordenar».
+
+- **En el servidor** (para que ordene todo y no solo la página visible): Bitácora, Bandeja de tickets, Accesos de soporte, Incidentes, Anuncios, Facturación, Cobros, Avisos de la pasarela, Abonos y Mora.
+  - `App\Support\Paginas::ordenar()` acepta `?sort=campo` o `?sort=-campo`, solo de una lista cerrada por pantalla. Cada campo tiene su columna o expresión SQL fija, así que el valor de la URL nunca llega al SQL.
+  - Los vacíos van al final.
+  - `Paginas::ordenarLista()` hace lo mismo para la cola de Mora.
+- **En el navegador** (listas que ya se cargan completas): Suscripciones, Registros, Pedidos de demo, Catálogo de planes (tabla), Complementos, Usuarios de plataforma y Salud de componentes (tabla). El ayudante nuevo es `useOrdenLocal()` en `lib/paginas.ts`.
+- `usePagina()` lleva también el orden (`pag.orden`) y al cambiarlo vuelve a la primera página.
+
+Prueba: en `test_bitacora_de_la_consola_con_filtros`, el orden ascendente y descendente, por nombre, y que un orden inválido (incluido un intento de inyectar SQL) se ignore. En total el sistema tiene 362 pruebas, todas correctas.
+
+# Última tanda: Tickets, Anuncios, Accesos, Complementos, Usuarios y Parámetros (24/11)
+
+- **Bandeja de tickets:**
+  - cifra nueva «Mediana de 1.ª respuesta», en horas, de los tickets de este mes;
+  - una línea con los plazos de primera respuesta por prioridad y el cierre automático de los resueltos (sale de los parámetros).
+- **Anuncios:**
+  - filtros por estado y tipo, en el servidor (el estado se arma con las mismas reglas que se muestran);
+  - al hacer clic en uno se abre el detalle: tipo, para quién (con los nombres de las empresas), fechas, quién lo redactó, el mantenimiento y «Así lo ve la empresa», con la franja como la ve el cliente.
+  - **No se agregó:** «Lecturas» y «Leído por». El sistema todavía no registra quién leyó cada anuncio.
+- **Accesos de soporte:**
+  - columna «Vence»; los módulos y si puede exportar ya estaban en «Alcance»;
+  - tarjeta «Cómo funciona», con los cinco pasos y sin códigos internos.
+- **Complementos:** filtro por estado y columna «Cobro» («Fijo al mes», «Por unidad» o «Por paquete de N»).
+- **Usuarios de plataforma:** tarjeta «Qué hace cada rol», con lo que puede cada uno en palabras. La API agrega `capacidades`, que sale de los mismos permisos que se aplican en la consola.
+- **Parámetros de plataforma:**
+  - marca «Modificado» o «Por defecto» en cada uno;
+  - tabla «Historial de cambios» con los últimos 200 cambios de todos los parámetros (fecha, parámetro, antes, después, motivo y quién).
+
+Pruebas: en `OpsTest` se revisan la mediana y los plazos de la bandeja, los filtros de anuncios, el origen y el historial de parámetros, y las capacidades por rol. En total el sistema tiene 362 pruebas, todas correctas.

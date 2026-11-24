@@ -51,3 +51,15 @@ PLT, SEG, MAE, INT y AUD son de cada empresa, pero algunas pantallas tocan datos
 - ~~**Fecha límite de cierre guardada al cerrar**~~ (PLT-09). *Hecho el 07/11/2026 con PLT-10:* `accounting_periods.close_due_date` se llena al cerrar y los meses ya cerrados se completaron con el día vigente (5).
 - ~~**Colores de la marca en todo el sistema**~~ (PLT-01 y PLT-06). *Hecho el 07/11/2026:* ver `docs/cambios/2026-11-07_colores-de-la-marca-en-el-sistema.md`.
 - **Bitácora de accesos** (`access_log`, AUD-03) y **despacho del outbox** de eventos (INT-06).
+
+## 4. Consola: lo que falta del prototipo 2.5
+*Anotado el 24/11/2026.* Ella pidió conservar el diseño actual y agregar lo que el prototipo muestra. Ya hechas: Bitácora, Salud, Incidentes, Mora, Cobros y conciliación, Facturación, Catálogo de planes, Suscripciones, Empresas, Ficha de empresa, Registros y demos, Métricas, Tickets, Anuncios, Accesos, Complementos, Usuarios y Parámetros (24/11). Todas las listas se ordenan por columna. Lo que queda abajo necesita datos que el sistema todavía no guarda.
+
+| Pantalla | Lo que falta |
+|---|---|
+| Empresas | Columna de integraciones (cuando existan) |
+| Ficha de empresa | Volumen mensual de pedidos y mensajes (no se mide todavía); sumar OSE y WhatsApp a la salud cuando existan |
+| Registros y demos | Tabla de altas en curso y tiempo de alta (falta guardar el avance del asistente de alta) |
+| Métricas | Volumen por empresa (pedidos y mensajes del mes; no se mide todavía) |
+| Anuncios | Lecturas y «Leído por» (no se registra quién lee cada anuncio) |
+| Salud | Tarjeta «Versiones desplegadas» (no se guarda la versión de cada despliegue) |
