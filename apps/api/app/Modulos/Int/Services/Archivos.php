@@ -3,6 +3,7 @@
 namespace App\Modulos\Int\Services;
 
 use App\Models\User;
+use App\Modulos\Seg\Services\Bitacora;
 use App\Support\Access;
 use App\Support\Events;
 use App\Support\Paginas;
@@ -124,10 +125,13 @@ final class Archivos
         }
         $minutos = max(1, (int) (Params::get('int_file_link_minutes') ?? 10));
         $vence = now()->addMinutes($minutos);
-        $url = rtrim((string) config('app.url'), '/').URL::temporarySignedRoute('int.archivo', $vence, ['id' => $id, 'e' => TenantContext::id()], absolute: false);
+        // Ruta relativa: la web la reenvía a la API (mismo dominio), aquí, en las pruebas y en el servidor.
+        $url = URL::temporarySignedRoute('int.archivo', $vence, ['id' => $id, 'e' => TenantContext::id()], absolute: false);
         $enlaces = array_slice([...(json_decode($f->links ?? '[]', true) ?: []), ['at' => now()->toIso8601String(), 'by' => $quien->name, 'expires_at' => $vence->toIso8601String()]], -20);
         DB::table('file_attachments')->where('id', $id)->update(['links' => json_encode($enlaces, JSON_UNESCAPED_UNICODE), 'updated_at' => now()]);
         if ($sensible) {
+            Bitacora::registrar('FILE_DOWNLOADED', ['user' => $quien, 'entity' => 'file_attachments', 'entity_id' => $id,
+                'detail' => "{$f->file_name} · ".self::CLASIFICACIONES[$f->classification]." · enlace de {$minutos} minutos"]);
             Events::emit('file.downloaded', 'file_attachments', $id, ['by' => $quien->id, 'name' => $f->file_name, 'classification' => $f->classification, 'minutes' => $minutos]);
         }
 

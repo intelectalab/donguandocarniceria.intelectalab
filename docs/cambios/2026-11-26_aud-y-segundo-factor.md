@@ -6,7 +6,7 @@ Rama `feature/aud-auditoria`, creada desde `feature/int-integraciones` (que toda
 
 1. **Segundo factor:** activarlo con QR y códigos de recuperación (SEG-03), pedir el código al ingresar (SEG-02) y su parte en Mi cuenta (SEG-06). *Hecha.*
 2. Consulta de cambios (AUD-01), Historia del registro (AUD-02) y Bitácora de accesos (AUD-03). *Hecha.*
-3. Accesos a datos sensibles (AUD-04) y Exportaciones con aprobación (AUD-05).
+3. Accesos a datos sensibles (AUD-04) y Exportaciones con aprobación (AUD-05). *Hecha.*
 4. Políticas de retención (AUD-06), Corridas de depuración (AUD-07) y Revisión de accesos (AUD-08).
 
 Decisión de ella (24/11/2026): el segundo factor es **opcional por ahora**. La obligación para los roles que lo exigen queda lista, pero apagada.
@@ -172,3 +172,84 @@ Antes los 403 no se anotaban. Ahora cada uno queda en la bitácora de accesos:
   - el filtro por persona queda en la bitácora.
 
 En `IntTest`, el archivo repetido. En total el sistema tiene 383 pruebas, todas correctas. Revisado en el navegador contra `aycha_test` (1440 y 375 px).
+
+---
+
+# Tanda 3: accesos a datos sensibles y exportaciones (AUD-04 y AUD-05)
+
+## AUD-04 Accesos a datos sensibles (`Aud\Services\Accesos::sensibles`)
+
+- **Qué lista:** de la bitácora de accesos, los eventos de datos sensibles (Ley 29733):
+  - vistas de datos personales sin enmascarar;
+  - exportaciones descargadas (también las de cualquier botón «Exportar» del sistema);
+  - archivos confidenciales descargados;
+  - grabaciones reproducidas, cuando exista Telefonía.
+- **Archivos confidenciales:** ahora su descarga queda también en la bitácora de accesos (`FILE_DOWNLOADED`), no solo como evento de dominio.
+- **Pantalla:**
+  - una cifra por tipo y la tabla con fecha y hora, usuario y rol, tipo, qué e IP;
+  - filtros en la barra (tipo, usuario, desde y hasta);
+  - el detalle de cada acceso;
+  - el panel «Por usuario», donde más de 3 accesos se marca para revisar.
+- **Permiso:** pide `aud.access_log.view`. Filtrar por una persona queda en la bitácora.
+
+## AUD-05 Exportaciones (`Aud\Services\Exportaciones`)
+
+Migración `2026_11_26_000300_aud_exportaciones`:
+- columna `storage_key`, para guardar dónde quedó el archivo;
+- nombres y motivos que caben enteros;
+- el estado limitado a por aprobar, lista, rechazada o vencida;
+- el número único por empresa.
+
+Reglas:
+- **RN-AUD-05:**
+  - se solicita con `aud.export.request` y un motivo de al menos 10 caracteres;
+  - hay 7 reportes, como en el prototipo:
+    - con datos personales: contactos de clientes por pedido, clientes con teléfono y correo, y trabajadores con documento y celular;
+    - sin datos personales: pedidos, cobros, comprobantes y la bitácora de cambios;
+  - los filtros son de fechas, marca y «solo quienes aceptan publicidad», según el reporte.
+- **RN-AUD-06:**
+  - una exportación con datos personales necesita la aprobación de otra persona con `aud.export.approve` si pasa de `aud_export_personal_data_rows` filas (500), o si quien la pide no tiene `aud.export.personal_data`;
+  - quien solicita no aprueba ni rechaza la suya;
+  - el rechazo pide un motivo;
+  - se avisa a quienes pueden aprobar, y después a quien la pidió, si se aprobó o rechazó.
+- **El archivo:**
+  - al quedar lista se genera el Excel con el diseño de la empresa (`App\Support\Exportar`, con el método nuevo `guardar`) y se guarda en el disco privado. Lo que se aprueba es lo que se descarga;
+  - lleva la marca de agua (quién, cuándo, número y motivo); si trae datos personales, también el aviso de uso interno según la Ley 29733;
+  - se guarda su huella SHA-256.
+- **La descarga:**
+  - es un enlace firmado que vence a las `aud_export_link_hours` horas (24);
+  - solo la descarga quien la pidió, o gerencia y administración del sistema;
+  - cada descarga queda en la exportación y en la bitácora de accesos.
+- **Quién ve el detalle:** quien la pidió, quien puede aprobarla mientras está pendiente, y gerencia, administración y auditoría. Los demás no ven las de otras personas.
+- **Datos de demostración:** las exportaciones de ejemplo no tienen archivo guardado; al intentar descargarlas, el sistema lo dice.
+
+Pantalla:
+- cifras: por aprobar, con datos personales listas este mes, mis exportaciones y rechazadas;
+- pestañas: mis exportaciones, por aprobar y todas;
+- filtros por estado y reporte;
+- columnas: número, solicitada, solicitante, reporte, filas, datos personales, motivo y estado, con «Aprobar» y «Descargar»;
+- «Solicitar exportación»: reporte, filtros según el reporte y motivo, con el aviso de si necesitará aprobación;
+- el detalle trae los filtros, el motivo, quién la aprobó o rechazó, la marca de agua y las descargas.
+
+## Enlaces de descarga relativos (exportaciones y archivos adjuntos)
+
+Los enlaces firmados se arman con la ruta (`/api/v1/…`), sin la dirección del servidor. La web reenvía `/api` a la API en el mismo dominio, así que funcionan igual aquí, en las pruebas y en el servidor. Antes usaban `APP_URL`, que en la computadora local no apunta a la API. La URL de los webhooks de entrada sigue completa, porque se copia en el panel del proveedor.
+
+## Pruebas
+
+En `AudTest` hay 2 casos nuevos, 5 en total:
+- **exportación sin datos personales:**
+  - el motivo corto se rechaza;
+  - queda lista con su archivo y un número propio;
+  - otra persona no la ve ni la descarga;
+  - el enlace firmado descarga el Excel y alterado se rechaza;
+  - a las 25 horas venció;
+  - la descarga aparece en AUD-04, y administración no ve AUD-04.
+- **datos personales:**
+  - sin el permiso, el pedido va a aprobación y avisa a quienes aprueban;
+  - no se descarga antes de aprobarse;
+  - la gerencia la aprueba y se avisa a quien la pidió;
+  - con el umbral en 1, aun la gerencia necesita aprobación y no puede aprobar la suya;
+  - el rechazo pide motivo y queda en la bitácora.
+
+En total el sistema tiene 385 pruebas, todas correctas. Revisado en el navegador contra `aycha_test`: se solicitó una exportación desde la pantalla, se descargó a través de la web y el Excel trae los 945 cobros de septiembre con la marca de agua.

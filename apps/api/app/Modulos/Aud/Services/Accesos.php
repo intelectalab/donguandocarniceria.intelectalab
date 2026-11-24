@@ -23,6 +23,7 @@ final class Accesos
         'LOGIN_OK' => 'ok', 'MFA_OK' => 'ok', 'MFA_ENABLED' => 'ok', 'LOGIN_FAILED' => 'warn', 'MFA_FAILED' => 'warn', 'LOGIN_BLOCKED' => 'warn',
         'RECOVERY_CODE_USED' => 'warn', 'SESSION_REVOKED' => 'warn', 'LOCKED' => 'bad', 'PERMISSION_DENIED' => 'bad', 'MODULE_DISABLED' => 'bad',
         'LOGIN_DENIED_DEVICE' => 'bad', 'MFA_DISABLED' => 'warn', 'MFA_RESET' => 'warn',
+        'SENSITIVE_VIEW' => 'warn', 'EXPORT_DOWNLOADED' => 'warn', 'FILE_DOWNLOADED' => 'warn', 'RECORDING_PLAYED' => 'warn',
     ];
 
     public const FALLIDOS = ['LOGIN_FAILED', 'MFA_FAILED', 'LOGIN_BLOCKED'];
@@ -76,6 +77,42 @@ final class Accesos
             'desde' => $desde->toDateString(), 'hasta' => $hasta->toDateString(),
             'eventos' => collect(Bitacora::EVENTOS)->except(self::SENSIBLES)->map(fn ($n, $k) => ['value' => $k, 'label' => $n])->sortBy('label')->values(),
             'usuarios' => DB::table('users')->orderBy('name')->get(['id as value', 'name as label']),
+        ];
+    }
+
+    /**
+     * AUD-04 Accesos a datos sensibles (Ley 29733): descargas de archivos confidenciales, grabaciones reproducidas,
+     * exportaciones descargadas y vistas sin enmascarar, por usuario y fecha. Abrir el detalle de una persona queda en la
+     * bitácora (AUDIT_VIEWED).
+     */
+    public static function sensibles(array $f, User $quien): array
+    {
+        $q = DB::table('access_log')->whereIn('event', self::SENSIBLES);
+        if (! empty($f['desde'])) {
+            $q->where('at', '>=', Carbon::parse($f['desde'], 'America/Lima')->startOfDay());
+        }
+        if (! empty($f['hasta'])) {
+            $q->where('at', '<=', Carbon::parse($f['hasta'], 'America/Lima')->endOfDay());
+        }
+        if (! empty($f['evento'])) {
+            $q->where('event', $f['evento']);
+        }
+        if (! empty($f['usuario'])) {
+            $q->where('user_id', $f['usuario']);
+            Bitacora::registrar('AUDIT_VIEWED', ['user' => $quien, 'detail' => 'Accesos a datos sensibles de: '.(DB::table('users')->where('id', $f['usuario'])->value('name') ?? '?')]);
+        }
+        $porTipo = (clone $q)->selectRaw('event, count(*) AS n')->groupBy('event')->pluck('n', 'event');
+        $porUsuario = (clone $q)->selectRaw('user_id, max(user_name) AS usuario, count(*) AS n')->groupBy('user_id')->orderByDesc('n')->limit(15)->get();
+        $q->orderByDesc('at')->orderByDesc('id');
+        Paginas::ordenar($q, ['at' => 'at', 'user_name' => 'user_name', 'event' => 'event', 'ip' => 'ip'], 'id', $f);
+        $roles = DB::table('roles')->pluck('name', 'code')->all();
+
+        return Paginas::de($q, fn ($x) => self::presentar($x, $roles) + ['entity' => $x->entity, 'entity_id' => $x->entity_id], $f) + [
+            'por_tipo' => collect(self::SENSIBLES)->map(fn ($e) => ['event' => $e, 'event_name' => self::nombreEvento($e), 'n' => (int) ($porTipo[$e] ?? 0)])->values(),
+            'por_usuario' => $porUsuario->map(fn ($u) => ['user_id' => $u->user_id, 'usuario' => $u->usuario, 'n' => (int) $u->n])->values(),
+            'eventos' => collect(self::SENSIBLES)->map(fn ($e) => ['value' => $e, 'label' => self::nombreEvento($e)])->values(),
+            'usuarios' => DB::table('users')->whereIn('id', DB::table('access_log')->whereIn('event', self::SENSIBLES)->whereNotNull('user_id')->distinct()->select('user_id'))
+                ->orderBy('name')->get(['id as value', 'name as label']),
         ];
     }
 

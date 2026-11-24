@@ -7,6 +7,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicoController;
 use App\Http\Controllers\TenantController;
+use App\Modulos\Aud\Http\Controllers\AuditoriaController;
 use App\Modulos\Cli\Http\Controllers\EnlaceController;
 use App\Modulos\Int\Http\Controllers\AvisoArchivoController;
 use App\Modulos\Int\Http\Controllers\WebhookController;
@@ -51,6 +52,11 @@ Route::prefix('v1/publico')->group(function () {
 // INT-04 · webhooks de entrada de los proveedores: públicos, sin sesión. La empresa sale del token de la URL y sin firma
 // válida no se procesan (RN-INT-04). Responden 200 a todo evento firmado, también a uno repetido (RN-INT-05).
 Route::post('/hooks/{token}', [WebhookController::class, 'recibir'])->middleware('throttle:120,1')->where('token', '[A-Za-z0-9]{16,80}');
+
+// AUD-05 · descarga de una exportación con su enlace firmado (vence a las 24 horas, RN-AUD-05): sin sesión; la firma
+// lleva la exportación, la empresa, quién la pidió y el vencimiento.
+Route::get('/v1/exportaciones/{id}', [AuditoriaController::class, 'descargarExportacion'])->name('aud.exportacion')
+    ->middleware(['signed:relative', 'throttle:30,1'])->whereUuid('id');
 
 // INT-11 · descarga de un archivo adjunto con su enlace firmado y temporal (RN-INT-17): sin sesión; la firma lleva el
 // archivo, la empresa y el vencimiento. Se firma la ruta relativa para que valga detrás del proxy.

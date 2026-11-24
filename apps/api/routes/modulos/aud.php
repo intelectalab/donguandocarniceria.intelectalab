@@ -15,4 +15,15 @@ Route::prefix('aud')->group(function () {
 
     // AUD-03: bitácora de accesos.
     Route::get('/accesos', [AuditoriaController::class, 'accesos'])->middleware(['modulo:AUD', 'permiso:aud.access_log.view', 'throttle:60,1']);
+
+    // AUD-04: accesos a datos sensibles.
+    Route::get('/sensibles', [AuditoriaController::class, 'sensibles'])->middleware(['modulo:AUD', 'permiso:aud.access_log.view', 'throttle:60,1']);
+
+    // AUD-05: exportaciones (solicitar con motivo; aprobar o rechazar otra persona; descargar con enlace temporal).
+    Route::get('/exportaciones', [AuditoriaController::class, 'exportaciones'])->middleware(['permiso:aud.export.request|aud.export.approve', 'throttle:60,1']);
+    Route::get('/exportaciones/{id}', [AuditoriaController::class, 'exportacion'])->middleware('permiso:aud.export.request|aud.export.approve')->whereUuid('id');
+    Route::post('/exportaciones', [AuditoriaController::class, 'solicitarExportacion'])->middleware(['permiso:aud.export.request', 'throttle:10,1']);
+    Route::post('/exportaciones/{id}/aprobar', [AuditoriaController::class, 'aprobarExportacion'])->middleware(['permiso:aud.export.approve', 'throttle:20,1'])->whereUuid('id');
+    Route::post('/exportaciones/{id}/rechazar', [AuditoriaController::class, 'rechazarExportacion'])->middleware('permiso:aud.export.approve')->whereUuid('id');
+    Route::post('/exportaciones/{id}/enlace', [AuditoriaController::class, 'enlaceExportacion'])->middleware(['permiso:aud.export.request|aud.export.approve', 'throttle:30,1'])->whereUuid('id');
 });
