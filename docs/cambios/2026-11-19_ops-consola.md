@@ -972,3 +972,24 @@ Antes, varias listas traían de una vez un tope de 100 a 500 filas, sin avisar s
 - **Avisos y abonos de Cobros:** cada pestaña se carga por separado (`/consola/cobros/eventos` y `/consola/cobros/abonos`).
 
 Prueba: en la bandeja, una por página: página 2 de 2, total 2 y las cifras con los 2 abiertos. En total el sistema tiene 359 pruebas, todas correctas. Revisado en el navegador con 30 tickets: «Mostrando 1 a 25 de 30» y, en la página 2, «26 a 30».
+
+# Bitácora: filtros ordenados y cifras de cabecera (24/11)
+
+- **Filtros:** antes iban todos en una caja dentro de la tabla, y las fechas ocupaban el ancho completo sin decir cuál era cuál. Ahora van en una cuadrícula arriba, como en la Bandeja de tickets: el buscador ocupa dos columnas, al lado van acción y usuario, y en la fila de abajo empresa, «Desde», «Hasta» y «Limpiar filtros» (aparece solo si hay algún filtro). «Desde» no deja elegir una fecha posterior a «Hasta», ni al revés.
+- **Cifras, como en el prototipo** (no cambian con los filtros): acciones registradas, las de hoy (hora de Lima), acciones del soporte dentro de empresas (consultas, cambios y exportaciones de los accesos aprobados) e intentos rechazados (ingresos fallidos o bloqueados y pedidos del soporte fuera de lo aprobado), en ámbar si hay alguno.
+- La API agrega `cifras` a `/consola/bitacora` en una sola consulta.
+
+Prueba: `test_bitacora_de_la_consola_con_filtros` revisa que las cifras no dependan del filtro. Revisado en el navegador contra `aycha_test` (1440 y 375 px).
+
+# Salud de componentes: cifras y vista en tabla (24/11)
+
+- **Cifras del prototipo:**
+  - operativos, con cuántos están sin lectura;
+  - degradados;
+  - caídos;
+  - disponibilidad de 7 días de todos los componentes juntos;
+  - incidentes abiertos, que lleva a Incidentes.
+- La API agrega `disponibilidad_7d` e `incidentes_abiertos` a `/consola/salud`.
+- **Vista en tabla o en tarjetas** con `VistaToggle` (componente nuevo en `components/ui`, que recuerda la vista elegida en cada pantalla). La tabla es la del prototipo: componente, estado, latencia, errores, cola, disponibilidad de 24 h y de 7 días, última lectura e incidente. La primera vez se abre en tabla.
+- En la Bitácora y en el historial de Parámetros, la primera cuenta ya no figura como «Servidor (ops:crear-admin)» sino como «Instalación del servidor». Las claves del detalle se muestran en español (Correo, RUC, Plan…).
+- **Falta del prototipo:** la tarjeta «Versiones desplegadas». El sistema todavía no guarda la versión de cada despliegue.

@@ -84,14 +84,38 @@ final class Plataforma
         }
         $pagina = $q->orderByDesc('a.occurred_at')->paginate(min(100, max(10, (int) ($f['per_page'] ?? 25))));
         // array_merge (no «+»): el detalle viene como texto JSON y debe reemplazarse por su valor.
+        // Las filas viejas de la primera cuenta guardaron el nombre del comando: se muestran como «Instalación del servidor».
         $pagina->getCollection()->transform(fn ($r) => array_merge((array) $r, ['action_name' => self::ACCIONES[$r->action] ?? $r->action,
+            'actor_name' => $r->actor_name === 'Servidor (ops:crear-admin)' ? UsuariosPlataforma::INSTALACION : $r->actor_name,
             'detail' => json_decode($r->detail, true)]));
 
         return $pagina->toArray() + [
+            'cifras' => self::cifrasBitacora(),
             'acciones' => collect(self::ACCIONES)->map(fn ($n, $c) => ['code' => $c, 'name' => $n])->values(),
             'usuarios' => DB::table('platform_users')->orderBy('full_name')->get(['id', 'full_name']),
             'empresas' => DB::table('tenants')->orderBy('short')->get(['id', 'short']),
         ];
+    }
+
+    /**
+     * Cifras de cabecera de la bitácora, como en el prototipo (OPS-13); no dependen de los filtros:
+     * acciones registradas, las de hoy (hora de Lima), acciones del soporte dentro de empresas (consultas, cambios y
+     * exportaciones de los accesos aprobados) e intentos rechazados (ingresos fallidos o bloqueados y pedidos del
+     * soporte fuera de lo aprobado).
+     */
+    private static function cifrasBitacora(): array
+    {
+        $hoy = Carbon::now('America/Lima')->startOfDay();
+        $a = DB::table('platform_audit_log')->selectRaw(
+            "count(*) AS registradas, count(*) FILTER (WHERE occurred_at >= ?) AS hoy,
+             count(*) FILTER (WHERE action IN ('CONSOLE_LOGIN_FAILED', 'CONSOLE_LOGIN_BLOCKED')) AS rechazados", [$hoy]
+        )->first();
+        $s = DB::table('support_access_events')->selectRaw(
+            "count(*) FILTER (WHERE kind IN ('READ', 'WRITE', 'EXPORT')) AS soporte, count(*) FILTER (WHERE kind = 'DENIED') AS denegados"
+        )->first();
+
+        return ['registradas' => (int) $a->registradas, 'hoy' => (int) $a->hoy, 'soporte' => (int) $s->soporte,
+            'rechazados' => (int) $a->rechazados + (int) $s->denegados];
     }
 
     /* ------------------------------------------------------------------ OPS-16 */
@@ -105,7 +129,8 @@ final class Plataforma
             'updated_by' => $p->updated_by ? ($nombres[$p->updated_by] ?? null) : null, 'regla' => self::REGLAS[$p->key] ?? null,
             'historial' => DB::table('platform_parameter_history')->where('key', $p->key)->orderByDesc('changed_at')->limit(10)
                 ->get(['old_value', 'new_value', 'reason', 'changed_by_name', 'changed_at'])
-                ->map(fn ($h) => array_merge((array) $h, ['old_value' => json_decode($h->old_value ?? 'null', true), 'new_value' => json_decode($h->new_value, true)])),
+                ->map(fn ($h) => array_merge((array) $h, ['old_value' => json_decode($h->old_value ?? 'null', true), 'new_value' => json_decode($h->new_value, true),
+                    'changed_by_name' => $h->changed_by_name === 'Servidor (ops:crear-admin)' ? UsuariosPlataforma::INSTALACION : $h->changed_by_name])),
         ])->all();
     }
 

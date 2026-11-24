@@ -20,6 +20,9 @@ use Illuminate\Validation\ValidationException;
  */
 final class UsuariosPlataforma
 {
+    /** Quién figura en la bitácora cuando la primera cuenta se crea desde el servidor. */
+    public const INSTALACION = 'Instalación del servidor';
+
     private const ALFABETO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
     private const INTENTOS = 5;
@@ -73,7 +76,7 @@ final class UsuariosPlataforma
         if (DB::table('platform_users')->where('role', 'PLATFORM_ADMIN')->where('status', 'ACTIVE')->exists()) {
             RuleError::fail('RN-OPS-10', 'Ya hay un administrador de plataforma activo: crea las demás cuentas en Usuarios de plataforma.');
         }
-        $sistema = ['id' => null, 'full_name' => 'Servidor (ops:crear-admin)', 'role' => 'PLATFORM_ADMIN'];
+        $sistema = ['id' => null, 'full_name' => self::INSTALACION, 'role' => 'PLATFORM_ADMIN'];
         // Sin administrador no hay quien cambie los dominios en la consola: desde el servidor se agrega el de esta cuenta.
         $dominio = mb_strtolower(mb_substr(strrchr(trim($email), '@') ?: '', 1));
         $dominios = Consola::dominios();

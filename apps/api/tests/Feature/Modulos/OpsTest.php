@@ -442,6 +442,15 @@ class OpsTest extends TestCase
         $this->assertSame('20100047218', $r->json('data.0.detail.ruc'), 'El detalle llega como datos, no como texto');
         $this->assertGreaterThan(0, $this->consola($token)->getJson('/api/v1/consola/bitacora?search=ana')->json('total'));
         $this->assertNotEmpty($r->json('acciones'));
+
+        // Cifras de la cabecera (como el prototipo): no dependen de los filtros.
+        $c = $r->json('cifras');
+        $this->assertGreaterThanOrEqual(2, $c['registradas'], 'Al menos el ingreso del administrador y el alta');
+        $this->assertSame($c['registradas'], $c['hoy']);
+        $this->assertSame(0, $c['soporte']);
+        $this->assertSame(0, $c['rechazados']);
+        $this->consola()->postJson('/api/v1/consola/ingreso', ['email' => 'nadie@intelectalab.com', 'password' => 'Incorrecta-2026', 'codigo' => '000000']);
+        $this->assertSame(1, $this->consola($token)->getJson('/api/v1/consola/bitacora')->json('cifras.rechazados'), 'Un ingreso fallido cuenta como rechazado');
     }
 
     public function test_parametros_de_plataforma_con_motivo_historial_y_reglas(): void
@@ -529,7 +538,7 @@ class OpsTest extends TestCase
         }
         $this->assertNotEmpty(UsuariosPlataforma::primeraCuenta('yadira@gmail.com', 'Yadira Prueba', true));
         $this->assertContains('gmail.com', json_decode(DB::table('platform_parameters')->where('key', 'ops_platform_email_domains')->value('value'), true));
-        $this->assertDatabaseHas('platform_parameter_history', ['key' => 'ops_platform_email_domains', 'changed_by_name' => 'Servidor (ops:crear-admin)']);
+        $this->assertDatabaseHas('platform_parameter_history', ['key' => 'ops_platform_email_domains', 'changed_by_name' => 'Instalación del servidor']);
     }
 
     /* ------------------------------------------------------------------ tanda 5: registros y pedidos de demo */
@@ -814,7 +823,11 @@ class OpsTest extends TestCase
 
         // Vuelve: la disponibilidad del día baja en proporción (2 caídas de 3 lecturas → 33,33 %).
         $this->consola($ing)->postJson('/api/v1/consola/salud/OSE/lecturas', ['status' => 'UP', 'detail' => 'El proveedor normalizó'])->assertOk();
-        $this->assertEquals(33.33, collect($this->consola($ing)->getJson('/api/v1/consola/salud')->json('data'))->firstWhere('code', 'OSE')['disponibilidad_24h']);
+        $tablero = $this->consola($ing)->getJson('/api/v1/consola/salud')->json();
+        $this->assertEquals(33.33, collect($tablero['data'])->firstWhere('code', 'OSE')['disponibilidad_24h']);
+        // Cifras de cabecera: el incidente sigue abierto hasta resolverlo, y la disponibilidad total queda bajo 100 %.
+        $this->assertSame(1, $tablero['incidentes_abiertos']);
+        $this->assertLessThan(100, $tablero['disponibilidad_7d']);
 
         // Las lecturas son de solo inserción.
         $this->expectException(QueryException::class);
