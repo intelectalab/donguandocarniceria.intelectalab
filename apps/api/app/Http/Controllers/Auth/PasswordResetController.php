@@ -12,7 +12,7 @@ use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
+use App\Support\Correo;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -57,11 +57,14 @@ class PasswordResetController extends Controller
                     'expires_at' => now()->addMinutes($minutos), 'requested_at' => now(), 'requested_ip' => $request->ip(),
                 ]);
             });
-            Mail::raw(
-                "Hola {$user->name}:\n\nTu código para crear una nueva contraseña es {$codigo}.\n"
-                ."Vence en {$minutos} minutos. Si no lo pediste, ignora este correo.",
-                fn ($m) => $m->to($user->email)->subject('Código para recuperar tu contraseña')
-            );
+            Correo::enviar($user->email, 'Código para recuperar tu contraseña', [
+                'titulo' => 'Recupera tu contraseña',
+                'saludo' => "Hola {$user->name}:",
+                'parrafos' => ['Pediste crear una nueva contraseña para GestionCarnica. Escribe este código en la página donde lo pediste:'],
+                'codigo' => $codigo,
+                'vence' => "Vence en {$minutos} minutos.",
+                'nota' => 'Si no lo pediste, ignora este correo: tu contraseña sigue igual.',
+            ]);
         }
 
         return null;

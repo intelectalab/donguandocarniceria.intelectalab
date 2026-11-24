@@ -10,7 +10,7 @@ use App\Support\TenantContext;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
+use App\Support\Correo;
 use Illuminate\Support\Str;
 use Ramsey\Uuid\Uuid;
 
@@ -184,12 +184,15 @@ final class Empresas
         Consola::bitacora('TENANT_CREATED', $quien, ['tenant' => $id, 'entity' => 'tenants', 'entity_id' => $id, 'reason' => 'Alta de empresa desde la consola',
             'detail' => ['ruc' => $ruc, 'plan' => $plan->code, 'trial_days' => $diasPrueba, 'admin' => $email]]);
         $horas = Usuarios::INVITACION_HORAS;
-        Mail::raw(
-            "Hola {$d['admin_name']}:\n\nTu empresa {$d['trade_name']} ya tiene su cuenta en GestionCarnica, con {$diasPrueba} días de prueba del plan {$plan->name}.\n"
-            ."Entra a «Olvidé mi contraseña», elige «Ya tengo un código» y usa el código {$codigo} con tu correo {$email} para crear tu contraseña.\n"
-            ."Al ingresar, el asistente te guía para registrar tus marcas, locales y lo demás. El código vence en {$horas} horas.",
-            fn ($m) => $m->to($email)->subject('Tu cuenta de GestionCarnica está lista')
-        );
+        Correo::enviar($email, 'Tu cuenta de GestionCarnica está lista', [
+            'titulo' => 'Tu cuenta está lista',
+            'saludo' => "Hola {$d['admin_name']}:",
+            'parrafos' => ["Tu empresa {$d['trade_name']} ya tiene su cuenta en GestionCarnica, con {$diasPrueba} días de prueba del plan {$plan->name}. Para entrar, primero crea tu contraseña con este código:"],
+            'codigo' => $codigo,
+            'vence' => "Vence en {$horas} horas.",
+            'pasos' => ['En el ingreso, entra a «Olvidé mi contraseña» y elige «Ya tengo un código».', "Escribe tu correo {$email} y el código, y crea tu contraseña.", 'Al ingresar, el asistente te guía para registrar tus marcas, locales y lo demás.'],
+            'boton' => ['texto' => 'Crear mi contraseña', 'ruta' => '/forgot-password'],
+        ]);
 
         return ['id' => $id, 'codigo' => $codigo, 'admin_email' => $email];
     }

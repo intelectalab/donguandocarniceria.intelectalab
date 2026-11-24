@@ -7,7 +7,7 @@ use App\Support\Totp;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
+use App\Support\Correo;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -417,12 +417,20 @@ final class UsuariosPlataforma
         $horas = (int) Consola::param('ops_platform_user_invite_hours', 48);
         DB::table('platform_user_tokens')->where('platform_user_id', $u['id'])->whereNull('used_at')->whereNull('voided_at')->update(['voided_at' => now()]);
         DB::table('platform_user_tokens')->insert(['platform_user_id' => $u['id'], 'token_hash' => Hash::make($codigo), 'expires_at' => now()->addHours($horas), 'created_at' => now()]);
-        Mail::raw(
-            "Hola {$u['full_name']}:\n\n{$quien['full_name']} te dio acceso a la consola de GestionCarnica como ".Consola::ROLES[$u['role']].".\n"
-            ."Entra a /consola/activar con tu correo {$u['email']} y el código {$codigo} para crear tu contraseña y configurar tu app autenticadora "
-            ."(Google Authenticator, Microsoft Authenticator u otra).\nEl código vence en {$horas} horas. Si no esperabas este correo, ignóralo.",
-            fn ($m) => $m->to($u['email'])->subject('Acceso a la consola de GestionCarnica')
-        );
+        Correo::enviar($u['email'], 'Acceso a la consola de GestionCarnica', [
+            'titulo' => 'Acceso a la consola',
+            'saludo' => "Hola {$u['full_name']}:",
+            'parrafos' => [($quien['id'] ? "{$quien['full_name']} te dio acceso" : 'Ya tienes acceso').' a la consola de GestionCarnica como '.Consola::ROLES[$u['role']].'. Para activar tu cuenta usa este código:'],
+            'codigo' => $codigo,
+            'vence' => "Vence en {$horas} horas.",
+            'pasos' => [
+                "Entra a la página de activación y escribe tu correo {$u['email']} y el código.",
+                'Crea tu contraseña.',
+                'Escanea el código QR con tu app autenticadora (Authy, Google Authenticator, Microsoft Authenticator u otra) y escribe los 6 dígitos que te muestra.',
+            ],
+            'boton' => ['texto' => 'Activar mi cuenta', 'ruta' => '/consola/activar'],
+            'nota' => 'Si no esperabas este correo, ignóralo.',
+        ]);
         Consola::bitacora('PLATFORM_USER_INVITED', $quien, ['entity' => 'platform_users', 'entity_id' => $u['id'], 'reason' => 'Código de activación enviado']);
         self::$ultimoCodigo = $codigo;
     }

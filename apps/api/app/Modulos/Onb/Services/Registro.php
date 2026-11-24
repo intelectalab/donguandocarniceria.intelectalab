@@ -12,7 +12,7 @@ use App\Support\TenantContext;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
+use App\Support\Correo;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Ramsey\Uuid\Uuid;
@@ -137,11 +137,13 @@ final class Registro
         }
         Consola::bitacora('TENANT_SIGNUP', null, ['actor' => "Registro desde la página: {$s->contact_name}", 'tenant' => $id, 'entity' => 'tenant_signups',
             'entity_id' => $s->id, 'reason' => 'Empresa creada por registro público', 'detail' => ['ruc' => $s->ruc, 'plan' => $plan->code, 'email' => $s->email]]);
-        Mail::raw(
-            "Hola {$s->contact_name}:\n\n{$s->trade_name} ya tiene su cuenta en GestionCarnica, con {$dias} días de prueba del plan {$plan->name}.\n"
-            ."Ingresa con tu correo {$s->email} y la contraseña que elegiste. Al entrar, el asistente te guía para registrar tus marcas y locales.",
-            fn ($m) => $m->to($s->email)->subject('Tu cuenta de GestionCarnica está lista')
-        );
+        Correo::enviar($s->email, 'Tu cuenta de GestionCarnica está lista', [
+            'titulo' => 'Tu cuenta está lista',
+            'saludo' => "Hola {$s->contact_name}:",
+            'parrafos' => ["{$s->trade_name} ya tiene su cuenta en GestionCarnica, con {$dias} días de prueba del plan {$plan->name}."],
+            'pasos' => ["Ingresa con tu correo {$s->email} y la contraseña que elegiste.", 'El asistente te guía para registrar tus marcas y locales.'],
+            'boton' => ['texto' => 'Ingresar a GestionCarnica', 'ruta' => '/login'],
+        ]);
 
         return ['tenant_id' => $id, 'email' => $s->email, 'trade_name' => $s->trade_name, 'dias' => $dias];
     }
@@ -201,11 +203,14 @@ final class Registro
     private static function enviarCodigo(string $email, string $nombre, string $codigo): void
     {
         $horas = (int) Consola::param('onb_signup_code_hours', 48);
-        Mail::raw(
-            "Hola {$nombre}:\n\nTu código para activar tu cuenta de GestionCarnica es {$codigo}.\nEscríbelo en la página del registro. Vence en {$horas} horas.\n"
-            .'Si no te registraste, ignora este correo.',
-            fn ($m) => $m->to($email)->subject('Tu código para activar GestionCarnica')
-        );
+        Correo::enviar($email, 'Tu código para activar GestionCarnica', [
+            'titulo' => 'Activa tu cuenta',
+            'saludo' => "Hola {$nombre}:",
+            'parrafos' => ['Gracias por registrarte en GestionCarnica. Escribe este código en la página del registro para activar tu cuenta:'],
+            'codigo' => $codigo,
+            'vence' => "Vence en {$horas} horas.",
+            'nota' => 'Si no te registraste, ignora este correo.',
+        ]);
         self::$ultimoCodigo = $codigo;
     }
 
