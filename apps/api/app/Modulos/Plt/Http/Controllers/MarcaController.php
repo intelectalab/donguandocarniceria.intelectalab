@@ -4,6 +4,7 @@ namespace App\Modulos\Plt\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modulos\Plt\Models\Brand;
+use App\Modulos\Sus\Services\Suscripcion;
 use App\Support\Listado;
 use App\Support\Logos;
 use Illuminate\Http\Request;
@@ -38,7 +39,11 @@ class MarcaController extends Controller
 
     public function store(Request $request)
     {
-        $marca = Brand::create($this->validar($request));
+        $datos = $this->validar($request);
+        if ($datos['status'] === 'ACTIVE') {
+            Suscripcion::exigirLimite('brands');   // RN-SUS-06: marcas activas del plan
+        }
+        $marca = Brand::create($datos);
 
         return response()->json($marca->fresh(), 201);
     }
@@ -47,6 +52,9 @@ class MarcaController extends Controller
     {
         $marca = Brand::findOrFail($id);
         $datos = $this->validar($request, $marca);
+        if ($datos['status'] === 'ACTIVE' && $marca->status !== 'ACTIVE') {
+            Suscripcion::exigirLimite('brands');   // RN-SUS-06
+        }
         $marca->update($datos);
 
         return response()->json($marca->fresh());
@@ -66,6 +74,9 @@ class MarcaController extends Controller
         $separadas = $marcas->where('status', 'SEPARATED')->pluck('name');
         if ($separadas->isNotEmpty()) {
             throw ValidationException::withMessages(['ids' => 'Separada de la empresa, no cambia desde aquí: '.$separadas->join(', ').'.']);
+        }
+        if ($datos['status'] === 'ACTIVE' && ($activan = $marcas->where('status', '!=', 'ACTIVE')->count())) {
+            Suscripcion::exigirLimite('brands', $activan);   // RN-SUS-06
         }
         $cambiadas = Brand::whereIn('id', $datos['ids'])->where('status', '!=', $datos['status'])
             ->update(['status' => $datos['status'], 'updated_at' => now()]);

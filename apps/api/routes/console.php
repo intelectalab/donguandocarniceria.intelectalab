@@ -22,3 +22,17 @@ Schedule::command('equ:diario')->dailyAt('06:10')->timezone('America/Lima')->wit
 
 // PED · RN-PED-18: cancela los borradores sin actividad (ped_draft_expiry_hours, 48 h por defecto), cada hora.
 Schedule::command('ped:vencer-borradores')->hourly()->withoutOverlapping();
+
+// OPS · RN-OPS-09: vence cada minuto los accesos de soporte cumplidos (desactiva su usuario técnico).
+// OPS · RN-OPS-15: cierra los tickets resueltos sin respuesta del cliente (ops_ticket_auto_close_days), cada mañana.
+Schedule::command('ops:vencer-accesos')->everyMinute()->withoutOverlapping();
+// SUS · RN-SUS-10: mora diaria (deuda, reintentos, solo lectura, suspensión) y pruebas vencidas, en hora de Lima.
+Schedule::command('sus:mora')->dailyAt('06:20')->timezone('America/Lima')->withoutOverlapping();
+// SUS · SUS-12: corrida de cobro del mes, el día 1 (sin RUC emisor quedan en borrador).
+Schedule::command('sus:corrida')->monthlyOn(1, '07:00')->timezone('America/Lima')->withoutOverlapping();
+// OPS · OPS-10: congela las métricas del mes anterior (día 1) y guarda cada día la foto de uso de las empresas (SUS-04).
+Schedule::command('ops:metricas cierre')->monthlyOn(1, '03:00')->timezone('America/Lima')->withoutOverlapping();
+Schedule::command('ops:metricas uso')->dailyAt('05:10')->timezone('America/Lima')->withoutOverlapping();
+// OPS · OPS-07: lectura de salud de los componentes con sonda propia (D-OPS-01).
+Schedule::command('ops:leer-salud')->everyMinute()->withoutOverlapping();
+Schedule::command('ops:cerrar-tickets')->dailyAt('05:30')->timezone('America/Lima')->withoutOverlapping();

@@ -4,6 +4,7 @@ namespace App\Modulos\Seg\Services;
 
 use App\Models\Role;
 use App\Models\User;
+use App\Modulos\Sus\Services\Suscripcion;
 use App\Support\Access;
 use App\Support\Events;
 use App\Support\Params;
@@ -59,6 +60,7 @@ final class Usuarios
         if ($roles->contains('code', self::GERENTE)) {
             self::soloLaGerencia($quien, 'crear un usuario gerente');
         }
+        Suscripcion::exigirLimite('users');   // RN-SUS-06: usuarios del personal del plan
 
         return DB::transaction(function () use ($d, $email, $roles, $quien) {
             $u = new User;
@@ -193,6 +195,7 @@ final class Usuarios
             }
             self::trabajadorLibre($u->employee_id, $u->id);
         }
+        Suscripcion::exigirLimite('users');   // RN-SUS-06
 
         return DB::transaction(function () use ($u, $quien) {
             // Vuelve con contraseña nueva: se le manda otra invitación.

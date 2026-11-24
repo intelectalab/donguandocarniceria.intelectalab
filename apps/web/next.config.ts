@@ -5,6 +5,8 @@ import type { NextConfig } from "next";
 const API_URL = process.env.API_URL ?? "http://127.0.0.1:8010";
 
 const nextConfig: NextConfig = {
+  // Otra carpeta de compilación para el entorno de pruebas (aycha-web-pruebas, contra la base aycha_test).
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   // Cada empresa entra por su subdominio: donguando.localhost:3000, cs.localhost:3000.
   allowedDevOrigins: ["*.localhost"],
   async rewrites() {

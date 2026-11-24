@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Modulos\Ops\Services\Accesos;
 use App\Modulos\Seg\Services\Bitacora;
 use App\Modulos\Seg\Services\Sesiones;
 use App\Support\Events;
@@ -44,6 +45,10 @@ class AuthController extends Controller
             // El bloqueo por intentos se levanta solo al vencer el plazo (RN-SEG-04).
             if ($user->status === 'LOCKED' && $user->locked_until && $user->locked_until->isPast()) {
                 $user->forceFill(['status' => 'ACTIVE', 'locked_until' => null, 'failed_logins' => 0, 'lock_reason' => null])->save();
+            }
+            // OPS-06: el usuario técnico del soporte no ingresa con contraseña, solo desde la consola con un acceso aprobado.
+            if ($user->user_type === Accesos::TIPO_USUARIO) {
+                return null;
             }
             $correcta = Hash::check($data['password'], $user->password);
             if ($user->status === 'LOCKED' || ($user->locked_until && $user->locked_until->isFuture())) {

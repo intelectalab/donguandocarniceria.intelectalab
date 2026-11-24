@@ -20,7 +20,18 @@ final class TenantContext
     public static function set(?array $tenant): void
     {
         self::$tenant = $tenant;
-        DB::select("SELECT set_config('app.tenant_id', ?, false), set_config('app.user_id', '', false)", [$tenant['id'] ?? '']);
+        // app.platform: la sesión de la consola (ver platform()); cualquier contexto de empresa la apaga.
+        DB::select("SELECT set_config('app.tenant_id', ?, false), set_config('app.user_id', '', false), set_config('app.platform', '', false)", [$tenant['id'] ?? '']);
+    }
+
+    /**
+     * Sesión de la consola de Intelectalab: sin empresa, pero las tablas de soporte (tickets) aceptan leer y escribir
+     * de todas (su política RLS mira app.platform). Solo lo llama el middleware de la consola, ya validado su usuario.
+     */
+    public static function platform(): void
+    {
+        self::$tenant = null;
+        DB::select("SELECT set_config('app.tenant_id', '', false), set_config('app.user_id', '', false), set_config('app.platform', 'on', false)");
     }
 
     public static function setUser(?string $userId): void

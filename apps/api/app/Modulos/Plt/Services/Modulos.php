@@ -3,6 +3,7 @@
 namespace App\Modulos\Plt\Services;
 
 use App\Models\User;
+use App\Modulos\Sus\Services\ModulosDelPlan;
 use App\Support\Access;
 use App\Support\Events;
 use App\Support\Params;
@@ -78,6 +79,10 @@ final class Modulos
             }
 
             if ($encender) {
+                // RN-SUS-09: con suscripción, solo se enciende lo contratado (núcleo, plan o complemento).
+                if (! ModulosDelPlan::contratado($code)) {
+                    RuleError::fail('RN-SUS-09', "{$code} no está en tu plan: cámbiate de plan o contrátalo como complemento en Mi suscripción.");
+                }
                 $faltan = array_values(array_filter($m->depends_on, fn ($c) => empty($on[$c])));
                 if ($faltan) {
                     $nombres = array_map(fn ($c) => $c.' ('.self::corto($catalogo[$c]->name ?? $c).')', $faltan);
@@ -101,8 +106,9 @@ final class Modulos
             }
 
             $ahora = now();
+            // RN-SUS-08: apagado a mano queda MANUAL (el plan no lo vuelve a encender); encendido, toma su origen en el plan.
             $datos = ['enabled' => $encender, 'changed_at' => $ahora, 'changed_by' => mb_substr($quien->name, 0, 255),
-                'reason' => mb_substr(trim($motivo), 0, 255), 'updated_at' => $ahora]
+                'reason' => mb_substr(trim($motivo), 0, 255), 'updated_at' => $ahora, 'sus_source' => $encender ? ModulosDelPlan::origen($code) : 'MANUAL']
                 + ($encender ? ['enabled_at' => $ahora] : ['disabled_at' => $ahora]);
             if ($fila) {
                 DB::table('tenant_modules')->where('id', $fila->id)->update($datos);

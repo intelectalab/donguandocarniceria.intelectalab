@@ -34,7 +34,7 @@ class PublicoController extends Controller
             ->map(fn ($m) => ['code' => $m->code, 'name' => $m->name])->values();
 
         return response()->json([
-            'prueba_dias' => self::PRUEBA_DIAS,
+            'prueba_dias' => (int) \App\Modulos\Ops\Services\Consola::param('sus_trial_days_default', self::PRUEBA_DIAS),   // parámetro de plataforma
             'planes' => $planes->map(fn ($p) => [
                 'code' => $p->code, 'name' => $p->name, 'description' => $p->description, 'price_pen' => (float) $p->price_pen,
                 'users_max' => (int) $p->users_max, 'brands_max' => (int) $p->brands_max, 'sites_max' => (int) $p->sites_max,

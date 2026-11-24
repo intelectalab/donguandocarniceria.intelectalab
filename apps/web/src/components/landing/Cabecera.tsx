@@ -54,7 +54,7 @@ export function Logo() {
  * («Funciones» se despliega con los módulos) e «Ingresar» y «Pruébalo gratis» a la derecha. En celular,
  * un botón abre el mismo menú.
  */
-export function Cabecera({ conSesion, actual, onProbar }: { conSesion: boolean; actual: "inicio" | "precios"; onProbar: () => void }) {
+export function Cabecera({ conSesion, actual, onProbar }: { conSesion: boolean; actual: "inicio" | "precios" | "registro"; onProbar: () => void }) {
   const [funciones, setFunciones] = useState(false);
   const [movil, setMovil] = useState(false);
   const caja = useRef<HTMLDivElement>(null);

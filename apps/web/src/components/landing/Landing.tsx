@@ -115,18 +115,18 @@ function Encabezado({ antetitulo, titulo, texto }: { antetitulo: string; titulo:
 /**
  * Página pública de GestionCarnica, con la distribución y los textos de la página del prototipo: portada con el
  * tablero del día, el costo del desorden, los módulos con su vista, lo que cambia, los 3 pasos, los planes
- * (de la API), las preguntas y el pedido de demo. «Pruébalo gratis» abre el pedido de demo hasta que
- * exista el registro de empresas.
+ * (de la API), las preguntas y el pedido de demo. «Pruébalo gratis» lleva al registro de la empresa (ONB-01) y
+ * «Agenda una demo» abre el pedido de demo.
  */
 export default function Landing() {
   return <MarcoPublico actual="inicio"><ContenidoLanding /></MarcoPublico>;
 }
 
 function ContenidoLanding() {
-  const { planes, pruebaDias: dias, cargando, plan, setPlan, pedirDemo } = useMarco();
+  const { planes, pruebaDias: dias, cargando, plan, setPlan, pedirDemo, probar } = useMarco();
 
   const botonPrueba = (texto = "Pruébalo gratis", grande = false) => (
-    <button type="button" onClick={() => pedirDemo()}
+    <button type="button" onClick={() => probar()}
       className={`inline-flex cursor-pointer items-center gap-2 rounded-xl bg-primary font-semibold text-primary-ink shadow-[0_10px_24px_rgba(110,20,35,.25)] transition-[filter] hover:brightness-110 ${grande ? "px-6 py-3.5 text-[15.5px]" : "px-4 py-2 text-[14px]"}`}>
       {texto}{grande && <ArrowRight size={18} />}
     </button>
@@ -189,7 +189,7 @@ function ContenidoLanding() {
                 <ul className="mt-5 space-y-2.5">
                   {puntos.map((p) => <li key={p} className="flex gap-2.5 text-[14.5px]"><CheckCircle2 size={18} className="mt-0.5 shrink-0 text-ok" />{p}</li>)}
                 </ul>
-                <button type="button" onClick={() => pedirDemo()} className="mt-6 inline-flex cursor-pointer items-center gap-1.5 text-[14.5px] font-semibold text-primary hover:underline">
+                <button type="button" onClick={() => probar()} className="mt-6 inline-flex cursor-pointer items-center gap-1.5 text-[14.5px] font-semibold text-primary hover:underline">
                   Pruébalo gratis <ArrowRight size={16} />
                 </button>
               </Aparece>
@@ -236,7 +236,7 @@ function ContenidoLanding() {
       <section id="precios" className="scroll-mt-24 border-y border-line bg-surface-2/70">
         <div className="mx-auto max-w-[1200px] px-4 py-20 sm:px-6">
           <Encabezado antetitulo="Precios claros" titulo="Planes pensados para tu negocio" texto="Sin comisiones sobre lo que vendes ni cobros sorpresa a fin de mes." />
-          <div className="mt-14"><Planes planes={planes} cargando={cargando} pruebaDias={dias} onElegir={pedirDemo} /></div>
+          <div className="mt-14"><Planes planes={planes} cargando={cargando} pruebaDias={dias} onElegir={probar} /></div>
           <p className="mt-10 text-center">
             <Link href="/precios" className="inline-flex items-center gap-1.5 text-[15px] font-semibold text-primary hover:underline">
               Compara todo lo que incluye cada plan <ArrowRight size={16} />
@@ -271,7 +271,7 @@ function ContenidoLanding() {
               Pruébalo {dias} días con tus productos y tu equipo. Si prefieres, te lo mostramos en una llamada de 20 minutos.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <button type="button" onClick={() => pedirDemo()} className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gold px-6 py-3.5 text-[15.5px] font-bold transition-[filter] hover:brightness-105" style={{ color: "var(--franja-base)" }}>
+              <button type="button" onClick={() => probar()} className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gold px-6 py-3.5 text-[15.5px] font-bold transition-[filter] hover:brightness-105" style={{ color: "var(--franja-base)" }}>
                 Empezar prueba gratis <ArrowRight size={18} />
               </button>
               <BotonWhatsApp claro />

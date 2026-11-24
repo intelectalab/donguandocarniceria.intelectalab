@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { AvisoCookies, abrirPreferencias, conAnalitica, evento } from "./Analitica";
@@ -15,6 +16,8 @@ type Marco = {
   plan: string; setPlan: (p: string) => void;
   /** Abre el pedido de demo (opcional: con un plan ya elegido). */
   pedirDemo: (plan?: string) => void;
+  /** Lleva al registro de la empresa para empezar la prueba gratis (opcional: con un plan ya elegido). */
+  probar: (plan?: string) => void;
 };
 
 const Contexto = createContext<Marco | null>(null);
@@ -31,7 +34,8 @@ const sinSuscripcion = () => () => undefined;
  * Lo común de las páginas públicas (inicio y precios): la cabecera, el pie, la ventana del pedido de demo,
  * WhatsApp y el aviso de cookies. Los planes se piden a la API una vez.
  */
-export function MarcoPublico({ actual, children }: { actual: "inicio" | "precios"; children: ReactNode }) {
+export function MarcoPublico({ actual, children }: { actual: "inicio" | "precios" | "registro"; children: ReactNode }) {
+  const router = useRouter();
   const { planes, pruebaDias, cargando } = usePlanes();
   // Con sesión, «Ingresar» lleva al sistema; en el servidor no hay cookie que leer.
   const conSesion = useSyncExternalStore(sinSuscripcion, () => Boolean(getToken()), () => false);
@@ -52,10 +56,15 @@ export function MarcoPublico({ actual, children }: { actual: "inicio" | "precios
     evento("abrir_demo", { plan: codigo, pagina: actual });   // solo si la persona aceptó la analítica
   }
 
+  function probar(codigo?: string) {
+    evento("abrir_registro", { plan: codigo, pagina: actual });
+    router.push(codigo ? `/registro?plan=${encodeURIComponent(codigo)}` : "/registro");
+  }
+
   return (
-    <Contexto.Provider value={{ planes, pruebaDias: pruebaDias ?? 14, cargando, conSesion, plan, setPlan, pedirDemo }}>
+    <Contexto.Provider value={{ planes, pruebaDias: pruebaDias ?? 14, cargando, conSesion, plan, setPlan, pedirDemo, probar }}>
       <div className="min-h-screen overflow-x-clip bg-bg text-ink">
-        <Cabecera conSesion={conSesion} actual={actual} onProbar={() => pedirDemo()} />
+        <Cabecera conSesion={conSesion} actual={actual} onProbar={() => probar()} />
         {children}
         <Pie conSesion={conSesion} />
         <BotonWhatsAppFlotante />

@@ -5,6 +5,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BookOpen, Cloud, Coins, Factory, Gauge, Home, Lock, Megaphone, ShieldCheck, ShoppingCart, Store, Truck } from "lucide-react";
 import Header from "./Header";
+import { FranjaSoporte } from "@/components/soporte/FranjaSoporte";
+import { FranjaAnuncios } from "@/components/soporte/FranjaAnuncios";
+import { FranjaSuscripcion } from "@/components/suscripcion/FranjaSuscripcion";
 import Sidebar, { type MenuItem } from "./Sidebar";
 import ContextSelectors from "./ContextSelectors";
 import { UiHost, toast } from "@/components/ui";
@@ -34,6 +37,8 @@ const CUENTA = [
   { href: "/perfil", label: "Mi perfil" },
   { href: "/perfil/sesiones", label: "Mis sesiones y dispositivos" },
   { href: "/notificaciones", label: "Notificaciones" },
+  { href: "/soporte", label: "Soporte" },
+  { href: "/suscripcion", label: "Mi suscripción" },
 ];
 // Páginas fuera del menú y del buscador, solo para el título de la cabecera.
 const OTRAS = [...CUENTA, { href: "/componentes", label: "Componentes" }];
@@ -193,7 +198,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
     ...CUENTA.map((c) => ({ ...c, group: "Cuenta" })),
   ];
 
-  const user = sesion ? { name: sesion.me.user.name, email: sesion.me.user.email, role: sesion.me.roles.join(", ") } : null;
+  const user = sesion ? { name: sesion.me.user.name, email: sesion.me.user.email, role: sesion.me.soporte ? "Soporte GestionCarnica" : sesion.me.roles.join(", ") } : null;
   const modulesHref = sesion?.puede("PLT", "E") ? "/m/plt" : null;
 
   // Marca y local van bajo la empresa, en la barra lateral desplegada (en la cabecera quitaban
@@ -218,8 +223,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
       )}
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        {sesion?.me.soporte && <FranjaSoporte s={sesion.me.soporte} onSalir={handleLogout} />}
+        {sesion?.me.suscripcion && !sesion.me.soporte && <FranjaSuscripcion a={sesion.me.suscripcion} puedePagar={sesion.can("sus.payment_method.manage") || sesion.can("sus.subscription.view")} />}
         <Header open={sidebarOpen || mobileOpen} currentSection={currentSection} crumbs={crumbs} onToggle={toggleSidebar}
-          user={user} onLogout={handleLogout} tenantName={tenantName} screens={searchScreens} ready={Boolean(sesion)} modulosDelDia={modulosDelDia} />
+          user={user} onLogout={handleLogout} tenantName={tenantName} screens={searchScreens} ready={Boolean(sesion)} modulosDelDia={modulosDelDia}
+          soporte={Boolean(sesion && ["ops.ticket.create", "ops.ticket.view_all", "ops.support_access.approve", "ops.support_access.revoke", "ops.support_access.view_log"].some((p) => sesion.can(p)))}
+          suscripcion={Boolean(sesion && ["sus.subscription.view", "sus.invoice.view", "sus.payment_method.manage", "sus.subscription.cancel"].some((p) => sesion.can(p)))} />
 
         <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 md:p-10">
           {error ? (
@@ -237,7 +246,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 : "Tu rol no tiene permiso para abrir esta pantalla. Si la necesitas, pídeselo al administrador de tu empresa."}>
               <Link href="/inicio" className="rounded-[9px] border border-line bg-surface px-4 py-2 text-[13px] font-medium hover:bg-surface-2">Ir al inicio</Link>
             </Aviso>
-          ) : children}
+          ) : <><FranjaAnuncios />{children}</>}
         </main>
       </div>
       <UiHost />

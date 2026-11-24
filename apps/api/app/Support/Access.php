@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\User;
+use App\Modulos\Ops\Services\Accesos;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -15,6 +16,10 @@ use Illuminate\Support\Facades\DB;
 final class Access
 {
     private static array $cache = [];
+
+    /** Permisos del servicio (soporte y la propia suscripción): valen aunque el plan no tenga su módulo (OPS, SUS). */
+    public const DEL_SERVICIO = ['ops.ticket.create', 'ops.ticket.view_all', 'ops.support_access.approve', 'ops.support_access.revoke', 'ops.support_access.view_log',
+        'sus.subscription.view', 'sus.subscription.change_plan', 'sus.subscription.cancel', 'sus.invoice.view', 'sus.payment_method.manage'];
 
     public static function for(User $user): array
     {
@@ -31,7 +36,7 @@ final class Access
     {
         $a = self::for($user);
         $modulo = $a['permission_modules'][$permission] ?? null;
-        if ($modulo !== null && ! in_array($modulo, $a['enabled_modules'], true)) {
+        if ($modulo !== null && ! in_array($modulo, $a['enabled_modules'], true) && ! in_array($permission, self::DEL_SERVICIO, true)) {
             return false;
         }
 
@@ -52,6 +57,19 @@ final class Access
 
     private static function load(User $user): array
     {
+        // OPS-06: el usuario técnico del soporte ve solo los módulos de su acceso vigente, sin permisos especiales.
+        // Sus permisos son los de esos módulos (el middleware «soporte» corta los cambios en solo lectura y las
+        // exportaciones no permitidas), nunca los de aprobar o revocar accesos ni los de tickets.
+        if ($user->user_type === Accesos::TIPO_USUARIO) {
+            $modulos = Accesos::accesoTecnico($user);
+            $porModulo = DB::table('permissions')->pluck('module_code', 'code')->all();
+            $permisos = $modulos ? array_keys(array_filter($porModulo, fn ($m, $p) => (isset($modulos['*']) || isset($modulos[$m])) && ! in_array($p, self::DEL_SERVICIO, true),
+                ARRAY_FILTER_USE_BOTH)) : [];
+
+            return ['roles' => ['SOPORTE_TECNICO'], 'all_permissions' => false, 'permissions' => $permisos, 'modules' => $modulos,
+                'enabled_modules' => DB::table('tenant_modules')->where('enabled', true)->pluck('module_code')->all(),
+                'permission_modules' => $porModulo, 'brands' => [], 'establishments' => []];
+        }
         $filas = DB::table('user_roles')->join('roles', 'roles.id', '=', 'user_roles.role_id')
             ->where('user_roles.user_id', $user->id)->where('roles.status', 'ACTIVE')
             ->get(['roles.id', 'roles.code', 'roles.scope_mode']);
