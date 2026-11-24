@@ -22,13 +22,19 @@ type Lista = Pagina<Cambio> & {
  */
 export default function ConsultaDeCambios() {
   const { can } = useSesion();
-  const [f, setF] = useState({ tabla: "", usuario: "", accion: "", desde: "", hasta: "" });
+  const [f, setF] = useState({ tabla: "", usuario: "", accion: "", desde: "", hasta: "", buscar: "" });
+  const [buscar, setBuscar] = useState("");
   const [revelar, setRevelar] = useState(false);
   const [sistema, setSistema] = useState(false);
   const [lista, setLista] = useState<Lista | null>(null);
   const [error, setError] = useState("");
   const [abierto, setAbierto] = useState<Cambio | null>(null);
   const pag = usePagina(JSON.stringify({ ...f, revelar, sistema }));
+
+  useEffect(() => {
+    const t = setTimeout(() => setF((x) => (x.buscar === buscar.trim() ? x : { ...x, buscar: buscar.trim() })), 400);
+    return () => clearTimeout(t);
+  }, [buscar]);
 
   const permitido = Boolean(can("aud.change_log.view"));
   const cargar = useCallback(() => {
@@ -78,6 +84,7 @@ export default function ConsultaDeCambios() {
       </div>
       <DataTable {...pag.orden} columns={columnas} rows={lista?.data ?? []} rowKey={(x) => String(x.id)} pagination={pag.props(lista)} loading={!lista && !error} error={error}
         onRetry={cargar} onRowClick={setAbierto} empty="No hay cambios con estos filtros."
+        search={{ value: buscar, onChange: setBuscar, placeholder: "Buscar en los valores o por persona…" }}
         toolbar={<>
           <FiltroSelect etiqueta="Tabla" todos="todas" ancho={200} value={f.tabla} onChange={(v) => setF({ ...f, tabla: v })} options={lista?.tablas ?? []} />
           <FiltroSelect etiqueta="Usuario" ancho={200} value={f.usuario} onChange={(v) => setF({ ...f, usuario: v })}

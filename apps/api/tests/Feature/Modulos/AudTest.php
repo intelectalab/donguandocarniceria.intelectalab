@@ -52,6 +52,10 @@ class AudTest extends TestCase
         $this->assertSame(['campo' => 'name', 'antes' => $marca->name, 'despues' => $marca->name.' Renovada'], $f['cambios'][0]);
         $this->assertGreaterThanOrEqual(1, $l->json('cifras.hoy'));
         $this->assertContains('brands', array_column($l->json('tablas'), 'value'));
+        // El buscador: en los valores del cambio y por persona.
+        $this->assertContains($marca->id, array_column($this->como(self::GERENTE)->getJson('/api/v1/aud/cambios?buscar=Renovada')->json('data'), 'row_id'));
+        $this->assertSame(0, $this->como(self::GERENTE)->getJson('/api/v1/aud/cambios?buscar=NadaQueCoincida_xyz')->json('total'));
+        $this->assertGreaterThan(0, $this->como(self::GERENTE)->getJson('/api/v1/aud/cambios?buscar='.urlencode('Quispe'))->json('cifras.total'));
         // Por defecto, solo los cambios de personas (la carga inicial, si se pide).
         $this->assertNotContains('Sistema', array_column($this->como(self::GERENTE)->getJson('/api/v1/aud/cambios')->json('data'), 'usuario'));
         $this->assertContains('Sistema', array_column($this->como(self::GERENTE)->getJson('/api/v1/aud/cambios?sistema=1&per_page=100')->json('data'), 'usuario'));

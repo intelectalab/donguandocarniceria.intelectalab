@@ -17,7 +17,7 @@ class AuditoriaController extends Controller
             'tabla' => ['nullable', 'string', 'max:63', 'regex:/^[a-z_]+$/'], 'usuario' => ['nullable', 'string', 'regex:/^(SISTEMA|[0-9a-f-]{36})$/'],
             'accion' => ['nullable', Rule::in(array_keys(Cambios::ACCIONES))], 'registro' => ['nullable', 'uuid'],
             'desde' => ['nullable', 'date_format:Y-m-d'], 'hasta' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:desde'], 'revelar' => ['nullable', 'boolean'],
-            'sistema' => ['nullable', 'boolean'],
+            'sistema' => ['nullable', 'boolean'], 'buscar' => ['nullable', 'string', 'max:100'],
         ]);
 
         return response()->json(Cambios::lista($f, $request->user()));

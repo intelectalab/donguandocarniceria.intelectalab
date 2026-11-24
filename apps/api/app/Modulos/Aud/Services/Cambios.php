@@ -83,10 +83,15 @@ final class Cambios
             $f['usuario'] === 'SISTEMA' ? $q->whereNull('a.changed_by') : $q->where('a.changed_by', $f['usuario']);
             Bitacora::registrar('AUDIT_VIEWED', ['user' => $quien, 'detail' => 'Consulta de cambios filtrada por usuario: '.self::nombreUsuario($f['usuario'])]);
         }
+        if ($buscar = self::patron($f)) {
+            // En los valores del cambio (antes y después) y en el nombre de quien lo hizo.
+            $q->where(fn ($w) => $w->whereRaw('a.new_data::text ILIKE ?', [$buscar])->orWhereRaw('a.old_data::text ILIKE ?', [$buscar])->orWhere('u.name', 'ilike', $buscar));
+        }
         $q->orderByDesc('a.changed_at')->orderByDesc('a.id');
         Paginas::ordenar($q, ['changed_at' => 'a.changed_at', 'usuario' => 'u.name', 'accion' => 'a.action', 'tabla' => 'a.table_name'], 'a.id', $f);
 
-        $c = DB::table('audit.change_log')->whereBetween('changed_at', [$desde, $hasta])
+        $c = DB::table('audit.change_log as a')->leftJoin('users as u', 'u.id', '=', 'a.changed_by')->whereBetween('changed_at', [$desde, $hasta])
+            ->when(self::patron($f), fn ($w, $p) => $w->where(fn ($x) => $x->whereRaw('a.new_data::text ILIKE ?', [$p])->orWhereRaw('a.old_data::text ILIKE ?', [$p])->orWhere('u.name', 'ilike', $p)))
             ->when(! empty($f['tabla']), fn ($w) => $w->where('table_name', $f['tabla']))->when(! empty($f['accion']), fn ($w) => $w->where('action', $f['accion']))
             ->when(! empty($f['registro']), fn ($w) => $w->where('row_id', $f['registro']))
             ->when(! empty($f['usuario']), fn ($w) => $f['usuario'] === 'SISTEMA' ? $w->whereNull('changed_by') : $w->where('changed_by', $f['usuario']))
@@ -293,6 +298,14 @@ final class Cambios
         }
 
         return mb_substr($s, 0, 300);
+    }
+
+    /** «%texto%» para ILIKE, con los comodines escapados; null si no se busca nada. */
+    private static function patron(array $f): ?string
+    {
+        $t = trim((string) ($f['buscar'] ?? ''));
+
+        return mb_strlen($t) >= 2 ? '%'.addcslashes($t, '%_\\').'%' : null;
     }
 
     private static function nombreUsuario(string $id): string

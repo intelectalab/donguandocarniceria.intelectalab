@@ -133,7 +133,7 @@ Antes los 403 no se anotaban. Ahora cada uno queda en la bitácora de accesos:
 
 - **AUD-01 Consulta de cambios:**
   - cifras: cambios en el filtro, usuarios distintos, tablas y hoy;
-  - filtros en la barra: tabla, usuario («Sistema» incluido), operación, desde y hasta (por defecto los últimos 30 días);
+  - buscador en los valores del cambio (antes y después) y por persona, y filtros en la barra: tabla, usuario («Sistema» incluido), operación, desde y hasta (por defecto los últimos 30 días);
   - casillas «Incluir la carga inicial y los procesos automáticos» y «Mostrar datos personales»;
   - columnas: fecha y hora, usuario con su rol, operación, tabla, registro, y antes → después. Las cuatro primeras se ordenan;
   - el detalle muestra todos los campos y lleva a la historia del registro.
