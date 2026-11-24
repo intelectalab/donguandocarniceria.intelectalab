@@ -11,6 +11,7 @@ import { useSesion } from "@/lib/sesion";
 import { Dialogo } from "@/modulos/mae/Dialogo";
 import { CampoSecreto, ESTADOS_CREDENCIAL, useDatos, venceEn, type Credencial } from "@/modulos/int/tipos";
 
+const FILTRO = "!min-h-9 h-9 py-1.5 text-[13px]";
 /** Vigente en la base pero con la fecha de vencimiento ya pasada. */
 const vencida = (k: Credencial) => k.status === "ACTIVE" && k.dias_para_vencer !== null && k.dias_para_vencer < 0;
 
@@ -88,13 +89,10 @@ function Credenciales() {
           {porVencer.map((k) => `${k.connector_name} · ${k.name} vence el ${fecha(k.expires_at!)} (${venceEn(k.dias_para_vencer)})`).join("; ")}. Rótalas antes de que dejen de funcionar.
         </Alert>
       )}
-      <div className="grid gap-3 sm:grid-cols-2 lg:max-w-2xl">
-        <Select aria-label="Conector" value={f.connector} onChange={(e) => setF({ ...f, connector: e.target.value })} placeholder="Todos los conectores"
-          options={(datos?.conectores ?? []).map((c) => ({ value: c.id, label: c.name }))} />
-        <Select aria-label="Estado" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} placeholder="Vigentes y revocadas"
-          options={Object.entries(datos?.estados ?? {}).map(([value, label]) => ({ value, label }))} />
-      </div>
-      <DataTable {...ord.orden} columns={columnas} rows={pagina.filas} pagination={pagina.props} loading={!datos && !error} error={error} onRetry={recargar}
+      <DataTable toolbar={<>
+          <div className="w-full sm:w-[210px]"><Select className={FILTRO} aria-label="Conector" value={f.connector} onChange={(e) => setF({ ...f, connector: e.target.value })} placeholder="Conector: todos" options={(datos?.conectores ?? []).map((c) => ({ value: c.id, label: c.name }))} /></div>
+          <div className="w-full sm:w-[150px]"><Select className={FILTRO} aria-label="Estado" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} placeholder="Estado: todos" options={Object.entries(datos?.estados ?? {}).map(([value, label]) => ({ value, label }))} /></div>
+        </>} {...ord.orden} columns={columnas} rows={pagina.filas} pagination={pagina.props} loading={!datos && !error} error={error} onRetry={recargar}
         empty={<span className="inline-flex items-center gap-2"><KeyRound size={16} aria-hidden="true" />No hay credenciales con estos filtros.</span>} />
 
       {cargando && datos && <CargarCredencial conectores={datos.conectores} conector={f.connector} onClose={() => setCargando(false)} onListo={() => { setCargando(false); recargar(); }} />}

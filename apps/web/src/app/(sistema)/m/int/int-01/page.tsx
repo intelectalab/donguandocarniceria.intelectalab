@@ -8,6 +8,7 @@ import { fechaHora } from "@/lib/formato";
 import { useOrdenLocal, usePaginaLocal } from "@/lib/paginas";
 import { Entorno, EstadoConector, nombreModulo, useDatos, type Conector } from "@/modulos/int/tipos";
 
+const FILTRO = "!min-h-9 h-9 py-1.5 text-[13px]";
 type Datos = {
   data: Conector[]; cifras: { activos: number; total: number; en_error: number; whatsapp: number; prueba: number };
   tipos: { code: string; name: string }[]; marcas: { id: string; name: string }[]; estados: Record<string, string>;
@@ -59,19 +60,13 @@ export default function Conectores() {
           <Cifra titulo="Entorno de prueba" valor={String(c.prueba)} icono={FlaskConical} detalle="Con adaptador falso" />
         </div>
       )}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <input type="search" aria-label="Buscar" placeholder="Buscar por nombre, código o adaptador" value={f.buscar} onChange={(e) => setF({ ...f, buscar: e.target.value })}
-          className="min-h-[40px] w-full rounded-[9px] border border-line bg-surface px-3 py-2 text-[13.5px] text-ink outline-none placeholder:text-muted/70 focus:border-primary" />
-        <Select aria-label="Tipo" value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })} placeholder="Todos los tipos"
-          options={(datos?.tipos ?? []).map((t) => ({ value: t.code, label: t.name }))} />
-        <Select aria-label="Marca" value={f.brand} onChange={(e) => setF({ ...f, brand: e.target.value })} placeholder="Todas las marcas"
-          options={(datos?.marcas ?? []).map((m) => ({ value: m.id, label: m.name }))} />
-        <Select aria-label="Entorno" value={f.environment} onChange={(e) => setF({ ...f, environment: e.target.value })} placeholder="Producción y prueba"
-          options={[{ value: "PRODUCTION", label: "Producción" }, { value: "SANDBOX", label: "Prueba" }]} />
-        <Select aria-label="Estado" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} placeholder="Todos los estados"
-          options={Object.entries(datos?.estados ?? {}).map(([value, label]) => ({ value, label }))} />
-      </div>
-      <DataTable {...ord.orden} columns={columnas} rows={pagina.filas} pagination={pagina.props} loading={!datos && !error} error={error} onRetry={recargar}
+      <DataTable search={{ value: f.buscar, onChange: (v) => setF({ ...f, buscar: v }), placeholder: "Buscar por nombre, código o adaptador…" }}
+        toolbar={<>
+          <div className="w-full sm:w-[170px]"><Select className={FILTRO} aria-label="Tipo" value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })} placeholder="Tipo: todos" options={(datos?.tipos ?? []).map((t) => ({ value: t.code, label: t.name }))} /></div>
+          <div className="w-full sm:w-[160px]"><Select className={FILTRO} aria-label="Marca" value={f.brand} onChange={(e) => setF({ ...f, brand: e.target.value })} placeholder="Marca: todas" options={(datos?.marcas ?? []).map((m) => ({ value: m.id, label: m.name }))} /></div>
+          <div className="w-full sm:w-[150px]"><Select className={FILTRO} aria-label="Entorno" value={f.environment} onChange={(e) => setF({ ...f, environment: e.target.value })} placeholder="Entorno: todos" options={[{ value: "PRODUCTION", label: "Producción" }, { value: "SANDBOX", label: "Prueba" }]} /></div>
+          <div className="w-full sm:w-[150px]"><Select className={FILTRO} aria-label="Estado" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} placeholder="Estado: todos" options={Object.entries(datos?.estados ?? {}).map(([value, label]) => ({ value, label }))} /></div>
+        </>} {...ord.orden} columns={columnas} rows={pagina.filas} pagination={pagina.props} loading={!datos && !error} error={error} onRetry={recargar}
         onRowClick={(x) => router.push(`/m/int/int-02?id=${x.id}`)} empty="No hay conectores con estos filtros." />
     </div>
   );

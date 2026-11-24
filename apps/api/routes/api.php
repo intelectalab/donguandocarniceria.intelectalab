@@ -8,6 +8,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicoController;
 use App\Http\Controllers\TenantController;
 use App\Modulos\Cli\Http\Controllers\EnlaceController;
+use App\Modulos\Int\Http\Controllers\WebhookController;
 use App\Modulos\Onb\Http\Controllers\RegistroController;
 use App\Modulos\Ops\Http\Controllers\AccesoConsolaController;
 use App\Modulos\Ops\Http\Controllers\BandejaController;
@@ -45,6 +46,10 @@ Route::prefix('v1/publico')->group(function () {
     // SUS · aviso firmado de la pasarela de cobro (RN-SUS-20): sin firma válida no tiene efecto.
     Route::post('/pasarela/{gateway}', PasarelaController::class)->middleware('throttle:120,1')->where('gateway', '[a-z]{3,12}');
 });
+
+// INT-04 · webhooks de entrada de los proveedores: públicos, sin sesión. La empresa sale del token de la URL y sin firma
+// válida no se procesan (RN-INT-04). Responden 200 a todo evento firmado, también a uno repetido (RN-INT-05).
+Route::post('/hooks/{token}', [WebhookController::class, 'recibir'])->middleware('throttle:120,1')->where('token', '[A-Za-z0-9]{16,80}');
 
 // OPS · Consola de Intelectalab: sin empresa (no pasa por «tenant» ni por Sanctum). Usuarios de plataforma con
 // su propio ingreso, segundo factor obligatorio y sesión «gcc_…» (middleware «consola»). Ver docs/cambios.

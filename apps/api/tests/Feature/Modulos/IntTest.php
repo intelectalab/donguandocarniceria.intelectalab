@@ -4,6 +4,7 @@ namespace Tests\Feature\Modulos;
 
 use App\Modulos\Int\Services\Credenciales;
 use App\Modulos\Int\Services\Salientes;
+use App\Modulos\Int\Services\Webhooks;
 use App\Support\RuleError;
 use App\Support\TenantContext;
 use Illuminate\Support\Carbon;
@@ -247,6 +248,120 @@ class IntTest extends TestCase
         $this->assertNotEmpty($v->json('kind_name'));
         $this->assertIsArray($v->json('tries'));
         $this->assertContains('outbox.cancelled', $this->como(self::ADMIN)->getJson('/api/v1/int/salientes/eventos')->assertOk()->json('eventos'));
+    }
+
+    private function endpoint(string $nombre): array
+    {
+        return collect($this->como(self::ADMIN)->getJson('/api/v1/int/webhooks')->assertOk()->json('data'))->firstWhere('name', $nombre);
+    }
+
+    /** Envía al receptor público, sin sesión, firmado (o no) con el secreto. */
+    private function enviarWebhook(string $url, array $cuerpo, ?string $secreto, string $cabecera = 'x-signature')
+    {
+        $crudo = json_encode($cuerpo);
+        $cab = ['Content-Type' => 'application/json', 'Accept' => 'application/json'];
+        if ($secreto) {
+            $cab[$cabecera] = 'sha256='.hash_hmac('sha256', $crudo, $secreto);
+        }
+        $this->app['auth']->forgetGuards();
+        TenantContext::set(null);
+
+        return $this->call('POST', parse_url($url, PHP_URL_PATH), [], [], [], $this->transformHeadersToServerVars($cab), $crudo);
+    }
+
+    public function test_webhook_firmado_una_sola_vez_rechazado_e_ignorado(): void
+    {
+        $ep = $this->endpoint('Mercado Pago · prueba');
+        $this->assertFalse($ep['con_secreto'], 'Los de la demostración traen un secreto de ejemplo que no sirve');
+        $this->assertStringEndsWith('/api/hooks/'.basename($ep['url']), $ep['url']);
+        $secreto = 'whsec_prueba_8821';
+
+        // Sin secreto cargado: rechazado aunque venga firmado.
+        $this->enviarWebhook($ep['url'], ['id' => 'mp-1', 'type' => 'payment'], $secreto)->assertStatus(401)->assertExactJson(['status' => 'REJECTED']);
+
+        // Cargar el secreto: cifrado y nunca vuelve; sin el permiso no se carga.
+        $this->como(self::SIN_PERMISO)->postJson("/api/v1/int/webhooks/{$ep['id']}/secreto", ['secret' => $secreto])->assertForbidden();
+        $r = $this->como(self::ADMIN)->postJson("/api/v1/int/webhooks/{$ep['id']}/secreto", ['secret' => $secreto])->assertOk();
+        $this->assertTrue($r->json('con_secreto'));
+        $this->assertStringNotContainsString($secreto, $r->getContent());
+
+        // Firma inválida: 401, guardado como rechazado, con aviso de seguridad (uno por hora).
+        $this->enviarWebhook($ep['url'], ['id' => 'mp-2'], 'otro_secreto_x')->assertStatus(401);
+        $this->enviarWebhook($ep['url'], ['id' => 'mp-3'], null)->assertStatus(401);
+        $this->enDonGuando(fn () => $this->assertSame(1, DB::table('notifications')->where('title', 'Webhook rechazado por firma inválida')->where('at', '>=', now()->subMinute())->count()));
+
+        // Firmado: se recibe, se guarda crudo y, sin procesador instalado, queda recibido (no es una falla).
+        $cuerpo = ['id' => 'mp-100', 'type' => 'payment', 'data' => ['status' => 'approved', 'transaction_amount' => 96.5]];
+        $this->enviarWebhook($ep['url'], $cuerpo, $secreto)->assertOk()->assertJson(['status' => 'RECEIVED']);
+        // Repetido (RN-INT-05): 200 y suma al contador, sin otro registro. Con otra cabecera de firma también vale.
+        $this->enviarWebhook($ep['url'], $cuerpo, $secreto, 'X-Hub-Signature-256')->assertOk()->assertJson(['duplicate' => true]);
+
+        $l = $this->como(self::ADMIN)->getJson("/api/v1/int/webhooks/eventos?endpoint={$ep['id']}")->assertOk();
+        $e = collect($l->json('data'))->firstWhere('event_key', 'mp-100');
+        $this->assertSame(['RECEIVED', 1], [$e['status'], $e['duplicates']]);
+        $this->assertCount(4, $l->json('data'), 'El repetido no crea otro registro');
+        $this->assertSame(3, collect($l->json('data'))->where('status', 'REJECTED')->count());
+        $v = $this->como(self::ADMIN)->getJson("/api/v1/int/webhooks/eventos/{$e['id']}")->assertOk();
+        $this->assertSame(json_encode($cuerpo), $v->json('body'), 'El crudo se guarda tal cual');
+        $this->assertArrayHasKey('x-signature', $v->json('headers'));
+        $this->assertStringContainsString('procesará cuando el módulo', $v->json('result'));
+        $this->assertSame(1, $this->endpoint('Mercado Pago · prueba')['received_count']);
+
+        // Otra empresa no ve la bitácora de Don Guando.
+        $this->assertSame(0, $this->como('hsalas@carnesselectas.pe', self::CS)->getJson('/api/v1/int/webhooks/eventos')->assertOk()->json('total'));
+
+        // Token desconocido: 404 sin decir nada más.
+        $this->enviarWebhook(url('/api/hooks/'.str_repeat('Z', 32)), ['id' => 'x'], $secreto)->assertNotFound()->assertExactJson(['status' => 'NOT_FOUND']);
+
+        // Telefonía apagada (RN-INT-14): se guarda como ignorado y responde 200.
+        $tel = $this->endpoint('Telefonía · llamadas y grabaciones');
+        $this->como(self::ADMIN)->postJson("/api/v1/int/webhooks/{$tel['id']}/secreto", ['secret' => $secreto])->assertOk();
+        $this->enviarWebhook($tel['url'], ['id' => 'call-1'], $secreto)->assertOk()->assertJson(['status' => 'IGNORED']);
+    }
+
+    public function test_regenerar_token_con_gracia_de_24_horas_y_reprocesar_fallidos(): void
+    {
+        $ep = $this->endpoint('Mercado Pago · prueba');
+        $secreto = 'whsec_prueba_8821';
+        $this->como(self::ADMIN)->postJson("/api/v1/int/webhooks/{$ep['id']}/secreto", ['secret' => $secreto])->assertOk();
+
+        $this->como(self::SIN_PERMISO)->postJson("/api/v1/int/webhooks/{$ep['id']}/regenerar")->assertForbidden();
+        $n = $this->como(self::ADMIN)->postJson("/api/v1/int/webhooks/{$ep['id']}/regenerar")->assertOk();
+        $this->assertNotSame($ep['url'], $n->json('url'));
+        $this->assertNotNull($n->json('anterior_vale_hasta'));
+        // La URL anterior sigue valiendo 24 horas; después, no.
+        $this->enviarWebhook($ep['url'], ['id' => 'mp-200'], $secreto)->assertOk();
+        $this->enviarWebhook($n->json('url'), ['id' => 'mp-201'], $secreto)->assertOk();
+        $this->travel(25)->hours();
+        $this->enviarWebhook($ep['url'], ['id' => 'mp-202'], $secreto)->assertNotFound();
+        $this->travelBack();
+
+        // Con un procesador que falla: 5 intentos y queda fallido (RN-INT-07); se reprocesa a mano con el permiso.
+        $falla = true;
+        Webhooks::$procesadores['MERCADOPAGO'] = function (array $b) use (&$falla) {
+            if ($falla) {
+                throw new \RuntimeException("No existe el pedido {$b['ref']}.");
+            }
+
+            return "Cobro aplicado a {$b['ref']}";
+        };
+        try {
+            $this->enviarWebhook($n->json('url'), ['id' => 'mp-300', 'ref' => 'P-099871'], $secreto)->assertOk()->assertJson(['status' => 'FAILED']);
+            $l = $this->como(self::ADMIN)->getJson('/api/v1/int/webhooks/eventos?status=FAILED')->assertOk();
+            $f = collect($l->json('data'))->firstWhere('event_key', 'mp-300');
+            $this->assertSame([5, 'No existe el pedido P-099871.'], [$f['attempts'], $f['last_error']]);
+            $this->assertGreaterThanOrEqual(2, $l->json('cifras.fallidos'), 'Con el de la demostración');
+            $this->assertStringNotContainsString('RN-INT', $l->getContent(), 'Sin códigos de reglas en pantalla');
+
+            $this->como(self::SIN_PERMISO)->postJson("/api/v1/int/webhooks/eventos/{$f['id']}/reprocesar")->assertForbidden();
+            $falla = false;
+            $r = $this->como(self::ADMIN)->postJson("/api/v1/int/webhooks/eventos/{$f['id']}/reprocesar")->assertOk();
+            $this->assertSame(['PROCESSED', 6, 'Cobro aplicado a P-099871'], [$r->json('status'), $r->json('attempts'), $r->json('result')]);
+            $this->como(self::ADMIN)->postJson("/api/v1/int/webhooks/eventos/{$f['id']}/reprocesar")->assertStatus(422)->assertJsonPath('code', 'RN-INT-07');
+            $this->enDonGuando(fn () => $this->assertDatabaseHas('domain_events', ['event_name' => 'webhook.reprocessed', 'aggregate_id' => $f['id']]));
+        } finally {
+            Webhooks::$procesadores = [];
+        }
     }
 
     public function test_el_despacho_programado_envia_lo_que_toca(): void

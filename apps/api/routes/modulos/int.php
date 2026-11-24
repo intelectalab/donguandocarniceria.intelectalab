@@ -2,9 +2,10 @@
 
 use App\Modulos\Int\Http\Controllers\ConectorController;
 use App\Modulos\Int\Http\Controllers\SalienteController;
+use App\Modulos\Int\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 
-// INT · Integraciones: conectores y credenciales (INT-01 a INT-03), mensajes salientes y cola muerta (INT-06, INT-07).
+// INT · Integraciones: conectores y credenciales (INT-01 a INT-03), webhooks (INT-04, INT-05), mensajes salientes y cola muerta (INT-06, INT-07).
 Route::prefix('int')->group(function () {
     $conector = 'permiso:int.connector.manage';
     $credencial = 'permiso:int.credential.rotate';
@@ -30,4 +31,12 @@ Route::prefix('int')->group(function () {
     Route::post('/salientes/procesar', [SalienteController::class, 'procesar'])->middleware(['modulo:INT,E', $cola, 'throttle:10,1']);
     Route::post('/salientes/{id}/reintentar', [SalienteController::class, 'reintentar'])->middleware(['modulo:INT,E', $cola, 'throttle:20,1'])->whereUuid('id');
     Route::post('/salientes/{id}/cancelar', [SalienteController::class, 'cancelar'])->middleware(['modulo:INT,E', $cola])->whereUuid('id');
+
+    // INT-04 Webhooks de entrada e INT-05 Bitácora (el receptor público está en routes/api.php: /api/hooks/{token})
+    Route::get('/webhooks', [WebhookController::class, 'endpoints'])->middleware('modulo:INT');
+    Route::post('/webhooks/{id}/regenerar', [WebhookController::class, 'regenerar'])->middleware(['modulo:INT,E', $conector, 'throttle:10,1'])->whereUuid('id');
+    Route::post('/webhooks/{id}/secreto', [WebhookController::class, 'secreto'])->middleware(['modulo:INT,E', $credencial, 'throttle:20,1'])->whereUuid('id');
+    Route::get('/webhooks/eventos', [WebhookController::class, 'eventos'])->middleware('modulo:INT');
+    Route::get('/webhooks/eventos/{id}', [WebhookController::class, 'evento'])->middleware('modulo:INT')->whereUuid('id');
+    Route::post('/webhooks/eventos/{id}/reprocesar', [WebhookController::class, 'reprocesar'])->middleware(['modulo:INT,E', 'permiso:int.webhook.reprocess', 'throttle:20,1'])->whereUuid('id');
 });

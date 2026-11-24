@@ -144,3 +144,82 @@ En `IntTest` hay 3 casos nuevos, 7 en total:
 - el comando programado y «Procesar la cola» con y sin permiso.
 
 En total el sistema tiene 369 pruebas, todas correctas. Revisado en el navegador contra `aycha_test` (1440 y 375 px), sin errores en la consola.
+
+---
+
+# Tanda 3: webhooks de entrada y su bitácora (INT-04 e INT-05)
+
+## Base de datos
+
+Migración `2026_11_25_000300_int_webhooks`:
+- **Endpoints:**
+  - el secreto de firma cifrado cabe entero;
+  - columnas nuevas: el token anterior y hasta cuándo vale, cuándo se regeneró y cuándo se cargó el secreto;
+  - el token es único y el estado se limita a Activo o Desactivado.
+- **Eventos:**
+  - intentos enteros y repetidos nunca vacíos, más cuándo falló y cuándo llegó el último repetido;
+  - reglas en la base para el estado;
+  - un mismo evento (misma clave en el mismo endpoint) se guarda una sola vez. Los rechazados por firma no cuentan para esto.
+- **Función `int_webhook_tenant(token)`:** el receptor público no tiene sesión ni empresa, y los endpoints están protegidos por empresa. Esta función devuelve solo el id de la empresa del token, y nada más. Es el mismo patrón que usa el ingreso.
+
+## Receptor público: `POST /api/hooks/{token}`
+
+No pide sesión y tiene un límite de 120 avisos por minuto por IP. El cuerpo puede pesar hasta 256 KB; si pesa más, responde 413. Lo que hace:
+1. Busca la empresa por el token. La URL anterior sigue valiendo 24 horas después de regenerarla. Un token desconocido o desactivado responde 404, sin decir nada más.
+2. **RN-INT-04:** comprueba la firma con el secreto del endpoint. Acepta HMAC SHA-256 o SHA-1 en hex o base64, en las cabeceras que usan Mercado Pago, Meta, WooCommerce, TikTok y Twilio. Si no hay secreto cargado o la firma no coincide:
+   - responde 401;
+   - guarda el aviso como rechazado;
+   - avisa a la administración del sistema, una vez por endpoint y hora.
+3. **RN-INT-05:** si el evento ya llegó (misma clave), suma un repetido y responde 200 sin procesarlo otra vez. La clave es el id que manda el proveedor; si no manda ninguno, se usa la huella del cuerpo.
+4. **RN-INT-14:** con el módulo dueño apagado o el conector desactivado, guarda el evento como ignorado y responde 200.
+5. Si pasa todo eso, guarda el evento recibido y lo procesa.
+6. **RN-INT-06:** el cuerpo y las cabeceras se guardan tal cual. Nunca se guardan las de sesión ni las credenciales (Authorization, Cookie…).
+
+**Procesadores:** cada módulo dueño (WEB, CRM, FAC, DEL, TEL) registra el suyo en `Webhooks::$procesadores` cuando se construye. Mientras no está, el evento queda como «Recibido», con la nota de que se procesará cuando el módulo lo instale. Eso no cuenta como falla.
+
+**RN-INT-07:** el procesamiento se intenta hasta 5 veces (`int_webhook_max_attempts`) y después queda fallido. Un fallido solo se reprocesa a mano, con el permiso `int.webhook.reprocess`; el reproceso queda en la bitácora.
+
+## Acciones
+
+- **Regenerar token:** permiso de conectores. Da una URL nueva y la anterior vale 24 horas más.
+- **Cargar o cambiar el secreto de firma:** permiso de credenciales. Se guarda cifrado con la clave de la aplicación y nunca vuelve a mostrarse.
+
+Los endpoints de la demostración traen un secreto de ejemplo que no se puede descifrar. Por eso aparecen como «Falta cargar» y rechazan todo hasta que se cargue el secreto real.
+
+## Pantallas
+
+- **INT-04 Webhooks de entrada:**
+  - aviso de endpoints sin secreto;
+  - columnas: endpoint con su URL (y hasta cuándo vale la anterior), firma, módulo (con «Apagado» si lo está), entorno, eventos (que abre la bitácora de ese endpoint), último recibido, secreto de firma y estado. Todas se ordenan;
+  - botones «Copiar URL», «Cargar secreto» y «Regenerar token».
+- **INT-05 Bitácora de webhooks:**
+  - cifras: recibidos en el mes, repetidos en %, tiempo de proceso p95 (meta 60 s o menos), fallidos por reprocesar y rechazados por firma;
+  - buscador en la clave y el cuerpo, y filtros por estado, conector y fecha;
+  - columnas: recibido, conector, clave, módulo, repetidos, intentos, proceso, estado, y resultado o error. Todas se ordenan en el servidor;
+  - **ficha del evento:** respuesta HTTP con su tiempo, procesado, intentos, repetidos, cabeceras y cuerpo crudo, y «Reprocesar» si falló.
+
+Los datos de demostración traen el código de la regla delante del error («RN-INT-04: …»). En pantalla se muestra solo el texto.
+
+## Pruebas
+
+En `IntTest` hay 2 casos nuevos, 9 en total:
+- **recepción:**
+  - un aviso sin secreto cargado se rechaza;
+  - cargar el secreto pide permiso y el secreto nunca vuelve;
+  - una firma inválida o ausente da 401 con un solo aviso de seguridad;
+  - un aviso firmado se recibe y se guarda crudo;
+  - un repetido llega con otra cabecera de firma y no se guarda otra vez;
+  - otra empresa no lo ve;
+  - un token desconocido da 404 y un módulo apagado deja el evento ignorado.
+- **token y reproceso:**
+  - regenerar pide permiso y la URL anterior vale 24 horas, después no;
+  - con un procesador que falla hay 5 intentos y el evento queda fallido, sin códigos de reglas en pantalla;
+  - reprocesar pide permiso, se procesa y uno ya procesado no se reprocesa otra vez.
+
+## Filtros en la barra de la tabla
+
+Las pantallas de Integraciones (conectores, credenciales, mensajes salientes y sus eventos, y la bitácora de webhooks) llevaban los filtros sueltos encima de la tabla. Ahora usan el diseño del sistema, como en Trabajadores:
+- el buscador va a la izquierda de la barra de la tabla;
+- los filtros van a la derecha, compactos, con su nombre: «Estado: todos», «Conector: todos»…
+
+Los módulos se muestran con su nombre corto («Delivery»), no con la descripción del catálogo.

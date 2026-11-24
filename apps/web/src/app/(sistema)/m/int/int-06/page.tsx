@@ -12,6 +12,7 @@ import { useSesion } from "@/lib/sesion";
 import { nombreModulo } from "@/modulos/int/tipos";
 import { EstadoSaliente, FichaSaliente, type Saliente } from "@/modulos/int/salientes";
 
+const FILTRO = "!min-h-9 h-9 py-1.5 text-[13px]";
 type Lista = Pagina<Saliente> & {
   cifras: { pendientes: number; reintentando: number; muertos: number; atendidos: number; exito: number | null; enviados_30: number; base_30: number };
   max_intentos: number; conectores: { id: string; name: string }[]; modulos: string[]; estados: Record<string, string>; tipos: Record<string, string>;
@@ -109,18 +110,13 @@ function Mensajes({ gestiona, vez, onCifras, onCambio, oculto }: { gestiona: boo
 
   return (
     <div className="grid gap-4">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <Select aria-label="Estado" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} placeholder="Todos los estados"
-          options={Object.entries(lista?.estados ?? {}).map(([value, label]) => ({ value, label }))} />
-        <Select aria-label="Conector" value={f.connector} onChange={(e) => setF({ ...f, connector: e.target.value })} placeholder="Todos los conectores"
-          options={(lista?.conectores ?? []).map((x) => ({ value: x.id, label: x.name }))} />
-        <Select aria-label="Módulo" value={f.module} onChange={(e) => setF({ ...f, module: e.target.value })} placeholder="Todos los módulos"
-          options={(lista?.modulos ?? []).map((x) => ({ value: x, label: nombreModulo(x) }))} />
-        <Select aria-label="Tipo" value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })} placeholder="Todos los tipos"
-          options={Object.entries(lista?.tipos ?? {}).map(([value, label]) => ({ value, label }))} />
-        <Input type="date" aria-label="Fecha de creación" title="Fecha de creación" value={f.dia} onChange={(e) => setF({ ...f, dia: e.target.value })} />
-      </div>
-      <DataTable {...pag.orden} columns={columnas} rows={lista?.data ?? []} pagination={pag.props(lista)} loading={!lista && !error} error={error} onRetry={cargar}
+      <DataTable toolbar={<>
+          <div className="w-full sm:w-[150px]"><Select className={FILTRO} aria-label="Estado" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} placeholder="Estado: todos" options={Object.entries(lista?.estados ?? {}).map(([value, label]) => ({ value, label }))} /></div>
+          <div className="w-full sm:w-[210px]"><Select className={FILTRO} aria-label="Conector" value={f.connector} onChange={(e) => setF({ ...f, connector: e.target.value })} placeholder="Conector: todos" options={(lista?.conectores ?? []).map((x) => ({ value: x.id, label: x.name }))} /></div>
+          <div className="w-full sm:w-[190px]"><Select className={FILTRO} aria-label="Módulo" value={f.module} onChange={(e) => setF({ ...f, module: e.target.value })} placeholder="Módulo: todos" options={(lista?.modulos ?? []).map((x) => ({ value: x, label: nombreModulo(x) }))} /></div>
+          <div className="w-full sm:w-[170px]"><Select className={FILTRO} aria-label="Tipo" value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })} placeholder="Tipo: todos" options={Object.entries(lista?.tipos ?? {}).map(([value, label]) => ({ value, label }))} /></div>
+          <div className="w-full sm:w-[160px]"><Input className={FILTRO} type="date" aria-label="Fecha de creación" title="Fecha de creación" value={f.dia} onChange={(e) => setF({ ...f, dia: e.target.value })} /></div>
+        </>} {...pag.orden} columns={columnas} rows={lista?.data ?? []} pagination={pag.props(lista)} loading={!lista && !error} error={error} onRetry={cargar}
         onRowClick={(m) => ver(m.id)} empty="No hay mensajes con estos filtros." />
       {abierto && <FichaSaliente id={abierto} gestiona={gestiona} onClose={() => ver(null)} onCambio={() => { onCambio(); }} />}
     </div>
@@ -151,11 +147,9 @@ function Eventos() {
   return (
     <div className="grid gap-4">
       <Alert tone="info">Los eventos que registran los módulos al cambiar algo importante (un pedido confirmado, un conector desactivado, un mensaje en la cola muerta). Son de solo lectura y quedan para la auditoría.</Alert>
-      <div className="grid gap-3 sm:grid-cols-2 lg:max-w-md">
-        <Select aria-label="Evento" value={evento} onChange={(e) => setEvento(e.target.value)} placeholder="Todos los eventos"
-          options={(lista?.eventos ?? []).map((x) => ({ value: x, label: x }))} />
-      </div>
-      <DataTable {...pag.orden} columns={columnas} rows={lista?.data ?? []} rowKey={(e) => String(e.id)} pagination={pag.props(lista)} loading={!lista && !error} error={error}
+      <DataTable toolbar={<>
+          <div className="w-full sm:w-[210px]"><Select className={FILTRO} aria-label="Evento" value={evento} onChange={(e) => setEvento(e.target.value)} placeholder="Evento: todos" options={(lista?.eventos ?? []).map((x) => ({ value: x, label: x }))} /></div>
+        </>} {...pag.orden} columns={columnas} rows={lista?.data ?? []} rowKey={(e) => String(e.id)} pagination={pag.props(lista)} loading={!lista && !error} error={error}
         onRetry={cargar} onRowClick={setAbierto} empty="Todavía no hay eventos registrados." />
       {abierto && (
         <Modal open onClose={() => setAbierto(null)} title={abierto.event_name} description={fechaHora(abierto.occurred_at)}>
