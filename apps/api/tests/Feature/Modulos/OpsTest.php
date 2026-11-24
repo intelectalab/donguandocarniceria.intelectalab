@@ -4,6 +4,7 @@ namespace Tests\Feature\Modulos;
 
 use App\Modulos\Ops\Services\Tickets;
 use App\Modulos\Ops\Services\UsuariosPlataforma;
+use App\Modulos\Sus\Services\Pasarelas\PasarelaFake;
 use App\Support\RuleError;
 use App\Support\TenantContext;
 use App\Support\Totp;
@@ -20,6 +21,9 @@ use Tests\TestCase;
 class OpsTest extends TestCase
 {
     private const CLAVE_CONSOLA = 'Consola#Segura2026';
+
+    /** Secreto TOTP del administrador, para volver a ingresar cuando la sesión vence en una prueba larga. */
+    private string $secretoAdmin = '';
 
     protected function setUp(): void
     {
@@ -66,6 +70,7 @@ class OpsTest extends TestCase
     private function admin(): array
     {
         $secreto = $this->activar('ana.rios@intelectalab.com', UsuariosPlataforma::primeraCuenta('ana.rios@intelectalab.com', 'Ana Ríos Paredes'));
+        $this->secretoAdmin = $secreto;
 
         return [$this->entrar('ana.rios@intelectalab.com', $secreto), $secreto];
     }
@@ -881,5 +886,147 @@ class OpsTest extends TestCase
         $this->assertCount(1, $this->desde(self::DG, $gerente)->getJson('/api/v1/anuncios')->json('data'));
         $this->consola($admin)->postJson("/api/v1/consola/anuncios/{$m}/cancelar")->assertOk()->assertJsonPath('status', 'CANCELLED');
         $this->assertSame([], $this->desde(self::DG, $gerente)->getJson('/api/v1/anuncios')->json('data'));
+    }
+
+    /* ---------------------------------------------------------------- tanda 9a: facturación, cobros y mora del SaaS */
+
+    /** Empresa en plan activo (sin prueba) y el precio de su versión de plan. */
+    private function empresaActiva(): array
+    {
+        [$admin, $sub, $norte, $tokenNorte] = $this->empresaEnPrueba();
+        $this->consola($admin)->postJson("/api/v1/consola/suscripciones/{$sub}/estado", ['status' => 'ACTIVE', 'reason' => 'Contrató el plan'])->assertOk();
+        TenantContext::platform();
+        $precio = (float) DB::table('subscriptions as s')->join('saas_plan_versions as v', 'v.id', '=', 's.plan_version_id')->where('s.id', $sub)->value('v.price_pen');
+        TenantContext::set(null);
+
+        return [$admin, $sub, $norte, $tokenNorte, $precio];
+    }
+
+    private function emisor(string $admin): void
+    {
+        $ruc = DB::table('tenants')->where('short', 'Don Guando')->value('ruc');
+        $this->consola($admin)->putJson('/api/v1/consola/parametros/sus_issuer_ruc', ['value' => '20123456780', 'reason' => 'RUC de prueba'])->assertStatus(422);
+        $this->consola($admin)->putJson('/api/v1/consola/parametros/sus_issuer_ruc', ['value' => $ruc, 'reason' => 'RUC de Intelectalab'])->assertOk();
+    }
+
+    private function medioDePago(string $tenant, string $token): void
+    {
+        TenantContext::platform();
+        DB::table('saas_payment_methods')->where('tenant_id', $tenant)->update(['active' => false]);
+        DB::table('saas_payment_methods')->insert(['tenant_id' => $tenant, 'gateway' => 'FAKE', 'token' => $token, 'brand' => 'Visa', 'last4' => '4242',
+            'exp_month' => 12, 'exp_year' => 2030, 'auto_pay' => true, 'created_at' => now(), 'updated_at' => now()]);
+        TenantContext::set(null);
+    }
+
+    public function test_corrida_sin_emisor_deja_borradores_y_con_emisor_emite_cobra_y_concilia(): void
+    {
+        [$admin, $sub, $norte, , $precio] = $this->empresaActiva();
+        [, $l1] = $this->cuenta($admin, 'luis.soporte@intelectalab.com', 'SUPPORT_L1');
+        $this->consola($l1)->postJson('/api/v1/consola/facturacion/corridas', ['period' => '2026-11'])->assertStatus(422)->assertJsonPath('code', 'RN-OPS-10');
+
+        // D-SUS-06: sin RUC emisor la corrida arma el borrador y no emite. Una segunda corrida no duplica.
+        $r = $this->consola($admin)->postJson('/api/v1/consola/facturacion/corridas', ['period' => '2026-11'])->assertCreated();
+        $this->assertSame([1, 0, 1], [$r->json('drafts'), $r->json('issued'), $r->json('run_no')]);
+        $this->assertStringContainsString('RUC emisor', implode(' ', $r->json('notes')));
+        $this->assertSame(0, $this->consola($admin)->postJson('/api/v1/consola/facturacion/corridas', ['period' => '2026-11'])->assertCreated()->json('drafts'));
+        $f = $this->consola($admin)->getJson("/api/v1/consola/facturacion?tenant={$norte}")->assertOk()->json('data.0');
+        $igv = round($precio * 0.18, 2);
+        $this->assertSame(['DRAFT', 'INVOICE', 'RUC', round($precio + $igv, 2)], [$f['status'], $f['doc_type'], $f['customer_doc_type'], $f['total']]);
+        $this->consola($admin)->postJson("/api/v1/consola/facturacion/{$f['id']}/emitir")->assertStatus(422)->assertJsonPath('code', 'RN-SUS-19');
+
+        // Con RUC emisor: serie F001, correlativo desde 1, vence en 5 días.
+        $this->emisor($admin);
+        $e = $this->consola($admin)->postJson("/api/v1/consola/facturacion/{$f['id']}/emitir")->assertOk();
+        $this->assertSame(['ISSUED', 'F001-00000001', today()->addDays(5)->toDateString()], [$e->json('status'), $e->json('number'), substr($e->json('due_date'), 0, 10)]);
+
+        // Cobro rechazado: queda con deuda. Con otra tarjeta, aprobado: pagado y activa (RN-SUS-14, RN-SUS-10).
+        $this->medioDePago($norte, 'fake_tok_declined');
+        $this->consola($admin)->postJson("/api/v1/consola/facturacion/{$f['id']}/cobrar")->assertOk()->assertJsonPath('status', 'DECLINED');
+        $this->assertSame('PAST_DUE', DB::table('subscriptions')->where('id', $sub)->value('status'));
+        $this->medioDePago($norte, 'fake_tok_ok');
+        $this->consola($admin)->postJson("/api/v1/consola/facturacion/{$f['id']}/cobrar")->assertOk()->assertJsonPath('status', 'APPROVED');
+        $v = $this->consola($admin)->getJson("/api/v1/consola/facturacion/{$f['id']}")->assertOk();
+        $this->assertSame(['PAID', 0, 2], [$v->json('payment_status'), $v->json('saldo'), count($v->json('cobros'))]);
+        $this->assertSame('ACTIVE', DB::table('subscriptions')->where('id', $sub)->value('status'));
+
+        // RN-SUS-13: el aviso repetido no tiene efecto; uno sin firma válida tampoco.
+        $cobros = $this->consola($admin)->getJson('/api/v1/consola/cobros?status=APPROVED')->assertOk()->json('data');
+        $evento = json_encode($cobros[0]['raw_event']);
+        $this->postJson('/api/v1/publico/pasarela/fake', json_decode($evento, true), ['X-Firma' => str_repeat('0', 64)])
+            ->assertStatus(401)->assertJsonPath('result', 'Firma inválida: sin efecto');
+        $this->call('POST', '/api/v1/publico/pasarela/fake', [], [], [], ['HTTP_X_FIRMA' => PasarelaFake::firmar($evento), 'CONTENT_TYPE' => 'application/json'], $evento)
+            ->assertOk()->assertJsonPath('result', 'Aviso repetido: sin efecto');
+        TenantContext::platform();
+        $this->assertSame(1, DB::table('saas_payments')->where('invoice_id', $f['id'])->where('status', 'APPROVED')->count());
+        TenantContext::set(null);
+
+        // Conciliación: el abono menor que lo cobrado deja la comisión.
+        $abono = $this->consola($admin)->postJson('/api/v1/consola/cobros/conciliar', ['payments' => [$cobros[0]['id']], 'reference' => 'ABONO-001',
+            'settled_on' => today()->toDateString(), 'amount' => round($cobros[0]['amount'] - 10, 2)])->assertCreated();
+        $this->assertEquals(10, $abono->json('fee'));
+        $this->consola($admin)->postJson('/api/v1/consola/cobros/conciliar', ['payments' => [$cobros[0]['id']], 'reference' => 'ABONO-002',
+            'settled_on' => today()->toDateString(), 'amount' => 1])->assertStatus(422)->assertJsonPath('code', 'RN-SUS-13');
+
+        // RN-SUS-11: se corrige con nota de crédito (serie FC01) que no pasa lo que queda; el emitido no cambia.
+        $this->consola($admin)->postJson("/api/v1/consola/facturacion/{$f['id']}/nota-credito", ['amount' => 9999, 'reason' => 'Monto mayor'])
+            ->assertStatus(422)->assertJsonPath('code', 'RN-SUS-11');
+        $n = $this->consola($admin)->postJson("/api/v1/consola/facturacion/{$f['id']}/nota-credito", ['amount' => 59, 'reason' => 'Días sin servicio por el incidente'])->assertOk();
+        $this->assertSame('FC01-00000001', $n->json('notas.0.number'));
+        $this->expectException(QueryException::class);
+        TenantContext::platform();
+        DB::table('saas_invoices')->where('id', $f['id'])->update(['total' => 1]);
+    }
+
+    public function test_mora_pasa_a_solo_lectura_y_suspension_y_el_pago_la_reactiva(): void
+    {
+        [$admin, $sub, $norte] = $this->empresaActiva();
+        $this->emisor($admin);
+        $this->consola($admin)->postJson('/api/v1/consola/facturacion/corridas', ['period' => now()->format('Y-m')])->assertCreated()->assertJsonPath('issued', 1);
+        $estado = fn () => DB::table('subscriptions')->where('id', $sub)->value('status');
+        $mora = fn () => $this->artisan('sus:mora')->assertSuccessful();
+
+        // Vence a los 5 días; al día siguiente, con deuda (opera normal).
+        $this->travel(6)->days();
+        $mora();
+        $this->assertSame('PAST_DUE', $estado());
+
+        // Prórroga hasta el día 9 de mora: a los 7 no pasa a solo lectura; a los 10, sí.
+        DB::table('subscriptions')->where('id', $sub)->update(['grace_until' => today()->addDays(8)->toDateString()]);
+        $this->travel(6)->days();
+        $mora();
+        $this->assertSame('PAST_DUE', $estado(), 'La prórroga pospone el paso');
+        $this->travel(3)->days();
+        $mora();
+        $this->assertSame('READ_ONLY', $estado());
+        $empresa = $this->ingresar(self::DG, 'rosa.medina@carnesdelnorte.pe', 'Norte#Carnes2026');
+        $this->desde(self::DG, $empresa)->postJson('/api/v1/plt/marcas', [])->assertStatus(402)->assertJsonPath('code', 'RN-SUS-07');
+
+        // A los 22 días de mora (7 + 15), suspendida: la empresa no entra.
+        $this->travel(12)->days();
+        $mora();
+        $this->assertSame('SUSPENDED', $estado());
+        $this->assertSame('SUSPENDED', DB::table('tenants')->where('id', $norte)->value('status'));
+
+        // CA-SUS-04: el pago confirmado la devuelve a activa en el momento.
+        $this->medioDePago($norte, 'fake_tok_ok');
+        $token = $this->entrar('ana.rios@intelectalab.com', $this->secretoAdmin);
+        $cola = $this->consola($token)->getJson('/api/v1/consola/mora')->assertOk()->json('data.0');
+        $this->assertSame(['SUSPENDED', 22], [$cola['status'], $cola['dias']]);
+        $this->consola($token)->postJson("/api/v1/consola/mora/{$sub}/cobrar")->assertOk()->assertJsonPath('status', 'APPROVED');
+        $this->assertSame('ACTIVE', $estado());
+        $this->assertSame('ACTIVE', DB::table('tenants')->where('id', $norte)->value('status'));
+        $this->assertSame(['PAST_DUE', 'READ_ONLY', 'SUSPENDED', 'ACTIVE'], DB::table('subscription_events')->where('subscription_id', $sub)->where('event', 'STATUS_CHANGED')
+            ->where('actor_type', 'SYSTEM')->orderBy('occurred_at')->pluck('to_status')->all());
+        $this->assertSame([], $this->consola($token)->getJson('/api/v1/consola/mora')->json('data'));
+    }
+
+    public function test_prueba_vencida_sin_medio_de_pago_pasa_a_solo_lectura(): void
+    {
+        [, $sub, $norte] = $this->empresaEnPrueba();
+        $this->travel(15)->days();
+        $this->artisan('sus:mora')->assertSuccessful();
+        $this->assertSame('READ_ONLY', DB::table('subscriptions')->where('id', $sub)->value('status'));
+        $this->assertSame('Terminó la prueba sin medio de pago', DB::table('subscription_events')->where('subscription_id', $sub)->orderByDesc('occurred_at')->value('reason'));
+        unset($norte);
     }
 }

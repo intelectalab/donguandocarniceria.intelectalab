@@ -3,6 +3,7 @@
 namespace App\Modulos\Ops\Services;
 
 use App\Modulos\Mae\Services\CatalogosGlobales;
+use App\Modulos\Plt\Services\Ruc;
 use App\Support\RuleError;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -46,6 +47,12 @@ final class Plataforma
         'ops_incident_notify_minutes' => ['entero', 5, 240],
         'ops_maintenance_notice_hours' => ['entero', 1, 336],
         'ops_component_check_seconds' => ['entero', 60, 3600],
+        'sus_invoice_due_days' => ['entero', 1, 60],
+        'sus_grace_days' => ['entero', 1, 60],
+        'sus_read_only_days' => ['entero', 1, 90],
+        'sus_max_extension_days' => ['entero', 1, 60],
+        'sus_issuer_ruc' => ['ruc'],
+        'sus_issuer_name' => ['texto', 200],
     ];
 
     /* ------------------------------------------------------------------ OPS-13 */
@@ -169,6 +176,23 @@ final class Plataforma
         $regla = self::REGLAS[$key] ?? null;
         if (! $regla) {
             RuleError::fail('RN-OPS-05', 'Ese parámetro todavía no se cambia desde la consola.');
+        }
+        // RUC emisor: vacío (no se emite) o un RUC válido.
+        if ($regla[0] === 'ruc') {
+            $ruc = trim((string) $valor);
+            if ($ruc !== '' && ! Ruc::valido($ruc)) {
+                RuleError::fail('RN-SUS-19', 'El RUC no es válido.');
+            }
+
+            return $ruc;
+        }
+        if ($regla[0] === 'texto') {
+            $texto = trim((string) $valor);
+            if (mb_strlen($texto) > $regla[1]) {
+                RuleError::fail('RN-OPS-05', "Máximo {$regla[1]} caracteres.");
+            }
+
+            return $texto;
         }
         if ($regla[0] === 'entero') {
             if (! is_numeric($valor) || (int) $valor != $valor || $valor < $regla[1] || $valor > $regla[2]) {

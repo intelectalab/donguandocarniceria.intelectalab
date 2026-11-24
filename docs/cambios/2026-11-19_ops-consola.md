@@ -653,3 +653,80 @@ En total el sistema tiene 349 pruebas, todas correctas. Revisado en el navegador
 
 - Adaptadores para leer la salud del OSE, WhatsApp, pasarelas, correo y demás servicios externos (cuando cada integración exista).
 - En el servidor ya corre `schedule:run` cada minuto (cron de www-data): al desplegar, las lecturas, los accesos vencidos y el cierre de tickets funcionan solos.
+
+# Tanda 9a (24/11): facturación, cobros y mora del SaaS (SUS-12, SUS-13 y SUS-14)
+
+La tanda 9 se dividió en tres por su tamaño:
+- **9a:** cobro, en la consola.
+- **9b:** la suscripción vista por la empresa.
+- **9c:** cambio de plan, complementos y métricas.
+
+## Base de datos
+
+Migración `2026_11_24_000100_sus_facturacion_cobros_y_mora`:
+- `platform_document_series`: F001 factura, B001 boleta, FC01 y BC01 notas de crédito. Solo la consola las ve.
+- `saas_invoices` y `saas_invoice_lines`: comprobantes del SaaS. La empresa verá los suyos en 9b.
+- `saas_payment_methods`: solo el token de la pasarela, la marca y los 4 últimos dígitos.
+- `saas_payments`: un cobro por referencia de la pasarela.
+- `saas_gateway_events`: avisos crudos de la pasarela.
+- `saas_settlements`: abonos conciliados.
+- `saas_billing_runs`: corridas.
+- `saas_dunning_actions`: recordatorios y prórrogas.
+- `subscriptions.grace_until`: fecha de la prórroga.
+- La base impide cambiar un comprobante emitido (importes, cliente, período, número, fecha) y agregarle o cambiarle líneas. Al emitir, exige que las líneas cuadren con la cabecera y que total = subtotal + IGV (RN-SUS-11). Un emitido no se borra.
+- `platform_dunning_tenant_status`: la mora suspende o reactiva el acceso de la empresa, y la base solo lo permite si coincide con el estado de su suscripción.
+- Parámetros de plataforma:
+  - `sus_invoice_due_days` (5), `sus_payment_retry_days` ([1, 3, 5]), `sus_grace_days` (7) y `sus_read_only_days` (15);
+  - `sus_igv_rate` (0,18);
+  - `sus_issuer_ruc` y `sus_issuer_name` (vacíos);
+  - `sus_gateway` (FAKE);
+  - `sus_max_extension_days` (15).
+
+  El RUC emisor se cambia desde «Parámetros de plataforma» y se valida.
+
+## Cómo funciona
+
+1. **Corrida del mes** (botón en la consola o sola el día 1 a las 7:00): un comprobante por suscripción activa, con deuda o en solo lectura. Lleva la cuota de su versión de plan menos el descuento pactado, más IGV. Es factura con RUC y boleta con DNI. Otra corrida del mismo mes solo crea los que faltan. Un plan sin precio aprobado no se factura y queda anotado.
+2. **Sin RUC emisor** (D-SUS-06): los comprobantes quedan en borrador y no se emiten ni se cobran. La pantalla lo avisa.
+3. **Emitir:** la serie de Intelectalab con su correlativo sin saltos, la fecha de hoy y el vencimiento a 5 días. El envío al OSE de Intelectalab queda «por enviar» hasta definir su OSE.
+4. **Cobrar:** con el medio de pago activo de la empresa, por el adaptador de la pasarela. La pasarela de prueba aprueba o rechaza según el token.
+   - El resultado llega por el aviso firmado (`POST /api/v1/publico/pasarela/{pasarela}`, cabecera `X-Firma`). Uno sin firma válida o repetido no tiene efecto, pero queda registrado.
+   - El comprobante queda pagado solo si los cobros aprobados más las notas de crédito cubren su total.
+5. **Nota de crédito:** sobre un comprobante emitido, por un monto que no pase lo que queda sin acreditar.
+6. **Mora** (tarea diaria a las 6:20):
+   - vencido → con deuda (sigue operando);
+   - reintentos de cobro a los 1, 3 y 5 días;
+   - a los 7 días, solo lectura;
+   - a los 22, suspendida.
+
+   Además:
+   - Una prórroga pospone esos pasos.
+   - El pago confirmado la devuelve a activa en el momento.
+   - Una prueba vencida sin medio de pago pasa a solo lectura.
+   - Cada cambio queda en el historial con actor «Sistema» y avisa a gerencia, sistemas y administración de la empresa.
+7. **Conciliación:** los cobros aprobados se juntan con un abono de la pasarela; la diferencia es la comisión.
+
+Facturan, cobran y gestionan la mora el administrador y cobranza (permiso nuevo «facturar, cobrar y gestionar la mora»). Los demás roles de la consola solo consultan.
+
+## Pantallas (consola · grupo Cobranza)
+
+- **Facturación del SaaS:** comprobantes con filtros y detalle (líneas, cobros, notas, emitir, borrar borrador, cobrar ahora, nota de crédito), corridas con sus notas y series.
+- **Cobros y conciliación:** cobros con resultado, tarjeta, referencia y aviso crudo; avisos de la pasarela; abonos. Se marcan cobros para conciliar con un abono.
+- **Mora:** quién debe, cuánto, días, próximo reintento, cuándo pasa a solo lectura y a suspensión. Acciones: cobrar, recordar y dar prórroga.
+
+## Pruebas
+
+3 pruebas nuevas en `OpsTest`:
+- corrida sin RUC emisor (borrador) y con RUC (emite F001-00000001); cobro rechazado y aprobado; aviso repetido y sin firma; conciliación con comisión; nota de crédito FC01; el emitido no cambia;
+- mora: con deuda, prórroga, solo lectura (402), suspensión y reactivación al pagar, con los 4 cambios en el historial (CA-SUS-04);
+- prueba vencida sin medio de pago → solo lectura.
+
+En total el sistema tiene 352 pruebas, todas correctas. Revisado en el navegador contra `aycha_test` (1440 y 375 px), con tres empresas de ejemplo: una pagada, una con la tarjeta rechazada y una en solo lectura.
+
+## Pendiente
+
+- Decisiones de negocio:
+  - **Precios de los planes (D-SUS-01):** sin precio aprobado, un plan no se factura.
+  - **RUC y OSE de Intelectalab (D-SUS-06):** sin RUC no se emite, y sin OSE los comprobantes quedan «por enviar».
+- **Pasarela real (D-SUS-02):** Mercado Pago o Culqi. Basta con escribir su adaptador.
+- **Tanda 9b:** la empresa registra su tarjeta, ve y paga sus comprobantes, y ve la franja de mora.

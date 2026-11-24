@@ -16,6 +16,8 @@ use App\Modulos\Ops\Http\Controllers\EmpresaController;
 use App\Modulos\Ops\Http\Controllers\OperacionController;
 use App\Modulos\Ops\Http\Controllers\PlanController;
 use App\Modulos\Ops\Http\Controllers\PlataformaController;
+use App\Modulos\Sus\Http\Controllers\CobroController;
+use App\Modulos\Sus\Http\Controllers\PasarelaController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -38,6 +40,8 @@ Route::prefix('v1/publico')->group(function () {
     // CLI-07: el cliente abre su enlace de ubicación (de un solo uso) y marca su pin. La empresa sale del enlace.
     Route::get('/ubicacion/{token}', [EnlaceController::class, 'publico'])->middleware('throttle:30,1')->where('token', '[A-Za-z0-9]{32}');
     Route::post('/ubicacion/{token}', [EnlaceController::class, 'completar'])->middleware('throttle:10,1')->where('token', '[A-Za-z0-9]{32}');
+    // SUS · aviso firmado de la pasarela de cobro (RN-SUS-20): sin firma válida no tiene efecto.
+    Route::post('/pasarela/{gateway}', PasarelaController::class)->middleware('throttle:120,1')->where('gateway', '[a-z]{3,12}');
 });
 
 // OPS · Consola de Intelectalab: sin empresa (no pasa por «tenant» ni por Sanctum). Usuarios de plataforma con
@@ -116,6 +120,20 @@ Route::prefix('v1/consola')->group(function () {
         Route::put('/anuncios/{id}', [OperacionController::class, 'guardarAnuncio'])->whereUuid('id');
         Route::post('/anuncios/{id}/publicar', [OperacionController::class, 'publicarAnuncio'])->whereUuid('id');
         Route::post('/anuncios/{id}/cancelar', [OperacionController::class, 'cancelarAnuncio'])->whereUuid('id');
+        // SUS-12 Facturación, SUS-13 Cobros y SUS-14 Mora (cambiar: cobranza y administración; lo valida el servicio)
+        Route::get('/facturacion', [CobroController::class, 'facturacion']);
+        Route::get('/facturacion/{id}', [CobroController::class, 'comprobante'])->whereUuid('id');
+        Route::post('/facturacion/corridas', [CobroController::class, 'corrida'])->middleware('throttle:10,1');
+        Route::post('/facturacion/{id}/emitir', [CobroController::class, 'emitir'])->whereUuid('id');
+        Route::delete('/facturacion/{id}', [CobroController::class, 'borrar'])->whereUuid('id');
+        Route::post('/facturacion/{id}/nota-credito', [CobroController::class, 'notaCredito'])->whereUuid('id');
+        Route::post('/facturacion/{id}/cobrar', [CobroController::class, 'cobrar'])->middleware('throttle:20,1')->whereUuid('id');
+        Route::get('/cobros', [CobroController::class, 'cobros']);
+        Route::post('/cobros/conciliar', [CobroController::class, 'conciliar']);
+        Route::get('/mora', [CobroController::class, 'mora']);
+        Route::post('/mora/{sub}/recordatorio', [CobroController::class, 'recordatorio'])->middleware('throttle:20,1')->whereUuid('sub');
+        Route::post('/mora/{sub}/prorroga', [CobroController::class, 'prorroga'])->whereUuid('sub');
+        Route::post('/mora/{sub}/cobrar', [CobroController::class, 'cobrarAhora'])->middleware('throttle:20,1')->whereUuid('sub');
     });
 });
 

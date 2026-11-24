@@ -26,7 +26,7 @@ final class Consola
     /** RN-OPS-10: lo que hace cada rol. «*» es todo. */
     private const PUEDE = [
         'PLATFORM_ADMIN' => ['*'],
-        'BILLING' => ['tenant.status', 'plans.manage', 'metrics.freeze'],
+        'BILLING' => ['tenant.status', 'plans.manage', 'metrics.freeze', 'billing.manage'],
         'SUPPORT_L1' => ['ticket.manage', 'access.request_ro'],
         'SUPPORT_L2' => ['ticket.manage', 'access.request_ro', 'access.request_rw', 'reprocess'],
         'ENGINEER' => ['health.record', 'incident.manage', 'access.request_ro', 'access.request_rw', 'announce.manage', 'ticket.manage'],
@@ -37,7 +37,8 @@ final class Consola
         'tenant.status' => 'cambiar el estado de una suscripción ni suspender o reactivar empresas', 'tenant.create' => 'dar de alta empresas',
         'plans.manage' => 'administrar planes, pruebas ni descuentos', 'catalogs.import' => 'importar catálogos globales', 'ticket.manage' => 'responder ni asignar tickets de soporte',
         'access.request_ro' => 'pedir accesos de soporte de solo lectura', 'access.request_rw' => 'pedir accesos de soporte de lectura y escritura',
-        'health.record' => 'registrar lecturas de salud', 'incident.manage' => 'gestionar incidentes', 'announce.manage' => 'gestionar anuncios'];
+        'health.record' => 'registrar lecturas de salud', 'incident.manage' => 'gestionar incidentes', 'announce.manage' => 'gestionar anuncios',
+        'billing.manage' => 'facturar, cobrar ni gestionar la mora'];
 
     /** Dominios de correo permitidos para las cuentas de la consola (parámetro de plataforma; vacío = cualquiera). */
     public static function dominios(): array
