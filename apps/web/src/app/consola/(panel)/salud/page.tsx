@@ -6,6 +6,7 @@ import { Activity, AlertTriangle, CheckCircle2, CircleSlash, Gauge, PenLine, Sir
 import { Alert, Badge, Button, Cifra, DataTable, Field, Input, Modal, PageHeader, Select, Textarea, VistaToggle, toast, useVista, type Column, type Tone } from "@/components/ui";
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { erroresDe, mensajeDe } from "@/lib/api";
+import { useOrdenLocal } from "@/lib/paginas";
 import { apiConsola } from "@/lib/consola";
 import { fechaHora } from "@/lib/formato";
 
@@ -39,15 +40,19 @@ export default function SaludComponentes() {
   }, [cargar]);
 
   const n = (k: string) => datos?.resumen[k] ?? 0;
+  const ord = useOrdenLocal(datos?.data ?? [], {
+    name: (c) => c.name, status: (c) => c.status_name, latency_ms: (c) => c.latency_ms, error_rate: (c) => c.error_rate, queue_depth: (c) => c.queue_depth,
+    disponibilidad_24h: (c) => c.disponibilidad_24h, disponibilidad_7d: (c) => c.disponibilidad_7d, last_read_at: (c) => c.last_read_at,
+  });
   const columnas: Column<Componente>[] = [
-    { key: "name", header: "Componente", cardTitle: true, render: (c) => <span className="font-semibold text-ink">{c.name}</span> },
-    { key: "status", header: "Estado", render: (c) => <Badge tone={TONO_SALUD[c.status]} dot>{c.status_name}</Badge> },
-    { key: "latency_ms", header: "Latencia", align: "right", render: (c) => (c.latency_ms === null ? "—" : `${c.latency_ms.toLocaleString("es-PE")} ms`) },
-    { key: "error_rate", header: "Errores", align: "right", hideOnMobile: true, render: (c) => pct(c.error_rate) },
-    { key: "queue_depth", header: "Cola", align: "right", hideOnMobile: true, render: (c) => (c.queue_depth === null ? "—" : c.queue_depth.toLocaleString("es-PE")) },
-    { key: "disponibilidad_24h", header: "Disp. 24 h", align: "right", render: (c) => pct(c.disponibilidad_24h) },
-    { key: "disponibilidad_7d", header: "Disp. 7 días", align: "right", render: (c) => pct(c.disponibilidad_7d) },
-    { key: "last_read_at", header: "Última lectura", hideOnMobile: true, render: (c) => (c.last_read_at ? <span className="whitespace-nowrap">{fechaHora(c.last_read_at)}</span> : <span className="text-muted">Sin lecturas</span>) },
+    { key: "name", sortable: true, header: "Componente", cardTitle: true, render: (c) => <span className="font-semibold text-ink">{c.name}</span> },
+    { key: "status", sortable: true, header: "Estado", render: (c) => <Badge tone={TONO_SALUD[c.status]} dot>{c.status_name}</Badge> },
+    { key: "latency_ms", sortable: true, header: "Latencia", align: "right", render: (c) => (c.latency_ms === null ? "—" : `${c.latency_ms.toLocaleString("es-PE")} ms`) },
+    { key: "error_rate", sortable: true, header: "Errores", align: "right", hideOnMobile: true, render: (c) => pct(c.error_rate) },
+    { key: "queue_depth", sortable: true, header: "Cola", align: "right", hideOnMobile: true, render: (c) => (c.queue_depth === null ? "—" : c.queue_depth.toLocaleString("es-PE")) },
+    { key: "disponibilidad_24h", sortable: true, header: "Disp. 24 h", align: "right", render: (c) => pct(c.disponibilidad_24h) },
+    { key: "disponibilidad_7d", sortable: true, header: "Disp. 7 días", align: "right", render: (c) => pct(c.disponibilidad_7d) },
+    { key: "last_read_at", sortable: true, header: "Última lectura", hideOnMobile: true, render: (c) => (c.last_read_at ? <span className="whitespace-nowrap">{fechaHora(c.last_read_at)}</span> : <span className="text-muted">Sin lecturas</span>) },
     { key: "incidentes", header: "Incidente", render: (c) => (c.incidentes.length
       ? <span className="flex flex-wrap gap-1">{c.incidentes.map((i) => <Badge key={i.id} tone="bad">{i.number}</Badge>)}</span> : <span className="text-muted">—</span>) },
   ];
@@ -69,7 +74,7 @@ export default function SaludComponentes() {
       )}
       <div className="flex justify-end"><VistaToggle value={vista} onChange={setVista} /></div>
       {vista === "tabla" ? (
-        <DataTable columns={columnas} rows={datos?.data ?? []} loading={!datos && !error} onRowClick={(c) => setAbierto(c.code)} empty="No hay componentes." />
+        <DataTable {...ord.orden} columns={columnas} rows={ord.filas} loading={!datos && !error} onRowClick={(c) => setAbierto(c.code)} empty="No hay componentes." />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {(datos?.data ?? []).map((c) => (

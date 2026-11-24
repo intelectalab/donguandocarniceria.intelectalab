@@ -6,6 +6,7 @@ import { Badge, Button, DataTable, Field, Input, Modal, PageHeader, Select, conf
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { erroresDe, mensajeDe } from "@/lib/api";
 import { apiConsola } from "@/lib/consola";
+import { useOrdenLocal } from "@/lib/paginas";
 import { soles } from "@/lib/formato";
 
 type Complemento = {
@@ -43,11 +44,12 @@ export default function ComplementosConsola() {
     }
   }
 
+  const ord = useOrdenLocal(datos?.data ?? [], { name: (c) => c.name, kind: (c) => c.kind, price_pen: (c) => c.price_pen, status: (c) => c.status_name });
   const columnas: Column<Complemento>[] = [
-    { key: "name", header: "Complemento", cardTitle: true, render: (c) => <div><p className="font-semibold text-ink">{c.name}</p><p className="text-[12.5px] text-muted">{c.description}</p></div> },
-    { key: "kind", header: "Qué hace", render: (c) => (c.kind === "MODULE" ? `Enciende ${c.module_name ?? c.module_code}` : `Suma ${c.unit_qty} ${c.unit_qty === 1 ? SINGULAR[c.limit_key ?? ""] : c.limit_name}`) },
-    { key: "price_pen", header: "Precio al mes", align: "right", render: (c) => (c.price_pen !== null ? soles(c.price_pen) : <span className="text-muted">Por definir</span>) },
-    { key: "status", header: "Estado", render: (c) => <div className="grid gap-0.5"><Badge tone={TONO[c.status]} dot>{c.status_name}</Badge>{c.empresas > 0 && <span className="text-[12px] text-muted">{c.empresas} empresa(s)</span>}</div> },
+    { key: "name", sortable: true, header: "Complemento", cardTitle: true, render: (c) => <div><p className="font-semibold text-ink">{c.name}</p><p className="text-[12.5px] text-muted">{c.description}</p></div> },
+    { key: "kind", sortable: true, header: "Qué hace", render: (c) => (c.kind === "MODULE" ? `Enciende ${c.module_name ?? c.module_code}` : `Suma ${c.unit_qty} ${c.unit_qty === 1 ? SINGULAR[c.limit_key ?? ""] : c.limit_name}`) },
+    { key: "price_pen", sortable: true, header: "Precio al mes", align: "right", render: (c) => (c.price_pen !== null ? soles(c.price_pen) : <span className="text-muted">Por definir</span>) },
+    { key: "status", sortable: true, header: "Estado", render: (c) => <div className="grid gap-0.5"><Badge tone={TONO[c.status]} dot>{c.status_name}</Badge>{c.empresas > 0 && <span className="text-[12px] text-muted">{c.empresas} empresa(s)</span>}</div> },
     ...(puede ? [{ key: "acciones", header: "", align: "right" as const, render: (c: Complemento) => (
       <div className="flex justify-end gap-1.5">
         {c.status !== "RETIRED" && <Button size="sm" variant="ghost" icon={Pencil} onClick={() => setEditando(c)}>Editar</Button>}
@@ -61,7 +63,7 @@ export default function ComplementosConsola() {
     <div className="grid gap-5">
       <PageHeader description="Un complemento enciende un módulo que el plan no trae o suma unidades a un límite (usuarios, marcas, locales). Nace en borrador y se publica con su precio; se cobra en la corrida del mes. Retirado ya no se contrata."
         actions={puede ? <Button variant="primary" icon={Plus} onClick={() => setEditando("nuevo")}>Nuevo complemento</Button> : undefined} />
-      <DataTable columns={columnas} rows={datos?.data ?? []} rowKey={(c) => c.code} loading={!datos && !error} error={error} onRetry={cargar} empty="No hay complementos." />
+      <DataTable {...ord.orden} columns={columnas} rows={ord.filas} rowKey={(c) => c.code} loading={!datos && !error} error={error} onRetry={cargar} empty="No hay complementos." />
       {editando && datos && <FormComplemento modulos={datos.modulos} actual={editando === "nuevo" ? undefined : editando} onClose={() => setEditando(null)} onListo={() => { setEditando(null); cargar(); }} />}
     </div>
   );

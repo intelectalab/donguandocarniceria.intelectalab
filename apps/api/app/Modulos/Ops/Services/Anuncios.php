@@ -24,6 +24,7 @@ final class Anuncios
     {
         $q = DB::table('platform_announcements as a')->leftJoin('platform_incidents as i', 'i.id', '=', 'a.incident_id')
             ->select('a.*', 'i.number as incident_number')->orderByDesc('a.created_at')->orderBy('a.id');
+        Paginas::ordenar($q, ['title' => 'a.title', 'kind' => 'a.kind', 'audience' => 'a.audience', 'starts_at' => 'a.starts_at'], 'a.id');
 
         return Paginas::de($q, fn ($a) => self::presentar($a)) + [
             'planes' => DB::table('saas_plans')->orderBy('sort_order')->get(['code', 'name']),

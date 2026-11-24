@@ -73,17 +73,17 @@ export default function Facturacion() {
   }
 
   const columnas: Column<Comprobante>[] = [
-    { key: "number", header: "Número", cardTitle: true, render: (c) => (
+    { key: "number", sortable: true, header: "Número", cardTitle: true, render: (c) => (
       <div><p className="font-mono text-[12.5px] font-semibold text-ink">{c.number ?? "Borrador"}</p><p className="text-[12px] text-muted">{c.doc_type_name}</p></div>
     ) },
-    { key: "customer_name", header: "Empresa", render: (c) => <div><p>{c.tenant_short}</p><p className="text-[12.5px] text-muted">{c.customer_doc_type} {c.customer_doc_number}</p></div> },
-    { key: "issue_date", header: "Emitido", hideOnMobile: true, render: (c) => (c.issue_date ? <div className="text-[12.5px]"><p>{fecha(c.issue_date)}</p>{c.due_date && <p className="text-muted">Vence {fecha(c.due_date)}</p>}</div> : <span className="text-muted">—</span>) },
-    { key: "period_start", header: "Período", hideOnMobile: true, render: (c) => (c.period_start && c.period_end ? <span className="whitespace-nowrap text-[12.5px]">{fecha(c.period_start)} – {fecha(c.period_end)}</span> : c.period ?? "—") },
-    { key: "subtotal", header: "Subtotal", align: "right", hideOnMobile: true, render: (c) => soles(c.subtotal) },
-    { key: "igv", header: "IGV", align: "right", hideOnMobile: true, render: (c) => soles(c.igv) },
-    { key: "total", header: "Total", align: "right", render: (c) => <div><p className="font-semibold">{soles(c.total)}</p>{c.saldo > 0 && c.status === "ISSUED" && c.saldo < c.total && <p className="text-[12px] text-muted">Saldo {soles(c.saldo)}</p>}</div> },
-    { key: "status", header: "Pago", render: (c) => <Badge tone={estadoTono(c)} dot>{estadoTexto(c)}</Badge> },
-    { key: "sunat_status", header: "OSE", render: (c) => (c.status === "ISSUED" ? <span className="text-[12.5px]">{c.sunat_status_name}</span> : <span className="text-muted">—</span>) },
+    { key: "customer_name", sortable: true, header: "Empresa", render: (c) => <div><p>{c.tenant_short}</p><p className="text-[12.5px] text-muted">{c.customer_doc_type} {c.customer_doc_number}</p></div> },
+    { key: "issue_date", sortable: true, header: "Emitido", hideOnMobile: true, render: (c) => (c.issue_date ? <div className="text-[12.5px]"><p>{fecha(c.issue_date)}</p>{c.due_date && <p className="text-muted">Vence {fecha(c.due_date)}</p>}</div> : <span className="text-muted">—</span>) },
+    { key: "period_start", sortable: true, header: "Período", hideOnMobile: true, render: (c) => (c.period_start && c.period_end ? <span className="whitespace-nowrap text-[12.5px]">{fecha(c.period_start)} – {fecha(c.period_end)}</span> : c.period ?? "—") },
+    { key: "subtotal", sortable: true, header: "Subtotal", align: "right", hideOnMobile: true, render: (c) => soles(c.subtotal) },
+    { key: "igv", sortable: true, header: "IGV", align: "right", hideOnMobile: true, render: (c) => soles(c.igv) },
+    { key: "total", sortable: true, header: "Total", align: "right", render: (c) => <div><p className="font-semibold">{soles(c.total)}</p>{c.saldo > 0 && c.status === "ISSUED" && c.saldo < c.total && <p className="text-[12px] text-muted">Saldo {soles(c.saldo)}</p>}</div> },
+    { key: "status", sortable: true, header: "Pago", render: (c) => <Badge tone={estadoTono(c)} dot>{estadoTexto(c)}</Badge> },
+    { key: "sunat_status", sortable: true, header: "OSE", render: (c) => (c.status === "ISSUED" ? <span className="text-[12.5px]">{c.sunat_status_name}</span> : <span className="text-muted">—</span>) },
   ];
   const k = datos?.cifras;
 
@@ -122,7 +122,7 @@ export default function Facturacion() {
               options={[{ value: "UNPAID", label: "Por cobrar" }, { value: "PAID", label: "Pagados" }, { value: "CREDITED", label: "Anulados con nota" }]} />
             <Input aria-label="Período" type="month" value={f.period} onChange={(e) => setF({ ...f, period: e.target.value })} />
           </div>
-          <DataTable columns={columnas} rows={datos?.data ?? []} loading={!datos && !error} error={error} onRetry={cargar} onRowClick={(c) => setAbierto(c.id)} pagination={pag.props(datos)}
+          <DataTable {...pag.orden} columns={columnas} rows={datos?.data ?? []} loading={!datos && !error} error={error} onRetry={cargar} onRowClick={(c) => setAbierto(c.id)} pagination={pag.props(datos)}
             empty="No hay comprobantes con estos filtros." />
         </>
       )}
@@ -202,10 +202,10 @@ function VistaPrevia({ corriendo, onCorrer }: { corriendo: boolean; onCorrer: (p
         { key: "tenant_short", header: "Empresa", cardTitle: true },
         { key: "doc_type_name", header: "Tipo" },
         { key: "plan", header: "Plan", hideOnMobile: true },
-        { key: "period_start", header: "Período", hideOnMobile: true, render: (x) => <span className="whitespace-nowrap">{fecha(x.period_start)} – {fecha(x.period_end)}</span> },
+        { key: "period_start", sortable: true, header: "Período", hideOnMobile: true, render: (x) => <span className="whitespace-nowrap">{fecha(x.period_start)} – {fecha(x.period_end)}</span> },
         { key: "lineas", header: "Líneas", hideOnMobile: true, render: (x) => <span className="text-[12.5px]">{x.lineas.join(" · ")}</span> },
-        { key: "subtotal", header: "Subtotal", align: "right", render: (x) => soles(x.subtotal) },
-        { key: "igv", header: "IGV", align: "right", render: (x) => soles(x.igv) },
+        { key: "subtotal", sortable: true, header: "Subtotal", align: "right", render: (x) => soles(x.subtotal) },
+        { key: "igv", sortable: true, header: "IGV", align: "right", render: (x) => soles(x.igv) },
         { key: "total", header: "Total", align: "right", render: (x) => <span className="font-semibold">{soles(x.total)}</span> },
       ]} />
       {p && p.data.length > 0 && <p className="text-right text-[13px] text-ink">Total de la corrida: <b>{soles(p.total)}</b></p>}

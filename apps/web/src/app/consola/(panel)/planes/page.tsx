@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useOrdenLocal } from "@/lib/paginas";
 import { AlertTriangle, Building2, FilePen, Layers, Pencil, Plus, Send, Tag, Trash2 } from "lucide-react";
 import { Alert, Badge, Button, Checkbox, Cifra, DataTable, DetailList, Field, Input, Modal, PageHeader, Select, Textarea, VistaToggle, confirmAction, toast, useVista, type Column, type Tone } from "@/components/ui";
 import { useUsuarioConsola } from "@/components/consola/sesion";
@@ -46,16 +47,20 @@ export default function CatalogoPlanes() {
   const filas = useMemo<Fila[]>(() => (cat?.planes ?? []).flatMap((p) => [p.publicada, p.borrador, ...p.retiradas]
     .filter((v): v is Version => Boolean(v)).map((v) => ({ ...v, plan: p }))), [cat]);
   const publicadas = filas.filter((f) => f.status === "PUBLISHED");
+  const ord = useOrdenLocal(filas.filter((f) => !estado || f.status === estado), {
+    name: (f) => f.name, version: (f) => f.version, status: (f) => f.status_name, price_pen: (f) => f.price_pen, modules: (f) => (f.all_modules ? 999 : f.modules.length),
+    limites: (f) => f.users_max, suscripciones: (f) => f.suscripciones, published_at: (f) => f.published_at, faltan: (f) => f.faltan.length,
+  });
   const columnas: Column<Fila>[] = [
-    { key: "name", header: "Plan", cardTitle: true, render: (f) => <span className="font-semibold text-ink">{f.name}</span> },
-    { key: "version", header: "Versión", align: "right", render: (f) => f.version },
-    { key: "status", header: "Estado", render: (f) => <Badge tone={TONO_ESTADO[f.status] ?? "neutral"} dot>{f.status_name}</Badge> },
-    { key: "price_pen", header: "Precio + IGV", align: "right", render: (f) => (f.price_pen > 0 ? soles(f.price_pen) : <span className="text-muted">Por decidir</span>) },
-    { key: "modules", header: "Módulos", align: "right", render: (f) => (f.all_modules ? "Todos" : f.modules.length) },
-    { key: "limites", header: "Límites", hideOnMobile: true, render: (f) => <span className="text-[12.5px]">{cuantos(f.users_max, "usuario")} · {cuantos(f.brands_max, "marca")} · {cuantos(f.sites_max, "local", "locales")}</span> },
-    { key: "suscripciones", header: "Suscripciones", align: "right", render: (f) => f.suscripciones },
-    { key: "published_at", header: "Publicado", hideOnMobile: true, render: (f) => (f.published_at ? fecha(f.published_at) : <span className="text-muted">—</span>) },
-    { key: "faltan", header: "Dependencias", hideOnMobile: true, render: (f) => (f.faltan.length ? <Badge tone="warn">Faltan {f.faltan.length}</Badge> : <span className="text-muted">Completas</span>) },
+    { key: "name", sortable: true, header: "Plan", cardTitle: true, render: (f) => <span className="font-semibold text-ink">{f.name}</span> },
+    { key: "version", sortable: true, header: "Versión", align: "right", render: (f) => f.version },
+    { key: "status", sortable: true, header: "Estado", render: (f) => <Badge tone={TONO_ESTADO[f.status] ?? "neutral"} dot>{f.status_name}</Badge> },
+    { key: "price_pen", sortable: true, header: "Precio + IGV", align: "right", render: (f) => (f.price_pen > 0 ? soles(f.price_pen) : <span className="text-muted">Por decidir</span>) },
+    { key: "modules", sortable: true, header: "Módulos", align: "right", render: (f) => (f.all_modules ? "Todos" : f.modules.length) },
+    { key: "limites", sortable: true, header: "Límites", hideOnMobile: true, render: (f) => <span className="text-[12.5px]">{cuantos(f.users_max, "usuario")} · {cuantos(f.brands_max, "marca")} · {cuantos(f.sites_max, "local", "locales")}</span> },
+    { key: "suscripciones", sortable: true, header: "Suscripciones", align: "right", render: (f) => f.suscripciones },
+    { key: "published_at", sortable: true, header: "Publicado", hideOnMobile: true, render: (f) => (f.published_at ? fecha(f.published_at) : <span className="text-muted">—</span>) },
+    { key: "faltan", sortable: true, header: "Dependencias", hideOnMobile: true, render: (f) => (f.faltan.length ? <Badge tone="warn">Faltan {f.faltan.length}</Badge> : <span className="text-muted">Completas</span>) },
   ];
 
   const cargar = () => apiConsola<Catalogo>("/planes").then((c) => { setCat(c); setError(""); }).catch((e) => setError(mensajeDe(e)));
@@ -130,7 +135,7 @@ export default function CatalogoPlanes() {
         <VistaToggle value={vista} onChange={setVista} />
       </div>
       {vista === "tabla" && (
-        <DataTable columns={columnas} rows={filas.filter((f) => !estado || f.status === estado)} rowKey={(f) => f.id} loading={!cat && !error}
+        <DataTable {...ord.orden} columns={columnas} rows={ord.filas} rowKey={(f) => f.id} loading={!cat && !error}
           onRowClick={setVisto} empty="No hay versiones con ese estado." />
       )}
 
@@ -233,7 +238,7 @@ function DetalleVersion({ f, modulos, puede, onClose, onEditar, onPublicar, onNu
         <div className="grid gap-2">
           <p className="text-[13px] font-semibold text-ink">Módulos ({filas.length})</p>
           <DataTable rows={filas} rowKey={(m) => m.code} columns={[
-            { key: "name", header: "Módulo", cardTitle: true, render: (m) => m.name },
+            { key: "name", sortable: true, header: "Módulo", cardTitle: true, render: (m) => m.name },
             { key: "is_core", header: "Incluido", render: (m) => <Badge tone={m.is_core ? "neutral" : "ok"}>{m.is_core ? "Núcleo" : "Plan"}</Badge> },
             { key: "depends_on", header: "Depende de", render: (m) => (m.depends_on.length
               ? <span className="text-[12.5px]">{m.depends_on.map((d) => (incluidos.has(d) ? nombre(d) : `${nombre(d)} (falta)`)).join(", ")}</span>

@@ -52,19 +52,19 @@ export default function Cobros() {
   }, [tab, pagEventos.qs, pagAbonos.qs]);
 
   const columnas: Column<Cobro>[] = [
-    { key: "created_at", header: "Fecha", hideOnMobile: true, render: (c) => <span className="whitespace-nowrap text-[12.5px]">{fechaHora(c.created_at)}</span> },
-    { key: "tenant_short", header: "Empresa", render: (c) => c.tenant_short },
-    { key: "invoice_number", header: "Comprobante", cardTitle: true, render: (c) => <span className="font-mono text-[12.5px] font-semibold text-ink">{c.invoice_number}</span> },
-    { key: "attempt_no", header: "Intento", align: "right", hideOnMobile: true, render: (c) => c.attempt_no },
-    { key: "origin_name", header: "Origen", hideOnMobile: true, render: (c) => c.origin_name },
-    { key: "amount", header: "Monto", align: "right", render: (c) => soles(c.amount) },
-    { key: "status", header: "Resultado", render: (c) => <Badge tone={TONO[c.status]} dot>{c.status_name}</Badge> },
-    { key: "error", header: "Motivo", render: (c) => (c.error ? <span className="text-[12.5px] text-bad">{c.error}</span> : <span className="text-muted">—</span>) },
-    { key: "gateway_ref", header: "Pasarela y referencia", hideOnMobile: true, render: (c) => (
+    { key: "created_at", sortable: true, header: "Fecha", hideOnMobile: true, render: (c) => <span className="whitespace-nowrap text-[12.5px]">{fechaHora(c.created_at)}</span> },
+    { key: "tenant_short", sortable: true, header: "Empresa", render: (c) => c.tenant_short },
+    { key: "invoice_number", sortable: true, header: "Comprobante", cardTitle: true, render: (c) => <span className="font-mono text-[12.5px] font-semibold text-ink">{c.invoice_number}</span> },
+    { key: "attempt_no", sortable: true, header: "Intento", align: "right", hideOnMobile: true, render: (c) => c.attempt_no },
+    { key: "origin_name", sortable: true, header: "Origen", hideOnMobile: true, render: (c) => c.origin_name },
+    { key: "amount", sortable: true, header: "Monto", align: "right", render: (c) => soles(c.amount) },
+    { key: "status", sortable: true, header: "Resultado", render: (c) => <Badge tone={TONO[c.status]} dot>{c.status_name}</Badge> },
+    { key: "error", sortable: true, header: "Motivo", render: (c) => (c.error ? <span className="text-[12.5px] text-bad">{c.error}</span> : <span className="text-muted">—</span>) },
+    { key: "gateway_ref", sortable: true, header: "Pasarela y referencia", hideOnMobile: true, render: (c) => (
       <div className="text-[12.5px]"><p>{c.gateway === "FAKE" ? "Pasarela de prueba" : c.gateway} · {c.tarjeta ?? "—"}</p><p className="font-mono text-muted">{c.gateway_ref}</p>
         {c.raw_event ? <button type="button" className="cursor-pointer text-primary hover:underline" onClick={(e) => { e.stopPropagation(); setCrudo(c.raw_event); }}>Ver aviso</button> : null}</div>
     ) },
-    { key: "settlement_reference", header: "Conciliado", render: (c) => (c.status !== "APPROVED" ? <span className="text-muted">—</span>
+    { key: "settlement_reference", sortable: true, header: "Conciliado", render: (c) => (c.status !== "APPROVED" ? <span className="text-muted">—</span>
       : c.settlement_reference ? <div className="grid gap-0.5"><Badge tone="ok">Sí</Badge><span className="text-[12px] text-muted">Abono {c.settlement_reference}</span></div>
       : <Badge tone="warn">Pendiente</Badge>) },
   ];
@@ -93,7 +93,7 @@ export default function Cobros() {
             <Select aria-label="Conciliación" value={f.conciliado} onChange={(e) => setF({ ...f, conciliado: e.target.value })} placeholder="Conciliados o no"
               options={[{ value: "0", label: "Aprobados sin conciliar" }, { value: "1", label: "Conciliados" }]} />
           </div>
-          <DataTable columns={columnas} rows={datos?.data ?? []} loading={!datos && !error} error={error} onRetry={cargar} empty="No hay cobros con estos filtros." pagination={pag.props(datos)}
+          <DataTable {...pag.orden} columns={columnas} rows={datos?.data ?? []} loading={!datos && !error} error={error} onRetry={cargar} empty="No hay cobros con estos filtros." pagination={pag.props(datos)}
             selection={puede ? { selected: marcados, onChange: setMarcados, canSelect: (c) => c.status === "APPROVED" && !c.settlement_reference,
               actions: <Button size="sm" variant="primary" icon={Landmark} onClick={() => setConciliar({ ids: elegidos.map((c) => c.id), bruto: elegidos.reduce((s, c) => s + c.amount, 0) })}>Conciliar con un abono</Button> } : undefined} />
           {(datos?.por_dia.length ?? 0) > 0 && (
@@ -116,19 +116,19 @@ export default function Cobros() {
         </>
       )}
       {tab === "eventos" && (
-        <DataTable rows={eventos?.data ?? []} rowKey={(e) => String(e.id)} loading={!eventos} empty="Todavía no llegaron avisos." pagination={pagEventos.props(eventos)} columns={[
-          { key: "signature_ok", header: "Firma", render: (e) => <Badge tone={e.signature_ok ? "ok" : "bad"}>{e.signature_ok ? "Válida" : "Inválida"}</Badge> },
-          { key: "result", header: "Resultado", cardTitle: true, render: (e) => <span className="text-ink">{e.result}</span> },
-          { key: "received_at", header: "Llegó", hideOnMobile: true, render: (e) => <div className="text-[12.5px]"><p>{fechaHora(e.received_at)}</p><p className="text-muted">{e.event_id}</p></div> },
+        <DataTable {...pagEventos.orden} rows={eventos?.data ?? []} rowKey={(e) => String(e.id)} loading={!eventos} empty="Todavía no llegaron avisos." pagination={pagEventos.props(eventos)} columns={[
+          { key: "signature_ok", sortable: true, header: "Firma", render: (e) => <Badge tone={e.signature_ok ? "ok" : "bad"}>{e.signature_ok ? "Válida" : "Inválida"}</Badge> },
+          { key: "result", sortable: true, header: "Resultado", cardTitle: true, render: (e) => <span className="text-ink">{e.result}</span> },
+          { key: "received_at", sortable: true, header: "Llegó", hideOnMobile: true, render: (e) => <div className="text-[12.5px]"><p>{fechaHora(e.received_at)}</p><p className="text-muted">{e.event_id}</p></div> },
           { key: "ver", header: "", align: "right", render: (e) => <button type="button" className="cursor-pointer text-[12.5px] text-primary hover:underline" onClick={() => setCrudo(e.payload)}>Ver aviso</button> },
         ]} />
       )}
       {tab === "abonos" && (
-        <DataTable rows={abonos?.data ?? []} loading={!abonos} empty="Todavía no hay abonos conciliados." pagination={pagAbonos.props(abonos)} columns={[
-          { key: "reference", header: "Abono", cardTitle: true, render: (a) => <div><p className="font-semibold text-ink">{a.reference}</p><p className="text-[12.5px] text-muted">{fecha(a.settled_on)}</p></div> },
-          { key: "gross", header: "Cobrado", align: "right", render: (a) => soles(a.gross) },
-          { key: "amount", header: "Abonado", align: "right", render: (a) => soles(a.amount) },
-          { key: "fee", header: "Comisión", align: "right", render: (a) => soles(a.fee) },
+        <DataTable {...pagAbonos.orden} rows={abonos?.data ?? []} loading={!abonos} empty="Todavía no hay abonos conciliados." pagination={pagAbonos.props(abonos)} columns={[
+          { key: "reference", sortable: true, header: "Abono", cardTitle: true, render: (a) => <div><p className="font-semibold text-ink">{a.reference}</p><p className="text-[12.5px] text-muted">{fecha(a.settled_on)}</p></div> },
+          { key: "gross", sortable: true, header: "Cobrado", align: "right", render: (a) => soles(a.gross) },
+          { key: "amount", sortable: true, header: "Abonado", align: "right", render: (a) => soles(a.amount) },
+          { key: "fee", sortable: true, header: "Comisión", align: "right", render: (a) => soles(a.fee) },
         ]} />
       )}
       {conciliar && <Conciliar sel={conciliar} onClose={() => setConciliar(null)} onListo={() => { setConciliar(null); setMarcados([]); cargar(); }} />}

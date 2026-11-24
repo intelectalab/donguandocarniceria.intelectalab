@@ -40,6 +40,8 @@ final class Incidentes
                 ->orWhereExists(fn ($x) => $x->from('platform_incident_tenants as it')->whereColumn('it.incident_id', 'i.id')->where('it.tenant_id', $f['tenant'])));
         }
         $q->orderByRaw("i.status = 'RESOLVED'")->orderBy('i.severity')->orderByDesc('i.started_at')->orderBy('i.id');
+        Paginas::ordenar($q, ['title' => 'i.title', 'severity' => 'i.severity', 'component_name' => 'c.name', 'status' => 'i.status', 'started_at' => 'i.started_at',
+            'duracion_min' => 'coalesce(i.resolved_at, now()) - i.started_at', 'empresas' => 'i.affects_all', 'aviso' => 'i.customers_notified_at - i.started_at'], 'i.id', $f);
         $pagina = Paginas::de($q, fn ($i) => $i, $f);
         $ids = array_column($pagina['data'], 'id');
         $afectadas = DB::table('platform_incident_tenants')->whereIn('incident_id', $ids)->selectRaw('incident_id, count(*) AS n')->groupBy('incident_id')->pluck('n', 'incident_id');

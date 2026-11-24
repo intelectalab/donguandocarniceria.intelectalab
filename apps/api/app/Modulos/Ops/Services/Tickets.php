@@ -135,6 +135,8 @@ final class Tickets
         $q->orderByRaw("k.status IN ('RESOLVED','CLOSED')")
             ->orderByRaw("CASE k.priority WHEN 'URGENT' THEN 0 WHEN 'HIGH' THEN 1 WHEN 'NORMAL' THEN 2 ELSE 3 END")
             ->orderBy('k.first_response_due_at')->orderBy('k.id');
+        Paginas::ordenar($q, ['subject' => 'k.subject', 'number' => 'k.number', 'tenant_short' => 't.short', 'status' => 'k.status', 'assigned_name' => 'p.full_name',
+            'opened_at' => 'k.opened_at', 'priority' => "CASE k.priority WHEN 'URGENT' THEN 0 WHEN 'HIGH' THEN 1 WHEN 'NORMAL' THEN 2 ELSE 3 END"], 'k.id', $f);
 
         return Paginas::de($q, fn ($t) => self::fila($t), $f) + [
             'cifras' => ['abiertos' => (int) $c->abiertos, 'sin_respuesta' => (int) $c->sin_respuesta, 'vencidos' => (int) $c->vencidos, 'sin_asignar' => (int) $c->sin_asignar],

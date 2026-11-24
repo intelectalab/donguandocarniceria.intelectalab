@@ -64,16 +64,16 @@ function Contenido() {
   const ver = (id: string | null) => router.replace(id ? `/consola/incidentes?incidente=${id}` : "/consola/incidentes", { scroll: false });
 
   const columnas: Column<Incidente>[] = [
-    { key: "title", header: "Incidente", cardTitle: true, render: (i) => (
+    { key: "title", sortable: true, header: "Incidente", cardTitle: true, render: (i) => (
       <div><p className="font-semibold text-ink">{i.title}</p><p className="text-[12.5px] text-muted">{i.number}{i.source === "AUTO" ? " · abierto por la lectura de salud" : ""}</p></div>
     ) },
-    { key: "severity", header: "Severidad", render: (i) => <Badge tone={TONO_SEV[i.severity]}>{i.severity_name}</Badge> },
-    { key: "component_name", header: "Componente", hideOnMobile: true, render: (i) => i.component_name ?? <span className="text-muted">—</span> },
-    { key: "status", header: "Estado", render: (i) => <div className="grid gap-0.5"><StatusBadge status={i.status} labels={ESTADOS} /><PlazoAviso a={i.aviso} /></div> },
-    { key: "started_at", header: "Inicio", hideOnMobile: true, render: (i) => <span className="whitespace-nowrap">{fechaHora(i.started_at)}</span> },
-    { key: "duracion_min", header: "Duración", render: (i) => (i.resolved_at ? duracion(i.duracion_min) : <span>{duracion(i.duracion_min)} <span className="text-muted">· en curso</span></span>) },
-    { key: "empresas", header: "Empresas", align: "right", render: (i) => (i.affects_all ? "Todas" : String(i.empresas)) },
-    { key: "aviso", header: "Aviso", align: "right", hideOnMobile: true, render: (i) => { const m = minutosAviso(i); return m === null ? <span className="text-muted">—</span> : `${m} min`; } },
+    { key: "severity", sortable: true, header: "Severidad", render: (i) => <Badge tone={TONO_SEV[i.severity]}>{i.severity_name}</Badge> },
+    { key: "component_name", sortable: true, header: "Componente", hideOnMobile: true, render: (i) => i.component_name ?? <span className="text-muted">—</span> },
+    { key: "status", sortable: true, header: "Estado", render: (i) => <div className="grid gap-0.5"><StatusBadge status={i.status} labels={ESTADOS} /><PlazoAviso a={i.aviso} /></div> },
+    { key: "started_at", sortable: true, header: "Inicio", hideOnMobile: true, render: (i) => <span className="whitespace-nowrap">{fechaHora(i.started_at)}</span> },
+    { key: "duracion_min", sortable: true, header: "Duración", render: (i) => (i.resolved_at ? duracion(i.duracion_min) : <span>{duracion(i.duracion_min)} <span className="text-muted">· en curso</span></span>) },
+    { key: "empresas", sortable: true, header: "Empresas", align: "right", render: (i) => (i.affects_all ? "Todas" : String(i.empresas)) },
+    { key: "aviso", sortable: true, header: "Aviso", align: "right", hideOnMobile: true, render: (i) => { const m = minutosAviso(i); return m === null ? <span className="text-muted">—</span> : `${m} min`; } },
   ];
   const c = lista?.cifras;
 
@@ -95,7 +95,7 @@ function Contenido() {
         <Select aria-label="Severidad" value={f.severity} onChange={(e) => setF({ ...f, severity: e.target.value })} placeholder="Toda severidad"
           options={Object.entries(lista?.severidades ?? {}).map(([value, label]) => ({ value, label }))} />
       </div>
-      <DataTable columns={columnas} rows={lista?.data ?? []} loading={!lista && !error} error={error} onRetry={cargar} onRowClick={(i) => ver(i.id)} pagination={pag.props(lista)}
+      <DataTable {...pag.orden} columns={columnas} rows={lista?.data ?? []} loading={!lista && !error} error={error} onRetry={cargar} onRowClick={(i) => ver(i.id)} pagination={pag.props(lista)}
         empty="No hay incidentes con estos filtros." />
       {nuevo && lista && <FormIncidente lista={lista} onClose={() => setNuevo(false)} onListo={(i) => { setNuevo(false); cargar(); ver(i.id); }} />}
       {abierto && lista && <DetalleIncidente key={abierto} id={abierto} lista={lista} onClose={() => ver(null)} onCambio={cargar} />}

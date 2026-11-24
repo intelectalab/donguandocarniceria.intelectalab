@@ -6,6 +6,7 @@ import { Badge, Button, DataTable, Field, IconButton, Input, Modal, PageHeader, 
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { erroresDe, mensajeDe } from "@/lib/api";
 import { apiConsola } from "@/lib/consola";
+import { useOrdenLocal } from "@/lib/paginas";
 import { fechaHora } from "@/lib/formato";
 
 type Usuario = {
@@ -67,23 +68,25 @@ export default function UsuariosPlataforma() {
     }
   }
 
+  const ord = useOrdenLocal(datos?.data ?? [], { full_name: (u) => u.full_name, role_name: (u) => u.role_name, status: (u) => u.status_name,
+    last_login_at: (u) => u.last_login_at, sesiones: (u) => u.sesiones });
   const columnas: Column<Usuario>[] = [
-    { key: "full_name", header: "Usuario", render: (u) => (
+    { key: "full_name", sortable: true, header: "Usuario", render: (u) => (
       <div className="min-w-0">
         <p className="font-semibold text-ink">{u.full_name}{u.id === yo.id && <span className="ml-1.5 text-[12px] font-normal text-muted">(tú)</span>}</p>
         <p className="text-[12.5px] text-muted">{u.email}</p>
       </div>
     ) },
-    { key: "role_name", header: "Rol" },
-    { key: "status", header: "Estado", render: (u) => (
+    { key: "role_name", sortable: true, header: "Rol" },
+    { key: "status", sortable: true, header: "Estado", render: (u) => (
       <div className="grid gap-0.5">
         <StatusBadge status={u.status} labels={ESTADOS} />
         {u.disabled_reason && <span className="text-[12px] text-muted">{u.disabled_reason}</span>}
       </div>
     ) },
     { key: "twofa", header: "Segundo factor", render: (u) => u.twofa_enabled_at ? <Badge tone="ok">Configurado</Badge> : <Badge tone="warn">Pendiente</Badge> },
-    { key: "last_login_at", header: "Último ingreso", hideOnMobile: true, render: (u) => u.last_login_at ? fechaHora(u.last_login_at) : "Nunca" },
-    { key: "sesiones", header: "Sesiones abiertas", align: "right", hideOnMobile: true },
+    { key: "last_login_at", sortable: true, header: "Último ingreso", hideOnMobile: true, render: (u) => u.last_login_at ? fechaHora(u.last_login_at) : "Nunca" },
+    { key: "sesiones", sortable: true, header: "Sesiones abiertas", align: "right", hideOnMobile: true },
     ...(puede ? [{ key: "acciones", header: "Acciones", align: "right" as const, hideInCard: false, render: (u: Usuario) => u.id === yo.id ? <span className="text-[12px] text-muted">—</span> : (
       <div className="flex justify-end gap-0.5">
         <IconButton icon={Pencil} label="Editar nombre o rol" onClick={() => setEditando(u)} />
@@ -104,7 +107,7 @@ export default function UsuariosPlataforma() {
       {!puede && datos && (
         <p className="flex items-center gap-2 text-[13px] text-muted"><KeyRound size={14} /> Solo un administrador de plataforma crea o cambia cuentas. Tú puedes consultarlas.</p>
       )}
-      <DataTable columns={columnas} rows={datos?.data ?? []} loading={!datos && !error} error={error} onRetry={cargar} empty="Aún no hay usuarios de plataforma." />
+      <DataTable {...ord.orden} columns={columnas} rows={ord.filas} loading={!datos && !error} error={error} onRetry={cargar} empty="Aún no hay usuarios de plataforma." />
       {editando && datos && (
         <FormularioUsuario usuario={editando === "nuevo" ? null : editando} roles={datos.roles} dominios={datos.dominios}
           onClose={() => setEditando(null)} onGuardado={() => { setEditando(null); cargar(); }} />

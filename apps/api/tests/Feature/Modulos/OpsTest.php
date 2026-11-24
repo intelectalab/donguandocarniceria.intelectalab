@@ -451,6 +451,20 @@ class OpsTest extends TestCase
         $this->assertSame(0, $c['rechazados']);
         $this->consola()->postJson('/api/v1/consola/ingreso', ['email' => 'nadie@intelectalab.com', 'password' => 'Incorrecta-2026', 'codigo' => '000000']);
         $this->assertSame(1, $this->consola($token)->getJson('/api/v1/consola/bitacora')->json('cifras.rechazados'), 'Un ingreso fallido cuenta como rechazado');
+
+        // Orden por columna en el servidor: ?sort=campo o -campo; un campo que no está en la lista se ignora (no llega al SQL).
+        $asc = array_column($this->consola($token)->getJson('/api/v1/consola/bitacora?sort=occurred_at&per_page=100')->json('data'), 'occurred_at');
+        $desc = array_column($this->consola($token)->getJson('/api/v1/consola/bitacora?sort=-occurred_at&per_page=100')->json('data'), 'occurred_at');
+        $esperado = $asc;
+        sort($esperado);
+        $this->assertSame($esperado, $asc);
+        $this->assertSame(array_reverse($esperado), $desc);
+        $nombres = array_column($this->consola($token)->getJson('/api/v1/consola/bitacora?sort=actor_name&per_page=100')->json('data'), 'actor_name');
+        $ordenados = $nombres;
+        usort($ordenados, fn ($x, $y) => strcmp(mb_strtolower($x), mb_strtolower($y)));
+        $this->assertSame(array_map('mb_strtolower', $ordenados), array_map('mb_strtolower', $nombres));
+        $this->consola($token)->getJson('/api/v1/consola/bitacora?sort=occurred_at;DROP%20TABLE%20tenants')->assertOk();
+        $this->assertSame($desc, array_column($this->consola($token)->getJson('/api/v1/consola/bitacora?sort=password&per_page=100')->json('data'), 'occurred_at'), 'Sin orden válido queda el de siempre (lo más nuevo primero)');
     }
 
     public function test_parametros_de_plataforma_con_motivo_historial_y_reglas(): void
@@ -1378,6 +1392,8 @@ class OpsTest extends TestCase
         $dic = collect($this->consola($token)->getJson('/api/v1/consola/metricas')->json('meses'))->last();
         $this->assertSame(['2026-12', 50.0, 33.26, 66.74, 299, 1], [$dic['period'], (float) $dic['churn_clientes'], (float) $dic['churn_mrr'], (float) $dic['retencion_neta'],
             (int) $dic['mrr'], $dic['clientes_activos']]);
+        // Movimiento del MRR: 448 al inicio, se cancelan 149, sin nuevos ni cambios de plan; cierra en 299.
+        $this->assertEquals([448, 0, 0, 0, 149], [$dic['mrr_inicio'], $dic['mrr_nuevo'], $dic['mrr_expansion'], $dic['mrr_contraccion'], $dic['mrr_cancelado']]);
 
         // RN-OPS-17: noviembre se congela; recalcular pide motivo y crea otra corrida; el mes en curso no se congela.
         [, $l1] = $this->cuenta($token, 'luis.soporte@intelectalab.com', 'SUPPORT_L1');

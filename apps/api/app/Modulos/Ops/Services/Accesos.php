@@ -147,6 +147,8 @@ final class Accesos
             $q->where('a.tenant_id', $f['tenant']);
         }
         $q->orderByRaw("CASE a.status WHEN 'ACTIVE' THEN 0 WHEN 'PENDING' THEN 1 ELSE 2 END")->orderByDesc('a.created_at')->orderBy('a.id');
+        Paginas::ordenar($q, ['tenant_short' => 't.short', 'platform_user_name' => 'a.platform_user_name', 'level' => 'a.level', 'status' => 'a.status',
+            'expires_at' => 'a.expires_at', 'created_at' => 'a.created_at'], 'a.id', $f);
 
         return Paginas::de($q, fn ($a) => self::presentar($a), $f);
     }

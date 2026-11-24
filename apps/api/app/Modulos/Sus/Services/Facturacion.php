@@ -240,6 +240,8 @@ final class Facturacion
             }
         }
         $q->orderByRaw("f.status = 'DRAFT' DESC")->orderByDesc('f.issue_date')->orderByDesc('f.created_at')->orderBy('f.id');
+        Paginas::ordenar($q, ['number' => 'f.number', 'customer_name' => 't.short', 'issue_date' => 'f.issue_date', 'period_start' => 'f.period_start',
+            'subtotal' => 'f.subtotal', 'igv' => 'f.igv', 'total' => 'f.total', 'status' => 'f.payment_status', 'sunat_status' => 'f.sunat_status'], 'f.id', $f);
         $pagina = Paginas::de($q, fn ($x) => $x, $f);
         $saldos = self::saldos(array_column($pagina['data'], 'id'));
         $pagina['data'] = array_map(fn ($x) => self::presentar($x, $saldos[$x->id] ?? null), $pagina['data']);

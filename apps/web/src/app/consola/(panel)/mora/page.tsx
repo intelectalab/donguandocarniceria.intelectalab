@@ -75,17 +75,17 @@ export default function Mora() {
   const c = filas?.cifras;
   const u = filas?.ultima_corrida;
   const columnas: Column<Fila>[] = [
-    { key: "tenant_short", header: "Empresa", cardTitle: true, render: (f) => <div><p className="font-semibold text-ink">{f.tenant_short}</p><p className="text-[12.5px] text-muted">{f.medio_pago ?? "Sin medio de pago"}</p></div> },
-    { key: "plan_code", header: "Plan", hideOnMobile: true, render: (f) => plan(f.plan_code) },
-    { key: "status", header: "Estado", render: (f) => <Badge tone={TONO[f.status] ?? "neutral"} dot>{f.status_name}</Badge> },
-    { key: "factura_numero", header: "Comprobante", render: (f) => (
+    { key: "tenant_short", sortable: true, header: "Empresa", cardTitle: true, render: (f) => <div><p className="font-semibold text-ink">{f.tenant_short}</p><p className="text-[12.5px] text-muted">{f.medio_pago ?? "Sin medio de pago"}</p></div> },
+    { key: "plan_code", sortable: true, header: "Plan", hideOnMobile: true, render: (f) => plan(f.plan_code) },
+    { key: "status", sortable: true, header: "Estado", render: (f) => <Badge tone={TONO[f.status] ?? "neutral"} dot>{f.status_name}</Badge> },
+    { key: "factura_numero", sortable: true, header: "Comprobante", render: (f) => (
       <div><p className="font-mono text-[12.5px]">{f.factura_numero ?? "—"}</p>{f.comprobantes > 1 && <p className="text-[12px] text-muted">y {f.comprobantes - 1} más</p>}</div>
     ) },
-    { key: "deuda", header: "Deuda", align: "right", render: (f) => <span className="font-semibold">{soles(f.deuda)}</span> },
-    { key: "dias", header: "Días de mora", align: "right", render: (f) => (
+    { key: "deuda", sortable: true, header: "Deuda", align: "right", render: (f) => <span className="font-semibold">{soles(f.deuda)}</span> },
+    { key: "dias", sortable: true, header: "Días de mora", align: "right", render: (f) => (
       <div><p className="font-semibold">{f.dias}</p><p className="text-[12px] text-muted">{f.dias > 0 ? `venció ${fecha(f.vence)}` : `vence ${fecha(f.vence)}`}</p></div>
     ) },
-    { key: "proximo_reintento", header: "Próximo reintento", hideOnMobile: true, render: (f) => (f.proximo_reintento ? fecha(f.proximo_reintento) : <span className="text-muted">Sin reintentos</span>) },
+    { key: "proximo_reintento", sortable: true, header: "Próximo reintento", hideOnMobile: true, render: (f) => (f.proximo_reintento ? fecha(f.proximo_reintento) : <span className="text-muted">Sin reintentos</span>) },
     { key: "proximo", header: "Paso previsto", hideOnMobile: true, render: (f) => (
       <div className="grid gap-0.5 text-[12.5px]">
         {f.grace_until && <span>Prórroga hasta {fecha(f.grace_until)}</span>}
@@ -130,7 +130,7 @@ export default function Mora() {
         </div>
         {puede && <Button variant="primary" icon={Play} loading={corriendo} onClick={procesar}>Ejecutar reintentos y cambios de estado</Button>}
       </section>
-      <DataTable columns={columnas} rows={filas?.data ?? []} rowKey={(f) => f.subscription_id} loading={!filas && !error} error={error} onRetry={cargar} pagination={pag.props(filas)}
+      <DataTable {...pag.orden} columns={columnas} rows={filas?.data ?? []} rowKey={(f) => f.subscription_id} loading={!filas && !error} error={error} onRetry={cargar} pagination={pag.props(filas)}
         empty="Ninguna empresa debe comprobantes." />
       {prorroga && <Prorroga f={prorroga} onClose={() => setProrroga(null)} onListo={() => { setProrroga(null); cargar(); }} />}
     </div>

@@ -53,14 +53,14 @@ PLT, SEG, MAE, INT y AUD son de cada empresa, pero algunas pantallas tocan datos
 - **Bitácora de accesos** (`access_log`, AUD-03) y **despacho del outbox** de eventos (INT-06).
 
 ## 4. Consola: lo que falta del prototipo 2.5
-*Anotado el 24/11/2026.* Ella pidió conservar el diseño actual y agregar lo que el prototipo muestra. Ya hechas: Bitácora, Salud, Incidentes, Mora, Cobros y conciliación, Facturación, Catálogo de planes, Suscripciones, Empresas y Ficha de empresa (24/11).
+*Anotado el 24/11/2026.* Ella pidió conservar el diseño actual y agregar lo que el prototipo muestra. Ya hechas: Bitácora, Salud, Incidentes, Mora, Cobros y conciliación, Facturación, Catálogo de planes, Suscripciones, Empresas, Ficha de empresa, Registros y demos y Métricas (24/11). Todas las listas se ordenan por columna.
 
 | Pantalla | Lo que falta |
 |---|---|
 | Empresas | Columna de integraciones (cuando existan) |
 | Ficha de empresa | Volumen mensual de pedidos y mensajes (no se mide todavía); sumar OSE y WhatsApp a la salud cuando existan |
-| Registros y demos | Cifras por estado, gráficos por rubro y por origen, filtros (estado, rubro, origen), columnas de origen y motivo de rechazo. *Por decidir:* tabla de altas en curso |
-| Métricas | Gráfico de clientes activos por mes, movimiento del MRR, lista de corridas congeladas. *Por decidir:* volumen por empresa |
+| Registros y demos | Tabla de altas en curso y tiempo de alta (falta guardar el avance del asistente de alta) |
+| Métricas | Volumen por empresa (pedidos y mensajes del mes; no se mide todavía) |
 | Anuncios | Filtros por estado y tipo, panel de detalle. *Por decidir:* lecturas (no se registran) |
 | Tickets | Cifra de la mediana de primera respuesta del mes |
 | Complementos | Filtro por estado, columna de forma de cobro |

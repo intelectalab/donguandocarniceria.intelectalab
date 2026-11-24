@@ -1150,3 +1150,40 @@ Ella eligió calcularla ya con lo que el sistema mide; el OSE y WhatsApp se suma
 La lista de permisos que recibe la pantalla de la consola se arma con todas las acciones de `Consola` (`Consola::acciones()`). Antes era una lista escrita a mano, y un permiso nuevo no aparecía.
 
 Prueba nueva `test_salud_de_empresas_con_niveles_fotos_diarias_y_cortes`. En total el sistema tiene 362 pruebas, todas correctas.
+
+# Registros y demos y Métricas con lo del prototipo; orden por columna en toda la consola (24/11)
+
+## Registros y demos
+
+- **Cifras:** por verificar, empresas creadas, rechazados, vencidos y demos por atender.
+- **Gráficos** «Registros por rubro» y «Registros por origen», en barras.
+- **Filtros** por estado, rubro y origen.
+- **Columnas nuevas:** origen y motivo del rechazo.
+- **No se agregó:** la tabla «Altas en curso» y el «Tiempo de alta». El sistema todavía no guarda el avance del asistente de alta de cada empresa.
+
+## Métricas del negocio
+
+- **Cifras nuevas:**
+  - tiempo de alta, que sigue sin datos hasta el primer comprobante aceptado;
+  - tickets por cliente;
+  - primera respuesta;
+  - disponibilidad promedio;
+  - resolución;
+  - horas de acceso de soporte.
+- **Gráfico nuevo** «Clientes activos por mes», junto al del MRR.
+- **Tarjeta «Movimiento del MRR»:** al inicio, clientes nuevos, expansión, contracción, cancelaciones, al cierre y retención neta. La API agrega `mrr_nuevo`, `mrr_expansion`, `mrr_contraccion` y `mrr_cancelado`. Los meses congelados antes de este cambio muestran «—» hasta recalcularlos.
+- **Lista de métricas congeladas:** cada corrida con quién, cuándo y su motivo.
+- **No se agregó:** el volumen por empresa (pedidos y mensajes del mes). Todavía no se mide.
+
+## Orden por columna
+
+Antes solo se podía ordenar Empresas. Ahora se ordenan todas las listas de la consola: haciendo clic en el encabezado o, en el celular, con el selector «Ordenar».
+
+- **En el servidor** (para que ordene todo y no solo la página visible): Bitácora, Bandeja de tickets, Accesos de soporte, Incidentes, Anuncios, Facturación, Cobros, Avisos de la pasarela, Abonos y Mora.
+  - `App\Support\Paginas::ordenar()` acepta `?sort=campo` o `?sort=-campo`, solo de una lista cerrada por pantalla. Cada campo tiene su columna o expresión SQL fija, así que el valor de la URL nunca llega al SQL.
+  - Los vacíos van al final.
+  - `Paginas::ordenarLista()` hace lo mismo para la cola de Mora.
+- **En el navegador** (listas que ya se cargan completas): Suscripciones, Registros, Pedidos de demo, Catálogo de planes (tabla), Complementos, Usuarios de plataforma y Salud de componentes (tabla). El ayudante nuevo es `useOrdenLocal()` en `lib/paginas.ts`.
+- `usePagina()` lleva también el orden (`pag.orden`) y al cambiarlo vuelve a la primera página.
+
+Prueba: en `test_bitacora_de_la_consola_con_filtros`, el orden ascendente y descendente, por nombre, y que un orden inválido (incluido un intento de inyectar SQL) se ignore. En total el sistema tiene 362 pruebas, todas correctas.

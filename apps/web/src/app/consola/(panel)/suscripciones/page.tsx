@@ -8,7 +8,7 @@ import { AccionesSuscripcion } from "@/components/consola/AccionesSuscripcion";
 import { BarraUso, ESTADOS_SUSCRIPCION, type Uso } from "@/components/consola/empresas";
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { mensajeDe } from "@/lib/api";
-import { usePaginaLocal } from "@/lib/paginas";
+import { useOrdenLocal, usePaginaLocal } from "@/lib/paginas";
 import { apiConsola } from "@/lib/consola";
 import { fecha, fechaHora, porcentaje, soles } from "@/lib/formato";
 
@@ -38,16 +38,20 @@ export default function Suscripciones() {
   useEffect(() => { cargar(); }, []);
   const abrir = (id: string) => apiConsola<Detalle>(`/suscripciones/${id}`).then(setAbierta).catch((e) => setError(mensajeDe(e)));
   const visibles = useMemo(() => (filas ?? []).filter((f) => !estado || f.status === estado), [filas, estado]);
-  const pagina = usePaginaLocal(visibles, estado);
+  const ord = useOrdenLocal(visibles, {
+    short: (s) => s.short, plan_name: (s) => s.plan_name, status: (s) => s.status_name, trial_ends_at: (s) => (s.status === "TRIAL" ? s.trial_ends_at : null),
+    mrr: (s) => s.mrr, users: (s) => s.uso[0]?.usado ?? null, uso_alto: (s) => usoMasAlto(s.uso)?.pct ?? null,
+  });
+  const pagina = usePaginaLocal(ord.filas, `${estado}|${ord.orden.sort}`);
 
   const columnas: Column<Suscripcion>[] = [
-    { key: "short", header: "Empresa", cardTitle: true, render: (s) => <div><p className="font-semibold text-ink">{s.short}</p><p className="text-[12.5px] text-muted">{s.ruc ? `RUC ${s.ruc}` : s.tenant_name}</p></div> },
-    { key: "plan_name", header: "Plan", render: (s) => <>{s.plan_name}{s.version ? <span className="text-muted"> · v{s.version}</span> : null}</> },
-    { key: "status", header: "Estado", render: (s) => <div className="grid gap-0.5"><StatusBadge status={s.status} labels={ESTADOS_SUSCRIPCION} /><span className="text-[12px] text-muted">{s.days_in_status === 0 ? "desde hoy" : `hace ${s.days_in_status} días`}</span></div> },
-    { key: "trial_ends_at", header: "Fin de la prueba", hideOnMobile: true, render: (s) => s.status === "TRIAL" ? fecha(s.trial_ends_at) : "—" },
-    { key: "mrr", header: "MRR", align: "right", render: (s) => <>{s.mrr ? soles(s.mrr) : "—"}{s.discount_pct > 0 && <span className="block text-[12px] text-muted">−{porcentaje(s.discount_pct)}</span>}</> },
-    { key: "users", header: "Usuarios", hideOnMobile: true, render: (s) => s.uso[0] ? <BarraUso uso={s.uso[0]} /> : "—" },
-    { key: "uso_alto", header: "Uso más alto", hideOnMobile: true, render: (s) => { const u = usoMasAlto(s.uso);
+    { key: "short", sortable: true, header: "Empresa", cardTitle: true, render: (s) => <div><p className="font-semibold text-ink">{s.short}</p><p className="text-[12.5px] text-muted">{s.ruc ? `RUC ${s.ruc}` : s.tenant_name}</p></div> },
+    { key: "plan_name", sortable: true, header: "Plan", render: (s) => <>{s.plan_name}{s.version ? <span className="text-muted"> · v{s.version}</span> : null}</> },
+    { key: "status", sortable: true, header: "Estado", render: (s) => <div className="grid gap-0.5"><StatusBadge status={s.status} labels={ESTADOS_SUSCRIPCION} /><span className="text-[12px] text-muted">{s.days_in_status === 0 ? "desde hoy" : `hace ${s.days_in_status} días`}</span></div> },
+    { key: "trial_ends_at", sortable: true, header: "Fin de la prueba", hideOnMobile: true, render: (s) => s.status === "TRIAL" ? fecha(s.trial_ends_at) : "—" },
+    { key: "mrr", sortable: true, header: "MRR", align: "right", render: (s) => <>{s.mrr ? soles(s.mrr) : "—"}{s.discount_pct > 0 && <span className="block text-[12px] text-muted">−{porcentaje(s.discount_pct)}</span>}</> },
+    { key: "users", sortable: true, header: "Usuarios", hideOnMobile: true, render: (s) => s.uso[0] ? <BarraUso uso={s.uso[0]} /> : "—" },
+    { key: "uso_alto", sortable: true, header: "Uso más alto", hideOnMobile: true, render: (s) => { const u = usoMasAlto(s.uso);
       return u ? <span className={`text-[12.5px] ${(u.pct ?? 0) >= 100 ? "font-semibold text-bad" : (u.pct ?? 0) >= 80 ? "text-warn" : ""}`}>{porcentaje(u.pct ?? 0)} de {u.nombre.toLowerCase()}</span> : <span className="text-muted">—</span>; } },
   ];
   const vivas = (filas ?? []).filter((f) => f.status !== "CANCELLED");
@@ -77,7 +81,7 @@ export default function Suscripciones() {
         </div>
         </div>
       )}
-      <DataTable columns={columnas} rows={pagina.filas} pagination={pagina.props} loading={!filas && !error} onRowClick={(s) => abrir(s.id)}
+      <DataTable {...ord.orden} columns={columnas} rows={pagina.filas} pagination={pagina.props} loading={!filas && !error} onRowClick={(s) => abrir(s.id)}
         empty="Aún no hay suscripciones: las empresas que se dan de alta desde la consola aparecen aquí."
         toolbar={<Select value={estado} onChange={(e) => setEstado(e.target.value)} aria-label="Estado"
           options={[{ value: "", label: "Todos los estados" }, ...Object.entries(ESTADOS_SUSCRIPCION).map(([v, [l]]) => ({ value: v, label: l }))]} />} />

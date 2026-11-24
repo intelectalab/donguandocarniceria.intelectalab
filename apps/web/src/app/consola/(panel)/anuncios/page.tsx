@@ -48,15 +48,15 @@ export default function Anuncios() {
   }
 
   const columnas: Column<Anuncio>[] = [
-    { key: "title", header: "Anuncio", cardTitle: true, render: (a) => (
+    { key: "title", sortable: true, header: "Anuncio", cardTitle: true, render: (a) => (
       <div><p className="font-semibold text-ink">{a.title}</p><p className="line-clamp-2 text-[12.5px] text-muted">{a.body}</p></div>
     ) },
-    { key: "kind", header: "Tipo", render: (a) => <Badge tone={TONO_TIPO[a.kind]}>{a.kind_name}{a.incident_number ? ` · ${a.incident_number}` : ""}</Badge> },
-    { key: "audience", header: "Para", hideOnMobile: true, render: (a) => (
+    { key: "kind", sortable: true, header: "Tipo", render: (a) => <Badge tone={TONO_TIPO[a.kind]}>{a.kind_name}{a.incident_number ? ` · ${a.incident_number}` : ""}</Badge> },
+    { key: "audience", sortable: true, header: "Para", hideOnMobile: true, render: (a) => (
       <span>{a.audience === "PLANS" ? `Plan ${a.audience_plans.map((p) => lista?.planes.find((x) => x.code === p)?.name ?? p).join(", ")}`
         : a.audience === "TENANTS" ? `${a.audience_tenants.length} empresa(s)` : a.audience_name}</span>
     ) },
-    { key: "starts_at", header: "Se ve", hideOnMobile: true, render: (a) => (
+    { key: "starts_at", sortable: true, header: "Se ve", hideOnMobile: true, render: (a) => (
       <div className="text-[12.5px]"><p>Desde {fechaHora(a.starts_at)}</p>{a.ends_at && <p className="text-muted">Hasta {fechaHora(a.ends_at)}</p>}
         {a.maintenance_starts_at && <p className="text-warn">Mantenimiento {fechaHora(a.maintenance_starts_at)}</p>}</div>
     ) },
@@ -74,7 +74,7 @@ export default function Anuncios() {
     <div className="grid gap-5">
       <PageHeader description={`Las empresas ven solo los anuncios dirigidos a ellas, como una franja en su sistema mientras dure la ventana. Un mantenimiento se anuncia con al menos ${lista?.aviso_horas ?? 48} horas de anticipación. Los de incidentes se publican desde el incidente.`}
         actions={puede ? <Button variant="primary" icon={Plus} onClick={() => setEditando("nuevo")}>Nuevo anuncio</Button> : undefined} />
-      <DataTable columns={columnas} rows={lista?.data ?? []} loading={!lista && !error} error={error} onRetry={cargar} pagination={pag.props(lista)}
+      <DataTable {...pag.orden} columns={columnas} rows={lista?.data ?? []} loading={!lista && !error} error={error} onRetry={cargar} pagination={pag.props(lista)}
         empty={<span className="inline-flex items-center gap-2"><Megaphone size={16} aria-hidden="true" />Todavía no hay anuncios.</span>} />
       {editando && lista && <FormAnuncio lista={lista} actual={editando === "nuevo" ? undefined : editando} onClose={() => setEditando(null)} onListo={() => { setEditando(null); cargar(); }} />}
     </div>

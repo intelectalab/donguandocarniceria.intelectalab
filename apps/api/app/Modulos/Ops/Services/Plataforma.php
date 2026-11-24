@@ -4,6 +4,7 @@ namespace App\Modulos\Ops\Services;
 
 use App\Modulos\Mae\Services\CatalogosGlobales;
 use App\Modulos\Plt\Services\Ruc;
+use App\Support\Paginas;
 use App\Support\RuleError;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -97,7 +98,9 @@ final class Plataforma
             $q->where(fn ($w) => $w->whereRaw('lower(a.actor_name) LIKE ?', [$texto])->orWhereRaw('lower(a.reason) LIKE ?', [$texto])
                 ->orWhereRaw('lower(t.short) LIKE ?', [$texto])->orWhereRaw('a.ip LIKE ?', [$texto]));
         }
-        $pagina = $q->orderByDesc('a.occurred_at')->paginate(min(100, max(10, (int) ($f['per_page'] ?? 25))));
+        $q->orderByDesc('a.occurred_at')->orderBy('a.id');
+        Paginas::ordenar($q, ['occurred_at' => 'a.occurred_at', 'action_name' => 'a.action', 'actor_name' => 'a.actor_name', 'tenant_short' => 't.short', 'ip' => 'a.ip'], 'a.id', $f);
+        $pagina = $q->paginate(min(100, max(10, (int) ($f['per_page'] ?? 25))));
         // array_merge (no «+»): el detalle viene como texto JSON y debe reemplazarse por su valor.
         // Las filas viejas de la primera cuenta guardaron el nombre del comando: se muestran como «Instalación del servidor».
         $pagina->getCollection()->transform(fn ($r) => array_merge((array) $r, ['action_name' => self::ACCIONES[$r->action] ?? $r->action,

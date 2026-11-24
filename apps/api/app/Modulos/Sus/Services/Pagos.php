@@ -143,7 +143,12 @@ final class Pagos
             $f['conciliado'] ? $q->whereNotNull('p.settlement_id') : $q->whereNull('p.settlement_id')->where('p.status', 'APPROVED');
         }
 
-        return Paginas::de($q->orderByDesc('p.created_at')->orderBy('p.id'), fn ($p) => [
+        $q->orderByDesc('p.created_at')->orderBy('p.id');
+        Paginas::ordenar($q, ['created_at' => 'p.created_at', 'tenant_short' => 't.short', 'invoice_number' => 'f.number', 'attempt_no' => 'attempt_no',
+            'origin_name' => 'p.origin', 'amount' => 'p.amount', 'status' => 'p.status', 'error' => 'p.error', 'gateway_ref' => 'p.gateway_ref',
+            'settlement_reference' => 's.reference'], 'p.id', $f);
+
+        return Paginas::de($q, fn ($p) => [
             'id' => $p->id, 'tenant_short' => $p->tenant_short, 'invoice_id' => $p->invoice_id, 'invoice_number' => $p->invoice_number, 'gateway' => $p->gateway,
             'gateway_ref' => $p->gateway_ref, 'amount' => (float) $p->amount, 'status' => $p->status, 'status_name' => self::ESTADOS[$p->status],
             'origin' => $p->origin, 'origin_name' => self::ORIGENES[$p->origin], 'error' => $p->error, 'tarjeta' => $p->brand ? "{$p->brand} ···· {$p->last4}" : null,
@@ -185,13 +190,15 @@ final class Pagos
 
     public static function eventos(): array
     {
-        return Paginas::de(DB::table('saas_gateway_events')->orderByDesc('received_at')->orderByDesc('id'),
+        return Paginas::de(Paginas::ordenar(DB::table('saas_gateway_events')->orderByDesc('received_at')->orderByDesc('id'),
+            ['signature_ok' => 'signature_ok', 'result' => 'result', 'received_at' => 'received_at'], 'id'),
             fn ($e) => array_merge((array) $e, ['payload' => json_decode($e->payload, true)]));
     }
 
     public static function abonos(): array
     {
-        return Paginas::de(DB::table('saas_settlements')->orderByDesc('settled_on')->orderBy('id'), fn ($a) => $a);
+        return Paginas::de(Paginas::ordenar(DB::table('saas_settlements')->orderByDesc('settled_on')->orderBy('id'),
+            ['reference' => 'reference', 'gross' => 'gross', 'amount' => 'amount', 'fee' => 'fee'], 'id'), fn ($a) => $a);
     }
 
     /* ------------------------------------------------------------------ internos */

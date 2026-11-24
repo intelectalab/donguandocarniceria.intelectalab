@@ -122,7 +122,9 @@ class CobroController extends Controller
     {
         $cola = Mora::cola();
 
-        return response()->json(Paginas::deLista($cola) + ['cifras' => Mora::cifras($cola), 'ultima_corrida' => Mora::ultimaCorrida()]);
+        $ordenada = Paginas::ordenarLista($cola, ['tenant_short', 'plan_code', 'status', 'factura_numero', 'deuda', 'dias', 'proximo_reintento']);
+
+        return response()->json(Paginas::deLista($ordenada) + ['cifras' => Mora::cifras($cola), 'ultima_corrida' => Mora::ultimaCorrida()]);
     }
 
     /** Corre ahora el proceso diario de mora (reintentos y cambios de estado). */

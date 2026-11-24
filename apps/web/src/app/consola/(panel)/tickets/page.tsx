@@ -47,13 +47,13 @@ function Contenido() {
   const opciones = (o: Record<string, string>) => Object.entries(o).map(([value, label]) => ({ value, label }));
 
   const columnas: Column<TicketFila>[] = [
-    { key: "subject", header: "Ticket", cardTitle: true, render: (t) => (
+    { key: "subject", sortable: true, header: "Ticket", cardTitle: true, render: (t) => (
       <div><p className="font-semibold text-ink">{t.subject}</p><p className="text-[12.5px] text-muted">{t.number} · {t.tenant_short} · {t.category_name}</p></div>
     ) },
-    { key: "priority", header: "Prioridad", render: (t) => <PrioridadTicket t={t} /> },
-    { key: "status", header: "Estado", render: (t) => <div className="grid gap-0.5"><EstadoTicket t={t} /><PlazoTicket p={t.plazo} /></div> },
-    { key: "assigned_name", header: "Atiende", hideOnMobile: true, render: (t) => t.assigned_name ?? <span className="text-muted">Sin asignar</span> },
-    { key: "opened_at", header: "Abierto", hideOnMobile: true, render: (t) => <div><p>{fechaHora(t.opened_at)}</p><p className="text-[12px] text-muted">{t.opened_by_name}</p></div> },
+    { key: "priority", sortable: true, header: "Prioridad", render: (t) => <PrioridadTicket t={t} /> },
+    { key: "status", sortable: true, header: "Estado", render: (t) => <div className="grid gap-0.5"><EstadoTicket t={t} /><PlazoTicket p={t.plazo} /></div> },
+    { key: "assigned_name", sortable: true, header: "Atiende", hideOnMobile: true, render: (t) => t.assigned_name ?? <span className="text-muted">Sin asignar</span> },
+    { key: "opened_at", sortable: true, header: "Abierto", hideOnMobile: true, render: (t) => <div><p>{fechaHora(t.opened_at)}</p><p className="text-[12px] text-muted">{t.opened_by_name}</p></div> },
   ];
 
   return (
@@ -77,7 +77,7 @@ function Contenido() {
         <Select aria-label="Atiende" value={f.assigned} onChange={(e) => setF({ ...f, assigned: e.target.value })} placeholder="Cualquiera"
           options={[{ value: "NONE", label: "Sin asignar" }, ...(b?.personal ?? []).map((p) => ({ value: p.id, label: p.full_name }))]} />
       </div>
-      <DataTable columns={columnas} rows={b?.data ?? []} loading={!b && !error} error={error} onRetry={cargar} onRowClick={(t) => ver(t.id)} pagination={pag.props(b)}
+      <DataTable {...pag.orden} columns={columnas} rows={b?.data ?? []} loading={!b && !error} error={error} onRetry={cargar} onRowClick={(t) => ver(t.id)} pagination={pag.props(b)}
         empty="No hay tickets con estos filtros." />
       {abierto && b && <DetalleConsola key={abierto} id={abierto} personal={b.personal} onClose={() => ver(null)} onCambio={cargar} />}
     </div>

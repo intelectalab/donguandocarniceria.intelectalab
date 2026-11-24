@@ -26,7 +26,7 @@ const etiqueta = (k: string) => ETIQUETAS[k] ?? (k.charAt(0).toUpperCase() + k.s
 export default function BitacoraConsola() {
   const [r, setR] = useState<Respuesta | null>(null);
   const [error, setError] = useState("");
-  const vacio = { search: "", action: "", user: "", tenant: "", desde: "", hasta: "", page: 1, per_page: 25 };
+  const vacio = { search: "", action: "", user: "", tenant: "", desde: "", hasta: "", sort: "", page: 1, per_page: 25 };
   const [f, setF] = useState(vacio);
   const [visto, setVisto] = useState<Fila | null>(null);
   const filtrado = Boolean(f.search || f.action || f.user || f.tenant || f.desde || f.hasta);
@@ -41,10 +41,10 @@ export default function BitacoraConsola() {
   const poner = (k: keyof typeof f, v: string | number) => setF((x) => ({ ...x, [k]: v, page: k === "page" ? Number(v) : 1 }));
 
   const columnas: Column<Fila>[] = [
-    { key: "occurred_at", header: "Cuándo", render: (a) => <span className="whitespace-nowrap">{fechaHora(a.occurred_at)}</span> },
-    { key: "action_name", header: "Acción", cardTitle: true, render: (a) => <span className="font-semibold text-ink">{a.action_name}</span> },
-    { key: "actor_name", header: "Quién" },
-    { key: "tenant_short", header: "Empresa", render: (a) => a.tenant_short ?? <span className="text-muted">—</span> },
+    { key: "occurred_at", sortable: true, header: "Cuándo", render: (a) => <span className="whitespace-nowrap">{fechaHora(a.occurred_at)}</span> },
+    { key: "action_name", sortable: true, header: "Acción", cardTitle: true, render: (a) => <span className="font-semibold text-ink">{a.action_name}</span> },
+    { key: "actor_name", sortable: true, header: "Quién" },
+    { key: "tenant_short", sortable: true, header: "Empresa", render: (a) => a.tenant_short ?? <span className="text-muted">—</span> },
     { key: "reason", header: "Motivo y detalle", render: (a) => (
       <div className="max-w-[420px]">
         {a.reason && <p className="text-[13px] text-ink">{a.reason}</p>}
@@ -53,7 +53,7 @@ export default function BitacoraConsola() {
         )}
       </div>
     ) },
-    { key: "ip", header: "IP", hideOnMobile: true, render: (a) => <span className="font-mono text-[12px]">{a.ip ?? "—"}</span> },
+    { key: "ip", sortable: true, header: "IP", hideOnMobile: true, render: (a) => <span className="font-mono text-[12px]">{a.ip ?? "—"}</span> },
   ];
 
   return (
@@ -86,10 +86,10 @@ export default function BitacoraConsola() {
           <Input type="date" value={f.hasta} min={f.desde || undefined} onChange={(e) => poner("hasta", e.target.value)} aria-label="Hasta" />
         </label>
         <div className="flex items-center">
-          {filtrado && <Button variant="ghost" onClick={() => setF({ ...vacio, per_page: f.per_page })}>Limpiar filtros</Button>}
+          {filtrado && <Button variant="ghost" onClick={() => setF({ ...vacio, per_page: f.per_page, sort: f.sort })}>Limpiar filtros</Button>}
         </div>
       </div>
-      <DataTable columns={columnas} rows={r?.data ?? []} loading={!r && !error} error={error} empty="No hay acciones con esos filtros." onRowClick={setVisto}
+      <DataTable columns={columnas} rows={r?.data ?? []} loading={!r && !error} error={error} empty="No hay acciones con esos filtros." onRowClick={setVisto} sort={f.sort} onSortChange={(v) => poner("sort", v)}
         pagination={r ? { page: r.current_page, lastPage: r.last_page, total: r.total, perPage: r.per_page, onPageChange: (p) => poner("page", p),
           onPerPageChange: (n) => poner("per_page", n) } : undefined} />
       {visto && <DetalleAccion a={visto} onClose={() => setVisto(null)} />}
