@@ -53,13 +53,10 @@ PLT, SEG, MAE, INT y AUD son de cada empresa, pero algunas pantallas tocan datos
 - **Bitácora de accesos** (`access_log`, AUD-03) y **despacho del outbox** de eventos (INT-06).
 
 ## 4. Consola: lo que falta del prototipo 2.5
-*Anotado el 24/11/2026.* Ella pidió conservar el diseño actual y agregar lo que el prototipo muestra. Ya hechas: Bitácora, Salud, Incidentes, Mora y Cobros y conciliación (24/11).
+*Anotado el 24/11/2026.* Ella pidió conservar el diseño actual y agregar lo que el prototipo muestra. Ya hechas: Bitácora, Salud, Incidentes, Mora, Cobros y conciliación, Facturación, Catálogo de planes y Suscripciones (24/11).
 
 | Pantalla | Lo que falta |
 |---|---|
-| Facturación del SaaS | Filtros por tipo y empresa. Columnas: período, subtotal, IGV, estado en SUNAT. Vista previa de la corrida. Series en tabla con el número siguiente |
-| Catálogo de planes | Vista en tabla, cifras por producto, filtros por producto y estado; en el detalle, límites «bloquea / solo avisa» y dependencias de módulos |
-| Suscripciones | Cifras: MRR, empresas y cuántas en cada estado. Columnas: producto y uso más alto. Botón «Nueva suscripción» |
 | Empresas | Cifras: tickets abiertos, accesos vigentes, ingreso promedio. Filtro por plan. Columna de uso máximo. *Por decidir:* salud ponderada e integraciones (no hay datos) |
 | Ficha de empresa | Cifras de cabecera. Botones «Suspender o reactivar» y «Solicitar acceso». Pestañas de comprobantes, tickets, incidentes y accesos. *Por decidir:* salud ponderada y volumen mensual |
 | Registros y demos | Cifras por estado, gráficos por rubro y por origen, filtros (estado, rubro, origen), columnas de origen y motivo de rechazo. *Por decidir:* tabla de altas en curso |

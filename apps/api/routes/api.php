@@ -126,6 +126,7 @@ Route::prefix('v1/consola')->group(function () {
         Route::get('/facturacion', [CobroController::class, 'facturacion']);
         Route::get('/facturacion/{id}', [CobroController::class, 'comprobante'])->whereUuid('id');
         Route::post('/facturacion/corridas', [CobroController::class, 'corrida'])->middleware('throttle:10,1');
+        Route::get('/facturacion/vista-previa', [CobroController::class, 'vistaPrevia']);
         Route::post('/facturacion/{id}/emitir', [CobroController::class, 'emitir'])->whereUuid('id');
         Route::delete('/facturacion/{id}', [CobroController::class, 'borrar'])->whereUuid('id');
         Route::post('/facturacion/{id}/nota-credito', [CobroController::class, 'notaCredito'])->whereUuid('id');

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { AlertTriangle, Pencil, Plus, Send, Trash2 } from "lucide-react";
-import { Alert, Badge, Button, Checkbox, Field, Input, Modal, PageHeader, Textarea, confirmAction, toast } from "@/components/ui";
+import { AlertTriangle, Building2, FilePen, Layers, Pencil, Plus, Send, Tag, Trash2 } from "lucide-react";
+import { Alert, Badge, Button, Checkbox, Cifra, DataTable, DetailList, Field, Input, Modal, PageHeader, Select, Textarea, VistaToggle, confirmAction, toast, useVista, type Column, type Tone } from "@/components/ui";
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { erroresDe, mensajeDe } from "@/lib/api";
 import { apiConsola } from "@/lib/consola";
@@ -18,6 +18,8 @@ type Plan = { code: string; name: string; publicada: Version | null; borrador: V
 type Catalogo = { planes: Plan[]; modulos: Modulo[] };
 
 const FASES = ["Núcleo", "Ventas y operación", "Producción y abastecimiento", "Nuevos canales y control", "Producto SaaS"];
+const TONO_ESTADO: Record<string, Tone> = { PUBLISHED: "ok", DRAFT: "warn", RETIRED: "neutral" };
+type Fila = Version & { plan: Plan };
 
 /** Dependencias que faltan, como texto corto. */
 /** «1 marca», «3 marcas». */
@@ -36,6 +38,25 @@ export default function CatalogoPlanes() {
   const [error, setError] = useState("");
   const [editando, setEditando] = useState<Version | null>(null);
   const [nuevo, setNuevo] = useState(false);
+  const [vista, setVista] = useVista("consola.planes", "tarjetas");
+  const [estado, setEstado] = useState("");
+  const [visto, setVisto] = useState<Fila | null>(null);
+
+  // Tabla del prototipo: una fila por versión (publicada, borrador y retiradas), de cada plan.
+  const filas = useMemo<Fila[]>(() => (cat?.planes ?? []).flatMap((p) => [p.publicada, p.borrador, ...p.retiradas]
+    .filter((v): v is Version => Boolean(v)).map((v) => ({ ...v, plan: p }))), [cat]);
+  const publicadas = filas.filter((f) => f.status === "PUBLISHED");
+  const columnas: Column<Fila>[] = [
+    { key: "name", header: "Plan", cardTitle: true, render: (f) => <span className="font-semibold text-ink">{f.name}</span> },
+    { key: "version", header: "Versión", align: "right", render: (f) => f.version },
+    { key: "status", header: "Estado", render: (f) => <Badge tone={TONO_ESTADO[f.status] ?? "neutral"} dot>{f.status_name}</Badge> },
+    { key: "price_pen", header: "Precio + IGV", align: "right", render: (f) => (f.price_pen > 0 ? soles(f.price_pen) : <span className="text-muted">Por decidir</span>) },
+    { key: "modules", header: "Módulos", align: "right", render: (f) => (f.all_modules ? "Todos" : f.modules.length) },
+    { key: "limites", header: "Límites", hideOnMobile: true, render: (f) => <span className="text-[12.5px]">{cuantos(f.users_max, "usuario")} · {cuantos(f.brands_max, "marca")} · {cuantos(f.sites_max, "local", "locales")}</span> },
+    { key: "suscripciones", header: "Suscripciones", align: "right", render: (f) => f.suscripciones },
+    { key: "published_at", header: "Publicado", hideOnMobile: true, render: (f) => (f.published_at ? fecha(f.published_at) : <span className="text-muted">—</span>) },
+    { key: "faltan", header: "Dependencias", hideOnMobile: true, render: (f) => (f.faltan.length ? <Badge tone="warn">Faltan {f.faltan.length}</Badge> : <span className="text-muted">Completas</span>) },
+  ];
 
   const cargar = () => apiConsola<Catalogo>("/planes").then((c) => { setCat(c); setError(""); }).catch((e) => setError(mensajeDe(e)));
   useEffect(() => { cargar(); }, []);
@@ -91,8 +112,29 @@ export default function CatalogoPlanes() {
         actions={puede ? <Button variant="primary" icon={Plus} onClick={() => setNuevo(true)}>Nuevo plan</Button> : undefined} />
       {error && <Alert tone="bad">{error}</Alert>}
       {!cat && !error && <p className="text-muted">Cargando…</p>}
+      {cat && (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Cifra titulo="Planes publicados" valor={String(publicadas.length)} detalle={`${cat.modulos.length} módulos en el catálogo`} icono={Layers} destacada />
+          <Cifra titulo="Borradores" valor={String(filas.filter((f) => f.status === "DRAFT").length)} icono={FilePen} />
+          <Cifra titulo="Empresas suscritas" valor={String(filas.reduce((n, f) => n + f.suscripciones, 0))} detalle="En cualquier versión" icono={Building2} />
+          <Cifra titulo="Precio desde" valor={publicadas.length ? soles(Math.min(...publicadas.map((f) => f.price_pen))) : "—"} detalle="Al mes, más IGV" icono={Tag} />
+        </div>
+      )}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {vista === "tabla" ? (
+          <div className="w-full sm:w-[260px]">
+            <Select aria-label="Estado" value={estado} onChange={(e) => setEstado(e.target.value)} placeholder="Todos los estados"
+              options={[{ value: "PUBLISHED", label: "Publicadas" }, { value: "DRAFT", label: "Borradores" }, { value: "RETIRED", label: "Retiradas" }]} />
+          </div>
+        ) : <span />}
+        <VistaToggle value={vista} onChange={setVista} />
+      </div>
+      {vista === "tabla" && (
+        <DataTable columns={columnas} rows={filas.filter((f) => !estado || f.status === estado)} rowKey={(f) => f.id} loading={!cat && !error}
+          onRowClick={setVisto} empty="No hay versiones con ese estado." />
+      )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      {vista === "tarjetas" && <div className="grid gap-4 lg:grid-cols-2">
         {cat?.planes.map((p) => {
           const v = p.publicada;
           return (
@@ -141,11 +183,65 @@ export default function CatalogoPlanes() {
             </section>
           );
         })}
-      </div>
+      </div>}
 
+      {visto && cat && (
+        <DetalleVersion f={visto} modulos={cat.modulos} puede={Boolean(puede)} onClose={() => setVisto(null)}
+          onEditar={() => { setEditando(visto); setVisto(null); }} onPublicar={() => { publicar(visto); setVisto(null); }}
+          onNuevaVersion={() => { nuevaVersion(visto.plan); setVisto(null); }} onRetirar={() => { retirar(visto.plan); setVisto(null); }} />
+      )}
       {nuevo && <NuevoPlan onClose={() => setNuevo(false)} onCreado={(v) => { setNuevo(false); cargar(); setEditando(v); }} />}
       {editando && cat && <EditarBorrador version={editando} modulos={cat.modulos} onClose={() => setEditando(null)} onGuardado={() => { setEditando(null); cargar(); }} />}
     </div>
+  );
+}
+
+/** Detalle de una versión (como el panel del prototipo): datos, límites y módulos con sus dependencias. */
+function DetalleVersion({ f, modulos, puede, onClose, onEditar, onPublicar, onNuevaVersion, onRetirar }: {
+  f: Fila; modulos: Modulo[]; puede: boolean; onClose: () => void; onEditar: () => void; onPublicar: () => void; onNuevaVersion: () => void; onRetirar: () => void;
+}) {
+  const incluidos = new Set([...modulos.filter((m) => m.is_core).map((m) => m.code), ...(f.all_modules ? modulos.map((m) => m.code) : f.modules)]);
+  const nombre = (c: string) => modulos.find((m) => m.code === c)?.name ?? c;
+  const filas = modulos.filter((m) => incluidos.has(m.code));
+  return (
+    <Modal open onClose={onClose} size="lg" title={`${f.name} · versión ${f.version}`}
+      description={<Badge tone={TONO_ESTADO[f.status] ?? "neutral"} dot>{f.status_name}</Badge>}
+      footer={puede ? (
+        <div className="flex flex-wrap gap-2">
+          {f.status === "DRAFT" && <><Button icon={Pencil} onClick={onEditar}>Editar</Button><Button variant="primary" icon={Send} onClick={onPublicar}>Publicar</Button></>}
+          {f.status === "PUBLISHED" && !f.plan.borrador && <Button icon={Plus} onClick={onNuevaVersion}>Nueva versión</Button>}
+          {f.status === "PUBLISHED" && <Button variant="ghost" onClick={onRetirar}>Retirar plan</Button>}
+        </div>
+      ) : undefined}>
+      <div className="grid gap-5">
+        <DetailList items={[
+          { label: "Precio", value: f.price_pen > 0 ? `${soles(f.price_pen)} al mes, más IGV` : "Por decidir" },
+          { label: "Empresas con esta versión", value: String(f.suscripciones) },
+          { label: "Publicado", value: f.published_at ? fecha(f.published_at) : "—" },
+          { label: "Retirado", value: f.retired_at ? fecha(f.retired_at) : "—" },
+          { label: "Descripción", value: f.description || "—" },
+        ]} />
+        <div className="grid gap-2">
+          <p className="text-[13px] font-semibold text-ink">Límites</p>
+          <DataTable rows={[["Usuarios", f.users_max], ["Marcas", f.brands_max], ["Locales", f.sites_max]] as [string, number][]} rowKey={(l) => l[0]} columns={[
+            { key: "0", header: "Límite", cardTitle: true, render: (l) => l[0] },
+            { key: "1", header: "Valor", align: "right", render: (l) => l[1] },
+            { key: "tipo", header: "Al llegar", render: () => <Badge tone="bad">Bloquea</Badge> },
+          ]} />
+          <p className="text-[12px] text-muted">Al llegar al límite no se pueden crear más hasta cambiar de plan o contratar un complemento.</p>
+        </div>
+        <div className="grid gap-2">
+          <p className="text-[13px] font-semibold text-ink">Módulos ({filas.length})</p>
+          <DataTable rows={filas} rowKey={(m) => m.code} columns={[
+            { key: "name", header: "Módulo", cardTitle: true, render: (m) => m.name },
+            { key: "is_core", header: "Incluido", render: (m) => <Badge tone={m.is_core ? "neutral" : "ok"}>{m.is_core ? "Núcleo" : "Plan"}</Badge> },
+            { key: "depends_on", header: "Depende de", render: (m) => (m.depends_on.length
+              ? <span className="text-[12.5px]">{m.depends_on.map((d) => (incluidos.has(d) ? nombre(d) : `${nombre(d)} (falta)`)).join(", ")}</span>
+              : <span className="text-muted">—</span>) },
+          ]} />
+        </div>
+      </div>
+    </Modal>
   );
 }
 

@@ -1041,3 +1041,40 @@ En `OpsTest` se agregó:
 - las cifras y el número de comprobante de mora;
 - la última corrida y la corrida manual, que soporte nivel 1 no puede ejecutar;
 - en cobros, el número de intento, las cifras y la agrupación por día.
+
+# Facturación, Planes y Suscripciones con lo del prototipo (24/11)
+
+## Facturación del SaaS
+
+- Si hay RUC emisor, un aviso dice con qué RUC factura Intelectalab y el IGV.
+- **Cifras:** por cobrar (monto y cuántos), vencido, emitido este mes y borradores.
+- **Filtros nuevos:** empresa y tipo (factura, boleta, nota de crédito).
+- **Columnas del prototipo:** número, empresa, emitido (con su vencimiento), período (inicio y fin), subtotal, IGV, total, pago y estado en el OSE.
+- **Vista previa de la corrida** (pestaña Corridas):
+  - Se elige el mes y se ve qué se facturaría, sin grabar nada: empresa, tipo, plan, período, líneas, subtotal, IGV y total, más las notas de las que no se facturan.
+  - El botón «Emitir N comprobantes y cobrar» (o «Armar N borradores» si falta el RUC emisor) corre ese mes.
+  - La API agrega `GET /consola/facturacion/vista-previa`, solo para administración y cobranza. La corrida y la vista previa usan el mismo cálculo (`Facturacion::porFacturar`), así que no pueden diferir.
+- **Series en tabla** (como el prototipo, con la vista en tarjetas todavía disponible): serie, tipo, RUC emisor, siguiente número, último emitido y estado.
+
+## Catálogo de planes
+
+- **Cifras:** planes publicados (con los módulos del catálogo), borradores, empresas suscritas y precio desde.
+- **Vista en tabla** con `VistaToggle`. Las tarjetas siguen siendo la vista inicial.
+  - Una fila por versión (publicada, borrador y retiradas): plan, versión, estado, precio más IGV, módulos, límites, suscripciones, publicado y dependencias.
+  - Se puede filtrar por estado.
+- **Detalle de cada versión** al hacer clic en la tabla:
+  - precio, empresas que la usan y fechas;
+  - los límites con «Bloquea» (así funcionan en el sistema);
+  - los módulos incluidos con su dependencia, marcando la que falta;
+  - las acciones de siempre (editar, publicar, nueva versión, retirar).
+- **No se agregó del prototipo:** «Producto» y su filtro. El sistema vende un solo producto (GestionCarnica); la Granja del prototipo es para más adelante.
+
+## Suscripciones
+
+- **Cifras:** MRR (activas y con deuda, sin IGV), empresas con suscripción vigente y cuántas hay en prueba, activas, con deuda, en solo lectura y suspendidas. Al hacer clic en una de estado se filtra la lista.
+- **Columna nueva «Uso más alto»:** el porcentaje del límite más usado y de qué es; en ámbar desde 80 % y en rojo al llegar.
+- **No se agregó del prototipo:**
+  - «Producto», por lo mismo que en Planes;
+  - «Nueva suscripción»: una suscripción nace con el alta de la empresa (Empresas → Nueva empresa).
+
+Prueba: en `OpsTest` se revisa la vista previa (no graba y soporte no la ve), sus montos, las cifras de facturación y la lista de empresas del filtro.

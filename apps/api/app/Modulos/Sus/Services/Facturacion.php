@@ -41,34 +41,9 @@ final class Facturacion
         $runNo = (int) DB::table('saas_billing_runs')->where('period', $periodo)->max('run_no') + 1;
         $run = DB::table('saas_billing_runs')->insertGetId(['period' => $periodo, 'run_no' => $runNo, 'created_by' => $quien['id'],
             'created_by_name' => $quien['full_name'], 'created_at' => now()], 'id');
-        $notas = [];
+        [$porFacturar, $notas] = self::porFacturar($periodo, $inicio, $fin);
         $creados = [];
-        $subs = DB::table('subscriptions as s')->join('tenants as t', 't.id', '=', 's.tenant_id')->leftJoin('saas_plan_versions as v', 'v.id', '=', 's.plan_version_id')
-            ->whereIn('s.status', ['ACTIVE', 'PAST_DUE', 'READ_ONLY'])->where('s.started_at', '<=', $fin)
-            ->select('s.*', 't.short', 't.name as legal_name', 't.ruc', 'v.price_pen', 'v.name as plan_name')->get();
-        foreach ($subs as $s) {
-            if (DB::table('saas_invoices')->where('subscription_id', $s->id)->where('period', $periodo)->where('kind', 'PERIOD')->where('doc_type', '!=', 'CREDIT_NOTE')->exists()) {
-                continue;
-            }
-            if (! $s->price_pen || (float) $s->price_pen <= 0) {
-                $notas[] = "{$s->short}: el plan {$s->plan_code} no tiene precio aprobado; no se factura.";
-
-                continue;
-            }
-            if (! $s->ruc) {
-                $notas[] = "{$s->short}: sin RUC ni DNI registrado; no se factura.";
-
-                continue;
-            }
-            $subtotal = round((float) $s->price_pen * (1 - (float) ($s->discount_pct ?? 0) / 100), 2);
-            $descripcion = 'Suscripción GestionCarnica · plan '.($s->plan_name ?? $s->plan_code).' · '.mb_strtolower($inicio->translatedFormat('F Y'))
-                .((float) $s->discount_pct > 0 ? ' (descuento '.rtrim(rtrim(number_format((float) $s->discount_pct, 2), '0'), '.').' %)' : '');
-            // Complementos contratados: a su precio del momento, sin el descuento del plan.
-            $lineas = [[$descripcion, $subtotal]];
-            foreach (DB::table('subscription_addons as x')->join('saas_addons as a', 'a.code', '=', 'x.addon_code')->where('x.subscription_id', $s->id)
-                ->where('x.status', 'ACTIVE')->where('x.started_at', '<=', $fin)->get(['a.name', 'x.quantity', 'x.unit_price']) as $c) {
-                $lineas[] = ["Complemento {$c->name}".($c->quantity > 1 ? " × {$c->quantity}" : ''), round((float) $c->unit_price * $c->quantity, 2)];
-            }
+        foreach ($porFacturar as [$s, $lineas]) {
             $creados[] = self::borrador($s, $periodo, $inicio, $fin, $run, $lineas, $quien['id']);
         }
 
@@ -99,6 +74,45 @@ final class Facturacion
      * y se cobra si hay RUC emisor y cobro automático; si no, queda en borrador para la consola. Corre como consola
      * (las series son de Intelectalab) y vuelve al contexto de quien lo pidió.
      */
+    /**
+     * Vista previa de la corrida (como el prototipo): qué comprobantes armaría para ese período, con sus líneas y montos,
+     * sin grabar nada. Las que no se facturan salen en las notas.
+     */
+    public static function vistaPrevia(array $quien, string $periodo): array
+    {
+        Consola::exigir($quien, 'billing.manage');
+        [$inicio, $fin] = self::periodo($periodo);
+        [$porFacturar, $notas] = self::porFacturar($periodo, $inicio, $fin);
+        $tasa = (float) Consola::param('sus_igv_rate', 0.18);
+        $filas = array_map(function ($x) use ($inicio, $fin, $tasa) {
+            [$s, $lineas] = $x;
+            $subtotal = round(array_sum(array_map(fn ($l) => round($l[1], 2), $lineas)), 2);
+            $igv = round(array_sum(array_map(fn ($l) => round($l[1] * $tasa, 2), $lineas)), 2);
+
+            return ['tenant_short' => $s->short, 'doc_type_name' => strlen($s->ruc) === 11 ? 'Factura' : 'Boleta', 'plan' => $s->plan_name ?? $s->plan_code,
+                'period_start' => $inicio->toDateString(), 'period_end' => $fin->toDateString(), 'lineas' => array_map(fn ($l) => $l[0], $lineas),
+                'subtotal' => $subtotal, 'igv' => $igv, 'total' => round($subtotal + $igv, 2)];
+        }, $porFacturar);
+
+        return ['period' => $periodo, 'data' => $filas, 'notes' => $notas, 'total' => round(array_sum(array_column($filas, 'total')), 2), 'emisor' => self::emisor()];
+    }
+
+    /** Cifras de cabecera de Facturación: por cobrar, vencido y pagado en el mes, borradores. */
+    public static function cifras(): array
+    {
+        $saldos = DB::selectOne(<<<'SQL'
+            SELECT count(*) FILTER (WHERE f.status = 'DRAFT') AS borradores,
+                   count(*) FILTER (WHERE f.status = 'ISSUED' AND f.doc_type <> 'CREDIT_NOTE' AND f.payment_status = 'UNPAID') AS por_cobrar,
+                   coalesce(sum(f.total) FILTER (WHERE f.status = 'ISSUED' AND f.doc_type <> 'CREDIT_NOTE' AND f.payment_status = 'UNPAID'), 0) AS por_cobrar_monto,
+                   count(*) FILTER (WHERE f.status = 'ISSUED' AND f.doc_type <> 'CREDIT_NOTE' AND f.payment_status = 'UNPAID' AND f.due_date < current_date) AS vencidos,
+                   coalesce(sum(f.total) FILTER (WHERE f.status = 'ISSUED' AND f.doc_type <> 'CREDIT_NOTE' AND f.payment_status = 'UNPAID' AND f.due_date < current_date), 0) AS vencido_monto,
+                   coalesce(sum(f.total) FILTER (WHERE f.status = 'ISSUED' AND f.doc_type <> 'CREDIT_NOTE' AND f.issue_date >= date_trunc('month', current_date)), 0) AS emitido_mes
+            FROM saas_invoices f
+            SQL);
+
+        return array_map(fn ($v) => is_numeric($v) && str_contains((string) $v, '.') ? round((float) $v, 2) : (int) $v, (array) $saldos);
+    }
+
     public static function cargoExtra(object $s, string $kind, string $descripcion, float $subtotal): string
     {
         $antes = TenantContext::id();
@@ -266,6 +280,55 @@ final class Facturacion
     }
 
     /* ------------------------------------------------------------------ internos */
+
+    /** @return array{0: Carbon, 1: Carbon} */
+    private static function periodo(string $periodo): array
+    {
+        $inicio = Carbon::createFromFormat('Y-m-d', "{$periodo}-01")->startOfDay();
+
+        return [$inicio, $inicio->copy()->endOfMonth()];
+    }
+
+    /**
+     * Suscripciones que se facturan en ese período, cada una con sus líneas (plan con su descuento y complementos a su
+     * precio del momento), y las notas de las que no se facturan. Lo usan la corrida y su vista previa.
+     *
+     * @return array{0: array<int, array{0: object, 1: array<int, array{0: string, 1: float}>}>, 1: array<int, string>}
+     */
+    private static function porFacturar(string $periodo, Carbon $inicio, Carbon $fin): array
+    {
+        $notas = [];
+        $salida = [];
+        $subs = DB::table('subscriptions as s')->join('tenants as t', 't.id', '=', 's.tenant_id')->leftJoin('saas_plan_versions as v', 'v.id', '=', 's.plan_version_id')
+            ->whereIn('s.status', ['ACTIVE', 'PAST_DUE', 'READ_ONLY'])->where('s.started_at', '<=', $fin)
+            ->select('s.*', 't.short', 't.name as legal_name', 't.ruc', 'v.price_pen', 'v.name as plan_name')->orderBy('t.short')->get();
+        foreach ($subs as $s) {
+            if (DB::table('saas_invoices')->where('subscription_id', $s->id)->where('period', $periodo)->where('kind', 'PERIOD')->where('doc_type', '!=', 'CREDIT_NOTE')->exists()) {
+                continue;
+            }
+            if (! $s->price_pen || (float) $s->price_pen <= 0) {
+                $notas[] = "{$s->short}: el plan {$s->plan_code} no tiene precio aprobado; no se factura.";
+
+                continue;
+            }
+            if (! $s->ruc) {
+                $notas[] = "{$s->short}: sin RUC ni DNI registrado; no se factura.";
+
+                continue;
+            }
+            $subtotal = round((float) $s->price_pen * (1 - (float) ($s->discount_pct ?? 0) / 100), 2);
+            $descripcion = 'Suscripción GestionCarnica · plan '.($s->plan_name ?? $s->plan_code).' · '.mb_strtolower($inicio->translatedFormat('F Y'))
+                .((float) $s->discount_pct > 0 ? ' (descuento '.rtrim(rtrim(number_format((float) $s->discount_pct, 2), '0'), '.').' %)' : '');
+            $lineas = [[$descripcion, $subtotal]];
+            foreach (DB::table('subscription_addons as x')->join('saas_addons as a', 'a.code', '=', 'x.addon_code')->where('x.subscription_id', $s->id)
+                ->where('x.status', 'ACTIVE')->where('x.started_at', '<=', $fin)->get(['a.name', 'x.quantity', 'x.unit_price']) as $c) {
+                $lineas[] = ["Complemento {$c->name}".($c->quantity > 1 ? " × {$c->quantity}" : ''), round((float) $c->unit_price * $c->quantity, 2)];
+            }
+            $salida[] = [$s, $lineas];
+        }
+
+        return [$salida, $notas];
+    }
 
     /** @param  array<int, array{0: string, 1: float}>  $lineas  descripción y subtotal (sin IGV) */
     private static function borrador(object $s, string $periodo, Carbon $inicio, Carbon $fin, ?string $run, array $lineas, ?string $quien, string $kind = 'PERIOD'): string

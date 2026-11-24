@@ -955,12 +955,22 @@ class OpsTest extends TestCase
         [, $l1] = $this->cuenta($admin, 'luis.soporte@intelectalab.com', 'SUPPORT_L1');
         $this->consola($l1)->postJson('/api/v1/consola/facturacion/corridas', ['period' => '2026-11'])->assertStatus(422)->assertJsonPath('code', 'RN-OPS-10');
 
+        // Vista previa (como el prototipo): lo que armaría la corrida, sin grabar nada; soporte no la ve.
+        $this->consola($l1)->getJson('/api/v1/consola/facturacion/vista-previa?period=2026-11')->assertStatus(422)->assertJsonPath('code', 'RN-OPS-10');
+        $vp = $this->consola($admin)->getJson('/api/v1/consola/facturacion/vista-previa?period=2026-11')->assertOk();
+        $fila = collect($vp->json('data'))->firstWhere('tenant_short', 'Carnes del Norte');
+        $this->assertEquals(['Factura', $precio, round($precio * 0.18, 2)], [$fila['doc_type_name'], $fila['subtotal'], $fila['igv']]);
+        $this->assertSame(0, DB::table('saas_invoices')->count(), 'La vista previa no graba');
+
         // D-SUS-06: sin RUC emisor la corrida arma el borrador y no emite. Una segunda corrida no duplica.
         $r = $this->consola($admin)->postJson('/api/v1/consola/facturacion/corridas', ['period' => '2026-11'])->assertCreated();
         $this->assertSame([1, 0, 1], [$r->json('drafts'), $r->json('issued'), $r->json('run_no')]);
         $this->assertStringContainsString('RUC emisor', implode(' ', $r->json('notes')));
         $this->assertSame(0, $this->consola($admin)->postJson('/api/v1/consola/facturacion/corridas', ['period' => '2026-11'])->assertCreated()->json('drafts'));
-        $f = $this->consola($admin)->getJson("/api/v1/consola/facturacion?tenant={$norte}")->assertOk()->json('data.0');
+        $lf = $this->consola($admin)->getJson("/api/v1/consola/facturacion?tenant={$norte}")->assertOk();
+        $f = $lf->json('data.0');
+        $this->assertSame([1, 0], [$lf->json('cifras.borradores'), $lf->json('cifras.por_cobrar')]);
+        $this->assertSame('Carnes del Norte', $lf->json('empresas.0.short'));
         $igv = round($precio * 0.18, 2);
         $this->assertSame(['DRAFT', 'INVOICE', 'RUC', round($precio + $igv, 2)], [$f['status'], $f['doc_type'], $f['customer_doc_type'], $f['total']]);
         $this->consola($admin)->postJson("/api/v1/consola/facturacion/{$f['id']}/emitir")->assertStatus(422)->assertJsonPath('code', 'RN-SUS-19');
@@ -969,6 +979,9 @@ class OpsTest extends TestCase
         $this->emisor($admin);
         $e = $this->consola($admin)->postJson("/api/v1/consola/facturacion/{$f['id']}/emitir")->assertOk();
         $this->assertSame(['ISSUED', 'F001-00000001', today()->addDays(5)->toDateString()], [$e->json('status'), $e->json('number'), substr($e->json('due_date'), 0, 10)]);
+        $c = $this->consola($admin)->getJson('/api/v1/consola/facturacion')->json('cifras');
+        $this->assertSame([0, 1, 0], [$c['borradores'], $c['por_cobrar'], $c['vencidos']]);
+        $this->assertEquals($e->json('total'), $c['emitido_mes']);
 
         // Cobro rechazado: queda con deuda. Con otra tarjeta, aprobado: pagado y activa (RN-SUS-14, RN-SUS-10).
         $this->medioDePago($norte, 'fake_tok_declined');

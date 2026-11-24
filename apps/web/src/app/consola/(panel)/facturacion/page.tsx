@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CreditCard, FileMinus, FilePlus2, Play, Send, Trash2 } from "lucide-react";
-import { Alert, Badge, Button, DataTable, Field, Input, Modal, PageHeader, Select, Tabs, confirmAction, toast, type Column, type Tone } from "@/components/ui";
+import { AlertTriangle, CreditCard, FileClock, FileMinus, FilePlus2, Play, Receipt, Send, Trash2, Wallet } from "lucide-react";
+import { Alert, Badge, Button, Cifra, DataTable, Field, Input, Modal, PageHeader, Select, Tabs, VistaToggle, confirmAction, toast, useVista, type Column, type Tone } from "@/components/ui";
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { erroresDe, mensajeDe } from "@/lib/api";
 import { usePagina } from "@/lib/paginas";
@@ -11,7 +11,7 @@ import { fecha, fechaHora, soles } from "@/lib/formato";
 
 type Comprobante = {
   id: string; tenant_short: string; doc_type: string; doc_type_name: string; number: string | null; status: string; payment_status: string; payment_status_name: string;
-  sunat_status: string; sunat_status_name: string; period: string | null; issue_date: string | null; due_date: string | null; vencido: boolean;
+  sunat_status: string; sunat_status_name: string; period: string | null; period_start: string | null; period_end: string | null; issue_date: string | null; due_date: string | null; vencido: boolean;
   customer_doc_type: string; customer_doc_number: string; customer_name: string; customer_address: string | null; subtotal: number; igv: number; total: number;
   pagado: number; acreditado: number; saldo: number; reason: string | null; created_at: string;
 };
@@ -22,7 +22,12 @@ type Detalle = Comprobante & {
 };
 type Corrida = { id: string; period: string; run_no: number; drafts: number; issued: number; charged: number; total: number; notes: string[]; created_by_name: string; created_at: string };
 type Serie = { code: string; doc_type_name: string; applies_to: string | null; next_number: number; ultimo: string | null; active: boolean };
-type Datos = { data: Comprobante[]; current_page: number; last_page: number; per_page: number; total: number; corridas: Corrida[]; series: Serie[]; emisor: string | null };
+type Cifras = { borradores: number; por_cobrar: number; por_cobrar_monto: number; vencidos: number; vencido_monto: number; emitido_mes: number };
+type Datos = { data: Comprobante[]; current_page: number; last_page: number; per_page: number; total: number; corridas: Corrida[]; series: Serie[]; emisor: string | null;
+  tipos: Record<string, string>; cifras: Cifras; igv: number; empresas: { id: string; short: string }[] };
+type Previa = { period: string; total: number; notes: string[]; emisor: string | null;
+  data: { tenant_short: string; doc_type_name: string; plan: string; period_start: string; period_end: string; lineas: string[]; subtotal: number; igv: number; total: number }[] };
+const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
 
 const PAGO: Record<string, Tone> = { UNPAID: "warn", PAID: "ok", CREDITED: "neutral", NA: "neutral" };
 const estadoTexto = (c: Comprobante) => (c.status === "DRAFT" ? "Borrador" : c.doc_type === "CREDIT_NOTE" ? "Emitida" : c.vencido ? "Vencido" : c.payment_status_name);
@@ -33,11 +38,13 @@ export default function Facturacion() {
   const yo = useUsuarioConsola();
   const puede = Boolean(yo.puede["billing.manage"]);
   const [tab, setTab] = useState<"comprobantes" | "corridas" | "series">("comprobantes");
-  const [f, setF] = useState({ status: "", payment_status: "", period: "" });
+  const [f, setF] = useState({ status: "", payment_status: "", period: "", doc_type: "", tenant: "" });
+  const [vistaSeries, setVistaSeries] = useVista("consola.facturacion.series", "tabla");
   const [datos, setDatos] = useState<Datos | null>(null);
   const [error, setError] = useState("");
   const [abierto, setAbierto] = useState<string | null>(null);
   const [corriendo, setCorriendo] = useState(false);
+  const [recarga, setRecarga] = useState(0);
   const pag = usePagina(JSON.stringify(f));
 
   const cargar = useCallback(() => {
@@ -46,8 +53,7 @@ export default function Facturacion() {
   }, [f, pag.qs]);
   useEffect(() => cargar(), [cargar]);
 
-  async function corrida() {
-    const periodo = new Date().toISOString().slice(0, 7);
+  async function corrida(periodo = new Date().toISOString().slice(0, 7)) {
     const ok = await confirmAction({ title: `¿Hacer la corrida de cobro de ${periodo}?`, confirmLabel: "Hacer la corrida",
       message: datos?.emisor ? "Arma los comprobantes que falten, los emite con las series de Intelectalab y cobra a quienes tienen cobro automático."
         : "Sin RUC emisor solo arma los comprobantes en borrador: no se emiten ni se cobran." });
@@ -58,6 +64,7 @@ export default function Facturacion() {
       toast.ok(`Corrida ${r.run_no}: ${r.issued} emitidos, ${r.drafts} en borrador, ${r.charged} cobrados`);
       setTab("corridas");
       cargar();
+      setRecarga((n) => n + 1);
     } catch (e) {
       toast.error(mensajeDe(e));
     } finally {
@@ -66,24 +73,37 @@ export default function Facturacion() {
   }
 
   const columnas: Column<Comprobante>[] = [
-    { key: "number", header: "Comprobante", cardTitle: true, render: (c) => (
-      <div><p className="font-semibold text-ink">{c.number ?? `${c.doc_type_name} en borrador`}</p><p className="text-[12.5px] text-muted">{c.doc_type_name}{c.period ? ` · ${c.period}` : ""}</p></div>
+    { key: "number", header: "Número", cardTitle: true, render: (c) => (
+      <div><p className="font-mono text-[12.5px] font-semibold text-ink">{c.number ?? "Borrador"}</p><p className="text-[12px] text-muted">{c.doc_type_name}</p></div>
     ) },
-    { key: "customer_name", header: "Cliente", render: (c) => <div><p>{c.tenant_short}</p><p className="text-[12.5px] text-muted">{c.customer_doc_type} {c.customer_doc_number}</p></div> },
+    { key: "customer_name", header: "Empresa", render: (c) => <div><p>{c.tenant_short}</p><p className="text-[12.5px] text-muted">{c.customer_doc_type} {c.customer_doc_number}</p></div> },
+    { key: "issue_date", header: "Emitido", hideOnMobile: true, render: (c) => (c.issue_date ? <div className="text-[12.5px]"><p>{fecha(c.issue_date)}</p>{c.due_date && <p className="text-muted">Vence {fecha(c.due_date)}</p>}</div> : <span className="text-muted">—</span>) },
+    { key: "period_start", header: "Período", hideOnMobile: true, render: (c) => (c.period_start && c.period_end ? <span className="whitespace-nowrap text-[12.5px]">{fecha(c.period_start)} – {fecha(c.period_end)}</span> : c.period ?? "—") },
+    { key: "subtotal", header: "Subtotal", align: "right", hideOnMobile: true, render: (c) => soles(c.subtotal) },
+    { key: "igv", header: "IGV", align: "right", hideOnMobile: true, render: (c) => soles(c.igv) },
     { key: "total", header: "Total", align: "right", render: (c) => <div><p className="font-semibold">{soles(c.total)}</p>{c.saldo > 0 && c.status === "ISSUED" && c.saldo < c.total && <p className="text-[12px] text-muted">Saldo {soles(c.saldo)}</p>}</div> },
-    { key: "status", header: "Estado", render: (c) => (
-      <div className="grid gap-0.5"><Badge tone={estadoTono(c)} dot>{estadoTexto(c)}</Badge>
-        {c.status === "ISSUED" && <span className="text-[12px] text-muted">{c.sunat_status_name}</span>}</div>
-    ) },
-    { key: "due_date", header: "Emitido y vence", hideOnMobile: true, render: (c) => (c.issue_date ? <div className="text-[12.5px]"><p>{fecha(c.issue_date)}</p>{c.due_date && <p className="text-muted">Vence {fecha(c.due_date)}</p>}</div> : "—") },
+    { key: "status", header: "Pago", render: (c) => <Badge tone={estadoTono(c)} dot>{estadoTexto(c)}</Badge> },
+    { key: "sunat_status", header: "OSE", render: (c) => (c.status === "ISSUED" ? <span className="text-[12.5px]">{c.sunat_status_name}</span> : <span className="text-muted">—</span>) },
   ];
+  const k = datos?.cifras;
 
   return (
     <div className="grid gap-5">
       <PageHeader description="La corrida de cada mes arma un comprobante por suscripción activa, con deuda o en solo lectura. Se emite con las series de Intelectalab (factura con RUC, boleta con DNI); emitido no cambia y se corrige con nota de crédito."
-        actions={puede ? <Button variant="primary" icon={Play} loading={corriendo} onClick={corrida}>Corrida del mes</Button> : undefined} />
+        actions={puede ? <Button variant="primary" icon={Play} loading={corriendo} onClick={() => corrida()}>Corrida del mes</Button> : undefined} />
       {datos && !datos.emisor && (
         <Alert tone="warn" title="Falta el RUC emisor de Intelectalab">Mientras no se registre en Parámetros de plataforma («RUC con el que factura Intelectalab»), los comprobantes quedan en borrador: no se emiten ni se cobran.</Alert>
+      )}
+      {datos?.emisor && (
+        <Alert tone="info">Intelectalab factura con el RUC {datos.emisor}. IGV {Math.round(datos.igv * 100)} %.</Alert>
+      )}
+      {k && (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Cifra titulo="Por cobrar" valor={soles(k.por_cobrar_monto)} detalle={plural(k.por_cobrar, "comprobante", "comprobantes")} icono={Wallet} destacada />
+          <Cifra titulo="Vencido" valor={soles(k.vencido_monto)} detalle={plural(k.vencidos, "comprobante", "comprobantes")} tono={k.vencidos ? "bad" : "ok"} icono={AlertTriangle} />
+          <Cifra titulo="Emitido este mes" valor={soles(k.emitido_mes)} icono={Receipt} />
+          <Cifra titulo="Borradores" valor={String(k.borradores)} tono={k.borradores ? "warn" : undefined} icono={FileClock} detalle={k.borradores ? "Falta emitirlos" : "Ninguno pendiente"} />
+        </div>
       )}
       <Tabs value={tab} onChange={setTab} tabs={[
         { key: "comprobantes", label: "Comprobantes" },
@@ -91,7 +111,11 @@ export default function Facturacion() {
       ]} />
       {tab === "comprobantes" && (
         <>
-          <div className="grid gap-3 sm:grid-cols-3 lg:max-w-3xl">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <Select aria-label="Empresa" value={f.tenant} onChange={(e) => setF({ ...f, tenant: e.target.value })} placeholder="Todas las empresas"
+              options={(datos?.empresas ?? []).map((t) => ({ value: t.id, label: t.short }))} />
+            <Select aria-label="Tipo" value={f.doc_type} onChange={(e) => setF({ ...f, doc_type: e.target.value })} placeholder="Todo tipo"
+              options={Object.entries(datos?.tipos ?? {}).map(([value, label]) => ({ value, label }))} />
             <Select aria-label="Estado" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} placeholder="Borradores y emitidos"
               options={[{ value: "DRAFT", label: "Borradores" }, { value: "ISSUED", label: "Emitidos" }]} />
             <Select aria-label="Pago" value={f.payment_status} onChange={(e) => setF({ ...f, payment_status: e.target.value })} placeholder="Todo estado de pago"
@@ -104,6 +128,8 @@ export default function Facturacion() {
       )}
       {tab === "corridas" && (
         <div className="grid gap-2">
+          {puede && <VistaPrevia key={recarga} corriendo={corriendo} onCorrer={corrida} />}
+          <p className="mt-2 text-[13px] font-semibold text-ink">Corridas hechas</p>
           {(datos?.corridas ?? []).length === 0 && <p className="text-[13px] text-muted">Todavía no hay corridas.</p>}
           {(datos?.corridas ?? []).map((r) => (
             <div key={r.id} className="grid gap-1 rounded-xl border border-line bg-surface p-3.5 text-[13px]">
@@ -118,18 +144,73 @@ export default function Facturacion() {
         </div>
       )}
       {tab === "series" && (
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          {(datos?.series ?? []).map((s) => (
-            <div key={s.code} className="rounded-xl border border-line bg-surface p-3.5 text-[13px]">
-              <p className="text-[15px] font-semibold text-ink">{s.code}</p>
-              <p className="text-muted">{s.doc_type_name}{s.applies_to ? (s.applies_to === "INVOICE" ? " de factura" : " de boleta") : ""}</p>
-              <p className="mt-1 text-ink">Último: {s.ultimo ?? "ninguno"}</p>
+        <div className="grid gap-3">
+          <div className="flex justify-end"><VistaToggle value={vistaSeries} onChange={setVistaSeries} /></div>
+          {vistaSeries === "tabla" ? (
+            <DataTable rows={datos?.series ?? []} rowKey={(x) => x.code} empty="No hay series." columns={[
+              { key: "code", header: "Serie", cardTitle: true, render: (x) => <span className="font-mono font-semibold text-ink">{x.code}</span> },
+              { key: "doc_type_name", header: "Tipo", render: (x) => `${x.doc_type_name}${x.applies_to ? (x.applies_to === "INVOICE" ? " de factura" : " de boleta") : ""}` },
+              { key: "emisor", header: "RUC emisor", hideOnMobile: true, render: () => <span className="font-mono text-[12.5px]">{datos?.emisor ?? "Falta"}</span> },
+              { key: "next_number", header: "Siguiente número", align: "right", render: (x) => <span className="font-mono text-[12.5px]">{`${x.code}-${String(x.next_number).padStart(8, "0")}`}</span> },
+              { key: "ultimo", header: "Último emitido", hideOnMobile: true, render: (x) => x.ultimo ?? <span className="text-muted">Ninguno</span> },
+              { key: "active", header: "Estado", render: (x) => <Badge tone={x.active ? "ok" : "neutral"}>{x.active ? "Activa" : "Inactiva"}</Badge> },
+            ]} />
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {(datos?.series ?? []).map((x) => (
+                <div key={x.code} className="rounded-xl border border-line bg-surface p-3.5 text-[13px]">
+                  <p className="text-[15px] font-semibold text-ink">{x.code}</p>
+                  <p className="text-muted">{x.doc_type_name}{x.applies_to ? (x.applies_to === "INVOICE" ? " de factura" : " de boleta") : ""}</p>
+                  <p className="mt-1 text-ink">Último: {x.ultimo ?? "ninguno"}</p>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
       )}
       {abierto && <DetalleComprobante key={abierto} id={abierto} puede={puede} emisor={Boolean(datos?.emisor)} onClose={() => setAbierto(null)} onCambio={cargar} />}
     </div>
+  );
+}
+
+/** Vista previa de la corrida (como el prototipo): qué se facturaría en el período, antes de emitir y cobrar. */
+function VistaPrevia({ corriendo, onCorrer }: { corriendo: boolean; onCorrer: (periodo: string) => void }) {
+  const [periodo, setPeriodo] = useState(new Date().toISOString().slice(0, 7));
+  const [p, setP] = useState<Previa | null>(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    if (!periodo) return;
+    apiConsola<Previa>(`/facturacion/vista-previa?period=${periodo}`).then((r) => { setP(r); setError(""); }).catch((e) => setError(mensajeDe(e)));
+  }, [periodo]);
+
+  return (
+    <section className="grid gap-3 rounded-xl border border-line bg-surface p-4 shadow-card">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="grid gap-1">
+          <h2 className="text-[14.5px] font-semibold text-ink">Corrida de cobro</h2>
+          <p className="text-[13px] text-muted">Lo que se facturaría en el período elegido, antes de emitir y cobrar. No graba nada hasta que se ejecuta.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Input aria-label="Período de la corrida" type="month" value={periodo} onChange={(e) => setPeriodo(e.target.value)} className="w-[170px]" />
+          <Button variant="primary" icon={Play} loading={corriendo} disabled={!p?.data.length} onClick={() => onCorrer(periodo)}>
+            {p?.emisor ? `Emitir ${plural(p?.data.length ?? 0, "comprobante", "comprobantes")} y cobrar` : `Armar ${plural(p?.data.length ?? 0, "borrador", "borradores")}`}
+          </Button>
+        </div>
+      </div>
+      {error && <Alert tone="bad">{error}</Alert>}
+      <DataTable rows={p?.data ?? []} rowKey={(x) => x.tenant_short} loading={!p && !error} empty="No hay períodos por facturar en ese mes." columns={[
+        { key: "tenant_short", header: "Empresa", cardTitle: true },
+        { key: "doc_type_name", header: "Tipo" },
+        { key: "plan", header: "Plan", hideOnMobile: true },
+        { key: "period_start", header: "Período", hideOnMobile: true, render: (x) => <span className="whitespace-nowrap">{fecha(x.period_start)} – {fecha(x.period_end)}</span> },
+        { key: "lineas", header: "Líneas", hideOnMobile: true, render: (x) => <span className="text-[12.5px]">{x.lineas.join(" · ")}</span> },
+        { key: "subtotal", header: "Subtotal", align: "right", render: (x) => soles(x.subtotal) },
+        { key: "igv", header: "IGV", align: "right", render: (x) => soles(x.igv) },
+        { key: "total", header: "Total", align: "right", render: (x) => <span className="font-semibold">{soles(x.total)}</span> },
+      ]} />
+      {p && p.data.length > 0 && <p className="text-right text-[13px] text-ink">Total de la corrida: <b>{soles(p.total)}</b></p>}
+      {p?.notes.map((n, i) => <p key={i} className="text-[12.5px] text-muted">· {n}</p>)}
+    </section>
   );
 }
 

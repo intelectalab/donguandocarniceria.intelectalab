@@ -27,8 +27,19 @@ class CobroController extends Controller
 
         return response()->json(Facturacion::lista($f) + [
             'corridas' => Facturacion::corridas(), 'series' => Facturacion::series(),
-            'emisor' => Facturacion::emisor(), 'tipos' => Facturacion::TIPOS, 'pagos' => Facturacion::PAGO,
+            'emisor' => Facturacion::emisor(), 'tipos' => Facturacion::TIPOS, 'pagos' => Facturacion::PAGO, 'cifras' => Facturacion::cifras(),
+            'igv' => (float) \App\Modulos\Ops\Services\Consola::param('sus_igv_rate', 0.18),
+            'empresas' => \Illuminate\Support\Facades\DB::table('tenants as t')->whereExists(fn ($w) => $w->from('saas_invoices as x')->whereColumn('x.tenant_id', 't.id'))
+                ->orderBy('t.short')->get(['t.id', 't.short']),
         ]);
+    }
+
+    /** Vista previa de la corrida de un período: qué se facturaría, sin grabar nada. */
+    public function vistaPrevia(Request $request)
+    {
+        $d = $request->validate(['period' => ['required', 'regex:/^\d{4}-(0[1-9]|1[0-2])$/']], [], ['period' => 'período']);
+
+        return response()->json(Facturacion::vistaPrevia($this->quien($request), $d['period']));
     }
 
     public function comprobante(string $id)
