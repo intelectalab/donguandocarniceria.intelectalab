@@ -6,7 +6,7 @@ export type Empresa = {
   business_type: string | null; business_type_name: string | null; created_at: string;
   plan_code: string | null; plan_name: string | null;
   subscription_status: string | null; subscription_status_name: string; days_in_status: number | null; trial_ends_at: string | null;
-  mrr: number; uso: Uso[]; modulos: number; last_login: string | null;
+  mrr: number; uso: Uso[]; modulos: number; last_login: string | null; tickets_abiertos: number; accesos_vigentes: number;
 };
 export type Uso = { clave: string; nombre: string; usado: number; limite: number | null; pct: number | null };
 

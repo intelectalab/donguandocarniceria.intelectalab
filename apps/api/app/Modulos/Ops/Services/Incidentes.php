@@ -34,6 +34,11 @@ final class Incidentes
         if (! empty($f['severity'])) {
             $q->where('i.severity', $f['severity']);
         }
+        // Los que afectaron a una empresa (para su ficha): los de todas o los que la nombran.
+        if (! empty($f['tenant'])) {
+            $q->where(fn ($w) => $w->where('i.affects_all', true)
+                ->orWhereExists(fn ($x) => $x->from('platform_incident_tenants as it')->whereColumn('it.incident_id', 'i.id')->where('it.tenant_id', $f['tenant'])));
+        }
         $q->orderByRaw("i.status = 'RESOLVED'")->orderBy('i.severity')->orderByDesc('i.started_at')->orderBy('i.id');
         $pagina = Paginas::de($q, fn ($i) => $i, $f);
         $ids = array_column($pagina['data'], 'id');

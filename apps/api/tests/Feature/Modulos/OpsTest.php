@@ -860,6 +860,14 @@ class OpsTest extends TestCase
         $this->consola($ing)->postJson("/api/v1/consola/tickets/{$t['id']}/incidente", ['incident_id' => $i['id']])->assertNoContent();
         $this->assertSame($t['number'], $this->consola($ing)->getJson("/api/v1/consola/incidentes/{$i['id']}")->json('tickets.0.number'));
 
+        // Ficha de la empresa: los incidentes que la afectaron, sus tickets abiertos y las acciones con su nombre.
+        $this->assertSame([$i['id']], array_column($this->consola($ing)->getJson("/api/v1/consola/incidentes?tenant={$dg}")->json('data'), 'id'));
+        $this->assertSame([], $this->consola($ing)->getJson("/api/v1/consola/incidentes?tenant={$norte}")->json('data'), 'No afectó a la otra empresa');
+        $ficha = $this->consola($admin)->getJson("/api/v1/consola/empresas/{$dg}")->assertOk();
+        $this->assertSame([1, 0], [$ficha->json('tickets_abiertos'), $ficha->json('accesos_vigentes')]);
+        $this->assertSame(1, collect($this->consola($admin)->getJson('/api/v1/consola/empresas')->json('data'))->firstWhere('id', $dg)['tickets_abiertos']);
+        $this->assertSame('Alta de empresa', collect($this->consola($admin)->getJson("/api/v1/consola/empresas/{$norte}")->json('acciones_consola'))->last()['action_name']);
+
         // RN-OPS-08: sin causa raíz no se resuelve; la hora de cierre va después del inicio.
         $this->consola($ing)->postJson("/api/v1/consola/incidentes/{$i['id']}/resolver", [])->assertStatus(422)->assertJsonValidationErrors(['root_cause']);
         $this->consola($ing)->postJson("/api/v1/consola/incidentes/{$i['id']}/resolver", ['root_cause' => 'Caída del proveedor', 'resolved_at' => now()->subHour()->toIso8601String()])

@@ -44,6 +44,7 @@ class OperacionController extends Controller
         $f = $request->validate([
             'status' => ['nullable', Rule::in([...array_keys(Incidentes::ESTADOS), 'ABIERTOS'])],
             'severity' => ['nullable', Rule::in(array_keys(Incidentes::SEVERIDADES))],
+            'tenant' => ['nullable', 'uuid'],
         ]);
 
         return response()->json(Incidentes::lista($f) + ['severidades' => Incidentes::SEVERIDADES, 'estados' => Incidentes::ESTADOS,

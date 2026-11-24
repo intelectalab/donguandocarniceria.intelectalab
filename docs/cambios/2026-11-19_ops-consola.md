@@ -1078,3 +1078,35 @@ En `OpsTest` se agregó:
   - «Nueva suscripción»: una suscripción nace con el alta de la empresa (Empresas → Nueva empresa).
 
 Prueba: en `OpsTest` se revisa la vista previa (no graba y soporte no la ve), sus montos, las cifras de facturación y la lista de empresas del filtro.
+
+# Empresas y Ficha de empresa con lo del prototipo (24/11)
+
+## Empresas
+
+- **Cifras** (ahora con el mismo componente que el resto de la consola):
+  - clientes activos, de cuántas empresas;
+  - MRR con el ingreso promedio, que lleva a Métricas;
+  - en prueba;
+  - tickets abiertos, que lleva a la bandeja;
+  - accesos de soporte vigentes, que lleva a Accesos.
+- **Filtro nuevo:** plan.
+- **Columnas nuevas:** «Uso máx.» (el límite más usado, en ámbar desde 75 % y en rojo desde 90 %) y «Tickets» abiertos. Se mantienen las barras de usuarios, marcas y locales.
+- La API agrega `tickets_abiertos` y `accesos_vigentes` por empresa.
+
+## Ficha de empresa
+
+- **Botones del prototipo:** «Suspender o reactivar» (lleva a las acciones de la suscripción) y «Solicitar acceso de soporte» (abre el pedido con la empresa ya elegida).
+- **Cifras:** plan, estado con los días que lleva, MRR, tickets abiertos y accesos vigentes. Las dos últimas abren su pestaña.
+- **Pestañas del prototipo:**
+  - Resumen: todo lo que ya tenía la ficha.
+  - Comprobantes del SaaS, con los días de mora del vencido.
+  - Tickets.
+  - Incidentes que la afectaron. La API agrega el filtro `tenant` a `/consola/incidentes`: los de todas las empresas más los que la nombran.
+  - Accesos de soporte.
+- **Arreglos:**
+  - Los módulos encendidos ya no muestran su código interno (CLI, PED…), solo el nombre.
+  - Las acciones de la consola usan los nombres de la bitácora; antes la ficha tenía su propia lista incompleta.
+
+## Pendiente de decisión
+
+La salud ponderada de cada empresa (puntaje de 0 a 100 con «en riesgo» y «críticas», su pestaña y su evolución) y el volumen mensual de pedidos y mensajes. El sistema todavía no guarda esos datos. Las integraciones (OSE, WhatsApp) tampoco están construidas, así que esas partes de la salud no se pueden medir.
