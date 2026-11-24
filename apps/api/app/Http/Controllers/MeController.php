@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Modulos\Ops\Services\Accesos;
 use App\Support\Access;
 use App\Support\PasswordPolicy;
 use App\Support\TenantContext;
@@ -69,6 +70,8 @@ class MeController extends Controller
             'modules' => $modules,
             'brands' => $brands,
             'establishments' => $establishments,
+            // OPS-06: en una sesión de soporte, la franja con el nivel y el tiempo que queda.
+            'soporte' => Accesos::paraMe($user),
         ]);
     }
 }

@@ -41,6 +41,8 @@ final class Plataforma
         'onb_signup_expire_days' => ['entero', 1, 30],
         'sus_trial_days_default' => ['entero', 1, 30],
         'sus_trial_max_days' => ['entero', 1, 90],
+        'ops_ticket_auto_close_days' => ['entero', 1, 60],
+        'ops_support_max_hours' => ['entero', 1, 168],
     ];
 
     /* ------------------------------------------------------------------ OPS-13 */

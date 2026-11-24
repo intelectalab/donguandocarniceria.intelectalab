@@ -9,6 +9,7 @@ use App\Http\Controllers\PublicoController;
 use App\Http\Controllers\TenantController;
 use App\Modulos\Cli\Http\Controllers\EnlaceController;
 use App\Modulos\Onb\Http\Controllers\RegistroController;
+use App\Modulos\Ops\Http\Controllers\AccesoConsolaController;
 use App\Modulos\Ops\Http\Controllers\BandejaController;
 use App\Modulos\Ops\Http\Controllers\ConsolaController;
 use App\Modulos\Ops\Http\Controllers\EmpresaController;
@@ -88,6 +89,14 @@ Route::prefix('v1/consola')->group(function () {
         Route::get('/tickets/{id}', [BandejaController::class, 'show'])->whereUuid('id');
         Route::post('/tickets/{id}/responder', [BandejaController::class, 'responder'])->whereUuid('id');
         Route::post('/tickets/{id}/asignar', [BandejaController::class, 'asignar'])->whereUuid('id');
+        // OPS-05 y OPS-06 Accesos de soporte: pedir (según el rol y el nivel), cancelar, terminar y entrar (solo la persona del acceso)
+        Route::get('/accesos', [AccesoConsolaController::class, 'index']);
+        Route::get('/accesos/opciones', [AccesoConsolaController::class, 'opciones']);
+        Route::get('/accesos/{id}', [AccesoConsolaController::class, 'show'])->whereUuid('id');
+        Route::post('/accesos', [AccesoConsolaController::class, 'store'])->middleware('throttle:20,1');
+        Route::post('/accesos/{id}/cancelar', [AccesoConsolaController::class, 'cancelar'])->whereUuid('id');
+        Route::post('/accesos/{id}/terminar', [AccesoConsolaController::class, 'terminar'])->whereUuid('id');
+        Route::post('/accesos/{id}/entrar', [AccesoConsolaController::class, 'entrar'])->middleware('throttle:10,1')->whereUuid('id');
     });
 });
 
@@ -100,7 +109,8 @@ Route::prefix('v1')->middleware('tenant')->group(function () {
     Route::get('/auth/password-rule', [ProfileController::class, 'passwordRule']);
 
     // suscripcion: en solo lectura o cancelada, la empresa no registra nada (RN-SUS-07).
-    Route::middleware(['auth:sanctum', 'usuario', 'suscripcion'])->group(function () {
+    // soporte: la sesión del soporte de GestionCarnica, dentro de su acceso aprobado (RN-OPS-04).
+    Route::middleware(['auth:sanctum', 'usuario', 'soporte', 'suscripcion'])->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::get('/me', MeController::class);
         Route::post('/me/password', [ProfileController::class, 'password'])->middleware('throttle:10,1');

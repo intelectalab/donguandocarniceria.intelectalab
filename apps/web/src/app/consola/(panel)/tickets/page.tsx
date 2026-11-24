@@ -2,10 +2,11 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, Inbox, Send, UserPlus } from "lucide-react";
+import { AlertTriangle, Inbox, KeyRound, Send, UserPlus } from "lucide-react";
 import { Alert, Button, Cifra, DataTable, Field, Input, Modal, PageHeader, Select, Textarea, toast, type Column } from "@/components/ui";
 import { Conversacion, EstadoTicket, PlazoTicket, PrioridadTicket, type Ticket, type TicketFila } from "@/components/soporte/tickets";
 import { useUsuarioConsola } from "@/components/consola/sesion";
+import { PedirAcceso } from "@/components/consola/PedirAcceso";
 import { mensajeDe } from "@/lib/api";
 import { apiConsola } from "@/lib/consola";
 import { fechaHora } from "@/lib/formato";
@@ -89,6 +90,8 @@ function DetalleConsola({ id, personal, onClose, onCambio }: { id: string; perso
   const [texto, setTexto] = useState("");
   const [estado, setEstado] = useState("WAITING_CUSTOMER");
   const [enviando, setEnviando] = useState(false);
+  const [pedir, setPedir] = useState(false);
+  const puedePedir = Boolean(yo.puede["access.request_ro"] || yo.puede["access.request_rw"]);
 
   useEffect(() => {
     apiConsola<Ticket>(`/tickets/${id}`).then(setT).catch((e) => setError(mensajeDe(e)));
@@ -117,6 +120,9 @@ function DetalleConsola({ id, personal, onClose, onCambio }: { id: string; perso
             <div className="grid gap-1 text-[13px]">
               <PlazoTicket p={t.plazo} />
               {t.satisfaction && <span className="text-muted">Calificación del cliente: {t.satisfaction} de 5</span>}
+              {puedePedir && t.status !== "CLOSED" && (
+                <Button size="sm" variant="ghost" icon={KeyRound} className="justify-self-start" onClick={() => setPedir(true)}>Pedir acceso a la empresa</Button>
+              )}
             </div>
             {puede && t.status !== "CLOSED" ? (
               <div className="flex items-end gap-2">
@@ -131,6 +137,7 @@ function DetalleConsola({ id, personal, onClose, onCambio }: { id: string; perso
               </div>
             ) : <span className="text-[13px] text-muted">Atiende: {t.assigned_name ?? "nadie"}</span>}
           </div>
+          {pedir && <PedirAcceso empresa={t.tenant_id} ticket={t.id} onClose={() => setPedir(false)} onPedido={() => { setPedir(false); toast.ok("Lo ves en Accesos de soporte"); }} />}
           <Conversacion t={t} lado="consola" />
           {t.status === "CLOSED" ? (
             <p className="text-[13px] text-muted">El ticket está cerrado.</p>

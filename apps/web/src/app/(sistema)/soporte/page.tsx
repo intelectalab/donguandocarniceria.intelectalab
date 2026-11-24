@@ -3,7 +3,8 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle2, LifeBuoy, Plus, Send, Star } from "lucide-react";
-import { Alert, Button, DataTable, Field, Input, Modal, PageHeader, Select, Textarea, toast, type Column } from "@/components/ui";
+import { Alert, Button, DataTable, Field, Input, Modal, PageHeader, Select, Tabs, Textarea, toast, type Column } from "@/components/ui";
+import { AccesosEmpresa } from "@/components/soporte/AccesosEmpresa";
 import { Conversacion, EstadoTicket, PrioridadTicket, type Ticket, type TicketFila } from "@/components/soporte/tickets";
 import { api, erroresDe, mensajeDe } from "@/lib/api";
 import { fechaHora } from "@/lib/formato";
@@ -13,7 +14,30 @@ type Lista = { data: TicketFila[]; categorias: Record<string, string>; prioridad
 
 /** Soporte: la empresa pide ayuda al equipo de GestionCarnica, sigue la conversación y califica la atención. */
 export default function Soporte() {
-  return <Suspense><MisTickets /></Suspense>;
+  return <Suspense><Contenido /></Suspense>;
+}
+
+/** Dos pestañas: los tickets y los accesos de soporte (OPS-14), cada una con sus permisos. */
+function Contenido() {
+  const sesion = useSesion();
+  const router = useRouter();
+  const params = useSearchParams();
+  const tickets = sesion.can("ops.ticket.create") || sesion.can("ops.ticket.view_all");
+  const accesos = ["approve", "revoke", "view_log"].some((p) => sesion.can(`ops.support_access.${p}`));
+  const tab = (params.get("tab") === "accesos" && accesos) || !tickets ? "accesos" : "tickets";
+  const ir = (t: "tickets" | "accesos", extra = "") => router.replace(`/soporte?tab=${t}${extra}`, { scroll: false });
+
+  if (!tickets && !accesos) return <Alert tone="info">Tu rol no abre tickets de soporte. Pide ayuda a quien administra el sistema en tu empresa.</Alert>;
+  return (
+    <div className="grid gap-5">
+      {tickets && accesos && (
+        <Tabs value={tab} onChange={(t) => ir(t)} tabs={[{ key: "tickets", label: "Tickets" }, { key: "accesos", label: "Accesos de soporte" }]} />
+      )}
+      {tab === "accesos"
+        ? <AccesosEmpresa abierto={params.get("acceso")} onAbrir={(id) => ir("accesos", id ? `&acceso=${id}` : "")} />
+        : <MisTickets />}
+    </div>
+  );
 }
 
 function MisTickets() {

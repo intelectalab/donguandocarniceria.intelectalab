@@ -23,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'usuario' => \App\Http\Middleware\SetUserContext::class,
             'modulo' => \App\Http\Middleware\CheckModuleAccess::class,
             'permiso' => \App\Http\Middleware\CheckPermission::class,
+            'soporte' => \App\Http\Middleware\SesionSoporte::class,
             'consola' => \App\Http\Middleware\ConsolaSesion::class,
             'suscripcion' => \App\Http\Middleware\SuscripcionVigente::class,
         ]);

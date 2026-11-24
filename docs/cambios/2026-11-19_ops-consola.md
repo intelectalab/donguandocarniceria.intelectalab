@@ -549,4 +549,47 @@ Migración `2026_11_23_000100_ops_tickets_de_soporte`:
 
 - Adjuntar capturas a un ticket.
 - Correo al cliente además de la campana.
-- Tanda siguiente: accesos de soporte (OPS-05, OPS-06 y OPS-14).
+- Accesos de soporte: hechos en la tanda 7.
+
+# Tanda 7 (23/11): accesos de soporte (OPS-05 Solicitar acceso, OPS-06 Sesión de soporte y OPS-14 Accesos de soporte)
+
+## Base de datos
+
+Migración `2026_11_23_000200_ops_accesos_de_soporte`:
+- `support_accesses`: empresa, ticket (opcional), a quién de la consola se otorga, motivo, nivel (solo lectura, o lectura y escritura), módulos (vacío = todos los de la empresa), si puede exportar, horas sugeridas y aprobadas, estado (por aprobar, vigente, rechazado, revocado, vencido, terminado por soporte, cancelado), quién decidió, vigencia, primer uso, cierre y el usuario técnico.
+- `support_access_events`: la bitácora del acceso, que es **solo inserción**: pedido, decisión, entradas, cada consulta, cambio y exportación del soporte, los intentos rechazados y el cierre.
+- Las dos tablas son de la empresa (RLS); la consola las ve con su sesión de plataforma. Las dos partes ven los mismos registros (CA-OPS-03).
+- Parámetro de plataforma `ops_support_max_hours` (72). La duración por defecto (`ops_support_default_hours`, 8) y el aviso a administradores (`ops_support_notify_admins`) son parámetros de cada empresa (ya estaban definidos).
+
+## Cómo funciona
+
+1. **Pedir (consola).** Soporte nivel 1 pide solo lectura; nivel 2, ingeniería y administración también lectura y escritura. Una persona tiene a lo más un acceso pendiente o vigente por empresa. Se pide desde «Accesos de soporte» o desde el ticket en la bandeja.
+2. **Aprobar (empresa).** A quien aprueba (gerencia y roles con «Aprobar o rechazar accesos de soporte») le llega un aviso en la campana. Al aprobar elige las horas (vacío = 8, máximo 72). No se amplía: se pide otro. Solo se aprueba uno pendiente; uno cerrado no se reabre.
+3. **Entrar (consola).** Solo la persona a la que se otorgó, con el botón «Entrar». Abre la empresa en otra pestaña con un **usuario técnico** de la empresa (`Soporte GestionCarnica · nombre`, `user_type = PLATFORM_SUPPORT`), con una franja arriba que muestra el nivel, si puede exportar, el tiempo que queda y «Terminar sesión». La sesión vence con el acceso. Ese usuario no ingresa con contraseña.
+4. **Límites (middleware `soporte`).** Ve solo los módulos del acceso, con sus permisos (nunca los de aprobar o revocar accesos ni los de tickets). En solo lectura no modifica nada; sin exportación no descarga archivos (también si la descarga no está en una ruta «exportar»). Todo queda en la bitácora del acceso, también lo rechazado.
+5. **Cerrar.** La empresa revoca un acceso vigente; el soporte lo termina o cancela su pedido; vence solo (tarea `ops:vencer-accesos`, cada minuto). Al cerrarse, el usuario técnico queda inactivo y sus sesiones se cierran.
+6. Con `ops_support_notify_admins`, la empresa recibe aviso al aprobarse, al primer uso y al terminar.
+
+## Archivos compartidos que se tocaron (una o pocas líneas)
+
+- `Access.php`: el usuario técnico ve solo los módulos y permisos de su acceso.
+- `AuthController.php`: el usuario técnico no ingresa con contraseña.
+- `MeController.php`: `soporte` con los datos de la franja.
+- `bootstrap/app.php` y `routes/api.php`: el middleware `soporte` en las rutas de empresa.
+- `routes/console.php`: la tarea de cada minuto.
+- Web: la franja en `AppShell`, el tipo de `/me` y el menú del usuario técnico (`modulos.ts`).
+
+## Pantallas
+
+- **Empresa · Ayuda y soporte → pestaña «Accesos de soporte»** (también desde el menú de Soporte): pedidos por aprobar (aprobar con horas o rechazar con motivo), accesos vigentes con el tiempo que queda (revocar) y la ficha de cada acceso con la cuenta de consultas, cambios, exportaciones y rechazos, más la bitácora.
+- **Consola · Accesos de soporte** (grupo Clientes): lista con filtros por estado y empresa, «Pedir acceso», «Entrar», «Terminar», «Cancelar» y la misma ficha con su bitácora.
+- **Sesión de soporte:** el sistema de la empresa con la franja amarilla arriba.
+
+## Pruebas
+
+2 pruebas nuevas en `OpsTest`: pedido, aprobación, sesión de solo lectura con sus límites, bitácora en los dos lados, revocación (CA-OPS-01 a 03); lectura y escritura con exportación y vencimiento automático. En total el sistema tiene 346 pruebas, todas correctas. Revisado en el navegador contra `aycha_test` (1440 y 375 px).
+
+## Pendiente
+
+- En modo «empresa por dominio», «Entrar» tendrá que abrir el dominio de la empresa (hoy abre `/inicio` en el mismo dominio, que es como funciona el servidor).
+- En solo lectura, algunas pantallas muestran botones de crear o exportar; al usarlos la API los rechaza con un mensaje claro y queda registrado.

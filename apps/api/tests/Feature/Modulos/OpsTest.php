@@ -13,6 +13,7 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 /** OPS · consola de Intelectalab, tanda 1: OPS-01 Ingreso a la consola y OPS-12 Usuarios de plataforma. */
@@ -673,5 +674,104 @@ class OpsTest extends TestCase
         $this->travel(2)->days();
         $this->artisan('ops:cerrar-tickets')->expectsOutput('1 ticket cerrado.')->assertSuccessful();
         $this->assertSame('CLOSED', $estado());
+    }
+
+    /* ---------------------------------------------------------------- tanda 7: accesos de soporte */
+
+    private function dg(): string
+    {
+        return DB::table('tenants')->where('short', 'Don Guando')->value('id');
+    }
+
+    private function pedirAcceso(string $token, array $cambios = []): TestResponse
+    {
+        return $this->consola($token)->postJson('/api/v1/consola/accesos', $cambios + [
+            'tenant_id' => $this->dg(), 'reason' => 'Revisar la boleta rechazada del ticket', 'level' => 'RO', 'modules' => ['CLI'], 'can_export' => false, 'hours' => 8,
+        ]);
+    }
+
+    public function test_acceso_de_soporte_se_pide_se_aprueba_y_se_revoca(): void
+    {
+        [$admin] = $this->admin();
+        [, $soporte] = $this->cuenta($admin, 'luis.soporte@intelectalab.com', 'SUPPORT_L1');
+        $ticket = $this->ticket($this->ingresar(self::DG, 'mcardenas@donguando.pe'));
+
+        // RN-OPS-10: nivel 1 pide solo lectura; RN-OPS-02: tope de 72 horas.
+        $this->pedirAcceso($soporte, ['level' => 'RW'])->assertStatus(422)->assertJsonPath('code', 'RN-OPS-10');
+        $this->pedirAcceso($soporte, ['hours' => 100])->assertStatus(422)->assertJsonPath('code', 'RN-OPS-02');
+        $a = $this->pedirAcceso($soporte, ['ticket_id' => $ticket['id']])->assertCreated()->json();
+        $this->assertSame(['PENDING', 'TK'], [$a['status'], substr($a['ticket_number'], 0, 2)]);
+        $this->pedirAcceso($soporte)->assertStatus(422)->assertJsonPath('code', 'RN-OPS-03');
+        // Nace pendiente: todavía no puede entrar.
+        $this->consola($soporte)->postJson("/api/v1/consola/accesos/{$a['id']}/entrar")->assertStatus(422)->assertJsonPath('code', 'RN-OPS-04');
+
+        // La empresa: quien no tiene el permiso no aprueba; el gerente recibió el aviso y aprueba sin horas → 8 h.
+        $cajero = $this->ingresar(self::DG, 'jsalas@donguando.pe');
+        $gerente = $this->ingresar(self::DG, 'rquispe@donguando.pe');
+        $this->desde(self::DG, $cajero)->postJson("/api/v1/soporte/accesos/{$a['id']}/aprobar")->assertStatus(403);
+        $this->assertSame('GestionCarnica pide acceso de soporte', $this->desde(self::DG, $gerente)->getJson('/api/v1/me/notifications')->json('data.0.title'));
+        $ok = $this->desde(self::DG, $gerente)->postJson("/api/v1/soporte/accesos/{$a['id']}/aprobar", [])->assertOk();
+        $this->assertSame(['ACTIVE', 8], [$ok->json('status'), $ok->json('hours')]);
+        $this->assertSame(now()->addHours(8)->format('Y-m-d H:i'), Carbon::parse($ok->json('expires_at'))->timezone('America/Lima')->format('Y-m-d H:i'));
+        $this->desde(self::DG, $gerente)->postJson("/api/v1/soporte/accesos/{$a['id']}/aprobar", [])->assertStatus(422)->assertJsonPath('code', 'RN-OPS-03');
+
+        // Es personal: otra persona de la consola no entra. Quien lo pidió, sí.
+        $this->consola($admin)->postJson("/api/v1/consola/accesos/{$a['id']}/entrar")->assertStatus(422)->assertJsonPath('code', 'RN-OPS-04');
+        $sesion = $this->consola($soporte)->postJson("/api/v1/consola/accesos/{$a['id']}/entrar")->assertOk()->json('token');
+
+        // RN-OPS-04: consulta su módulo; no modifica (solo lectura), no exporta y no ve otros módulos.
+        $this->desde(self::DG, $sesion)->getJson('/api/v1/me')->assertOk()->assertJsonPath('soporte.level', 'RO')->assertJsonPath('roles', ['SOPORTE_TECNICO']);
+        $this->desde(self::DG, $sesion)->getJson('/api/v1/cli/clientes')->assertOk();
+        $this->desde(self::DG, $sesion)->postJson('/api/v1/cli/clientes', [])->assertStatus(403)->assertJsonPath('code', 'RN-OPS-04');
+        $this->desde(self::DG, $sesion)->getJson('/api/v1/cli/clientes/exportar')->assertStatus(403)->assertJsonPath('code', 'RN-OPS-04');
+        $this->desde(self::DG, $sesion)->getJson('/api/v1/ped/pedidos')->assertStatus(403);
+        // Ni aprueba accesos ni ve los tickets de la empresa.
+        $this->desde(self::DG, $sesion)->getJson('/api/v1/soporte/accesos')->assertStatus(403);
+
+        // CA-OPS-03: la empresa y la consola ven lo mismo que hizo el soporte.
+        $empresa = $this->desde(self::DG, $gerente)->getJson("/api/v1/soporte/accesos/{$a['id']}")->assertOk();
+        $tipos = array_column($empresa->json('eventos'), 'kind');
+        $this->assertContains('READ', $tipos);
+        $this->assertSame(3, $empresa->json('resumen.DENIED'), 'Modificar, exportar y otro módulo quedan como rechazados');
+        $this->assertSame($tipos, array_column($this->consola($soporte)->getJson("/api/v1/consola/accesos/{$a['id']}")->assertOk()->json('eventos'), 'kind'));
+        $this->assertDatabaseHas('platform_audit_log', ['action' => 'ACCESS_SESSION_STARTED', 'entity_id' => $a['id']]);
+
+        // Revocado: el usuario técnico queda inactivo y su sesión ya no sirve; un acceso cerrado no se reabre.
+        $this->desde(self::DG, $gerente)->postJson("/api/v1/soporte/accesos/{$a['id']}/revocar", ['reason' => 'Ya se resolvió'])->assertOk()->assertJsonPath('status', 'REVOKED');
+        $this->desde(self::DG, $sesion)->getJson('/api/v1/cli/clientes')->assertStatus(401);
+        TenantContext::set(TenantContext::find($this->dg()));
+        $this->assertSame('INACTIVE', DB::table('users')->where('email', 'luis.soporte+soporte@intelectalab.com')->value('status'));
+        TenantContext::set(null);
+        $this->desde(self::DG, $gerente)->postJson("/api/v1/soporte/accesos/{$a['id']}/aprobar", [])->assertStatus(422)->assertJsonPath('code', 'RN-OPS-03');
+        // El usuario técnico no ingresa con contraseña.
+        $this->desde(self::DG)->postJson('/api/v1/auth/login', ['email' => 'luis.soporte+soporte@intelectalab.com', 'password' => 'cualquiera'])->assertStatus(422);
+        // La bitácora del acceso no se puede cambiar.
+        $this->expectException(QueryException::class);
+        TenantContext::platform();
+        DB::table('support_access_events')->delete();
+    }
+
+    public function test_acceso_de_lectura_y_escritura_exporta_y_vence_solo(): void
+    {
+        [$admin] = $this->admin();
+        $gerente = $this->ingresar(self::DG, 'rquispe@donguando.pe');
+        $a = $this->pedirAcceso($admin, ['level' => 'RW', 'can_export' => true, 'hours' => 4])->assertCreated()->json();
+        // RN-OPS-02: quien aprueba no pasa del tope.
+        $this->desde(self::DG, $gerente)->postJson("/api/v1/soporte/accesos/{$a['id']}/aprobar", ['hours' => 80])->assertStatus(422)->assertJsonPath('code', 'RN-OPS-02');
+        $this->desde(self::DG, $gerente)->postJson("/api/v1/soporte/accesos/{$a['id']}/aprobar", ['hours' => 2])->assertOk();
+        $sesion = $this->consola($admin)->postJson("/api/v1/consola/accesos/{$a['id']}/entrar")->assertOk()->json('token');
+
+        // Lectura y escritura: llega a la regla del negocio (no la corta el acceso) y exporta.
+        $this->desde(self::DG, $sesion)->postJson('/api/v1/cli/clientes', [])->assertStatus(422);
+        $this->desde(self::DG, $sesion)->get('/api/v1/cli/clientes/exportar')->assertOk();
+        TenantContext::platform();
+        $this->assertSame(['EXPORT', 'WRITE'], DB::table('support_access_events')->where('access_id', $a['id'])->whereIn('kind', ['EXPORT', 'WRITE'])->orderBy('kind')->pluck('kind')->all());
+        TenantContext::set(null);
+
+        // RN-OPS-09: a las 2 horas vence solo y la sesión deja de servir.
+        $this->travel(2)->hours();
+        $this->artisan('ops:vencer-accesos')->expectsOutput('1 acceso vencido.')->assertSuccessful();
+        $this->desde(self::DG, $sesion)->getJson('/api/v1/cli/clientes')->assertStatus(401);
+        $this->assertSame('EXPIRED', $this->desde(self::DG, $this->ingresar(self::DG, 'rquispe@donguando.pe'))->getJson('/api/v1/soporte/accesos')->assertOk()->json('data.0.status'));
     }
 }

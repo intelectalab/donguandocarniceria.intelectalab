@@ -58,7 +58,8 @@ export function pantallaVisible(modulo: string, p: Pantalla, roles: string[]) {
     const solo = SOLO[rol]?.[modulo];
     if (solo && !solo.includes(p.code)) return false;
     if (rol === "CLIENTE_B2B") return Boolean(p.roles?.includes("CLIENTE_B2B"));
-    if (p.roles && !["GERENTE", "AUDITOR"].includes(rol) && !p.roles.includes(rol)) return false;
+    // El soporte de GestionCarnica (OPS-06) ve todas las pantallas de los módulos de su acceso.
+    if (p.roles && !["GERENTE", "AUDITOR", "SOPORTE_TECNICO"].includes(rol) && !p.roles.includes(rol)) return false;
     return true;
   });
 }
