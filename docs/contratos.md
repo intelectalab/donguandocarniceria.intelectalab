@@ -351,3 +351,73 @@ Avisos (`notifications`): a JEFE_PRODUCCION por cada falla nueva, calibración n
 - **CAL:** el punto de temperatura de cámaras y congeladoras (RN-EQU-11) hoy se busca en `temperature_points`.
 - **Archivos:** fotos de fallas y certificados se guardan como ruta; falta el almacenamiento de archivos.
 - **CAJERO** no tiene el módulo EQU en la matriz aunque tenga `equ.failure.report`.
+
+---
+
+## SUS · Planes y suscripciones
+
+Dueña: Yadira (frente A). Lo usan ONB (alta), API (llamadas por día), SEP (separación de marcas) y los módulos que crean usuarios, marcas o locales (SEG y PLT). La suscripción es de la **empresa en contexto**: no se pasa `tenant_id`. La tabla `subscriptions` no tiene RLS, así que estos métodos filtran siempre por la empresa del contexto: no la consulten directo.
+
+Reglas generales:
+- **RN-SUS-21:** una empresa **sin suscripción** (Don Guando como piloto, empresas internas) no tiene límites ni bloqueos. Todos los métodos lo respetan: `limite()` devuelve `null` y `exigirLimite()` no hace nada.
+- **RN-SUS-07:** el bloqueo de escrituras en solo lectura, suspendida o cancelada ya lo hace el middleware `suscripcion` en todas las rutas de empresa (HTTP 402). Un módulo no necesita revisarlo de nuevo en sus rutas. Sí debe llamar a `operativa()` si escribe fuera de una petición (tareas programadas, colas).
+
+### `Suscripcion::vigente(): ?object`
+
+La suscripción viva de la empresa (o la última cancelada), o `null` si opera sin suscripción. Campos útiles:
+- `status`: `TRIAL`, `ACTIVE`, `PAST_DUE`, `READ_ONLY`, `SUSPENDED` o `CANCELLED`;
+- `plan_code` y `plan_version_id`;
+- `trial_ends_at`, `cancel_at_period_end` y `cancel_effective_on`.
+
+### `Suscripcion::operativa(): bool`
+
+¿Puede registrar? Falso en `READ_ONLY`, `SUSPENDED` y `CANCELLED` (RN-SUS-07). Verdadero sin suscripción.
+
+### `Suscripcion::limite(string $clave): ?int`
+
+Límite efectivo del plan contratado. `null` = sin límite.
+
+| Clave | Columna del plan | Qué cuenta (`usado()`) |
+|---|---|---|
+| `users` | `users_max` | Usuarios activos del personal, sin los técnicos de soporte (`PLATFORM_SUPPORT`) ni los del portal B2B (RN-SUS-06) |
+| `brands` | `brands_max` | Marcas activas |
+| `sites` | `sites_max` | Locales activos |
+
+Cuando lleguen los complementos (tanda 9c), el límite efectivo será el del plan más los complementos activos (D-SUS-07); la firma no cambia.
+
+### `Suscripcion::usado(string $clave): int`
+
+Uso actual de esa clave en la empresa.
+
+### `Suscripcion::exigirLimite(string $clave, int $agrega = 1): void`
+
+**RN-SUS-06.** Se llama **antes** de crear o reactivar un usuario, una marca o un local. Si `usado + agrega` pasa el límite, lanza `RuleError('RN-SUS-06', 'Tu plan permite N … y ya tienes M. …')`. Ejemplo en un servicio de PLT:
+
+```php
+Suscripcion::exigirLimite('brands');        // antes de insertar la marca
+Suscripcion::exigirLimite('users', 3);      // antes de una importación de 3 usuarios
+```
+
+### Otros servicios de SUS (los usa la consola, no otros módulos)
+
+- `Facturacion`: corrida, emisión, notas de crédito.
+- `Pagos`: cobro por la pasarela y aviso firmado.
+- `Mora`: tarea diaria y cola de mora.
+- `Suscripcion`: pantallas de «Mi suscripción».
+
+Están descritos en [cambios/2026-11-19_ops-consola.md](cambios/2026-11-19_ops-consola.md) (tandas 9a y 9b).
+
+### Eventos
+
+Cada cambio queda en `subscription_events`, de solo inserción, con:
+- `event`: `STATUS_CHANGED`, `TRIAL_EXTENDED`, `DISCOUNT`, `GRACE_EXTENDED`, `PAYMENT_METHOD`, `CANCEL_REQUESTED` o `CANCEL_UNDONE`;
+- `actor_type`: `PLATFORM_USER`, `TENANT_USER` o `SYSTEM`;
+- motivo y detalle.
+
+Todavía no se emiten al outbox de INT.
+
+### Pendientes del contrato
+
+- **SEG y PLT:** llamar `exigirLimite('users' | 'brands' | 'sites')` en el alta y la reactivación de usuarios, marcas y locales (CA-SUS-02).
+- **API:** el límite de llamadas por día llega con los complementos (9c).
+- **RN-SUS-08:** encender y apagar módulos según el plan y los complementos, también en 9c.

@@ -5,6 +5,7 @@ import { api } from "./api";
 
 import type { TemaMarca } from "./temaMarca";
 import type { SesionSoporte } from "@/components/soporte/FranjaSoporte";
+import type { AvisoSuscripcion } from "@/components/suscripcion/FranjaSuscripcion";
 import { aplicarModo } from "./modoColor";
 
 export type Accion = "C" | "L" | "E" | "A";
@@ -21,6 +22,8 @@ export type Me = {
   themes?: { empresa: TemaMarca | null; brands: Record<string, TemaMarca> | TemaMarca[] };
   /** Sesión del soporte de GestionCarnica dentro de la empresa (OPS-06); null en una sesión normal. */
   soporte?: SesionSoporte | null;
+  /** SUS-08: mora, solo lectura, cancelación o prueba por vencer; null si no hay nada que avisar. */
+  suscripcion?: AvisoSuscripcion | null;
 };
 
 export type Sesion = {

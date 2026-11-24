@@ -17,8 +17,9 @@ final class Access
 {
     private static array $cache = [];
 
-    /** Permisos del servicio (pedir ayuda a soporte): valen aunque el plan no tenga su módulo (OPS). */
-    public const DEL_SERVICIO = ['ops.ticket.create', 'ops.ticket.view_all', 'ops.support_access.approve', 'ops.support_access.revoke', 'ops.support_access.view_log'];
+    /** Permisos del servicio (soporte y la propia suscripción): valen aunque el plan no tenga su módulo (OPS, SUS). */
+    public const DEL_SERVICIO = ['ops.ticket.create', 'ops.ticket.view_all', 'ops.support_access.approve', 'ops.support_access.revoke', 'ops.support_access.view_log',
+        'sus.subscription.view', 'sus.subscription.change_plan', 'sus.subscription.cancel', 'sus.invoice.view', 'sus.payment_method.manage'];
 
     public static function for(User $user): array
     {

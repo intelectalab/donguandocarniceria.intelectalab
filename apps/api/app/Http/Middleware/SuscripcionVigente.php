@@ -16,7 +16,7 @@ use Symfony\Component\HttpFoundation\Response;
 class SuscripcionVigente
 {
     /** Lo que se puede hacer en solo lectura aunque no sea una consulta. */
-    private const PERMITIDO = ['api/v1/auth/logout', 'api/v1/me/password', 'api/v1/me/notifications*', 'api/v1/seg/mi-cuenta*', 'api/v1/soporte/*'];
+    private const PERMITIDO = ['api/v1/auth/logout', 'api/v1/me/password', 'api/v1/me/notifications*', 'api/v1/seg/mi-cuenta*', 'api/v1/soporte/*', 'api/v1/suscripcion*'];
 
     public function handle(Request $request, Closure $next): Response
     {

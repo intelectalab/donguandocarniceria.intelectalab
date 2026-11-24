@@ -5,6 +5,7 @@ namespace Tests\Feature\Modulos;
 use App\Modulos\Ops\Services\Tickets;
 use App\Modulos\Ops\Services\UsuariosPlataforma;
 use App\Modulos\Sus\Services\Pasarelas\PasarelaFake;
+use App\Modulos\Sus\Services\Suscripcion;
 use App\Support\RuleError;
 use App\Support\TenantContext;
 use App\Support\Totp;
@@ -1028,5 +1029,104 @@ class OpsTest extends TestCase
         $this->assertSame('READ_ONLY', DB::table('subscriptions')->where('id', $sub)->value('status'));
         $this->assertSame('Terminó la prueba sin medio de pago', DB::table('subscription_events')->where('subscription_id', $sub)->orderByDesc('occurred_at')->value('reason'));
         unset($norte);
+    }
+
+    /* ---------------------------------------------------------------- tanda 9b: la suscripción vista por la empresa */
+
+    private function tarjeta(string $token, string $resultado, string $ultimos): void
+    {
+        $this->desde(self::DG, $token)->putJson('/api/v1/suscripcion/medio-de-pago', ['gateway' => 'FAKE', 'token' => "fake_tok_{$resultado}_abcdefgh12345678",
+            'brand' => 'Visa', 'last4' => $ultimos, 'exp_month' => 12, 'exp_year' => 2030, 'auto_pay' => true, 'billing_email' => 'pagos@carnesdelnorte.pe'])->assertOk();
+    }
+
+    public function test_mi_suscripcion_tarjeta_pago_de_comprobantes_y_franja_de_mora(): void
+    {
+        [$admin, $sub, $norte, $empresa] = $this->empresaActiva();
+
+        // SUS-01 y SUS-04: plan, estado y uso. Don Guando opera sin suscripción (RN-SUS-21).
+        $r = $this->desde(self::DG, $empresa)->getJson('/api/v1/suscripcion')->assertOk();
+        $this->assertSame([false, 'ACTIVE', 'CRECIMIENTO'], [$r->json('sin_suscripcion'), $r->json('status'), $r->json('plan_code')]);
+        $this->assertSame(['users', 'brands', 'sites'], array_column($r->json('uso'), 'clave'));
+        $this->assertSame(1, $r->json('uso.0.usado'));
+        $gerenteDg = $this->ingresar(self::DG, 'rquispe@donguando.pe');
+        $this->desde(self::DG, $gerenteDg)->getJson('/api/v1/suscripcion')->assertOk()->assertJsonPath('sin_suscripcion', true);
+        $this->desde(self::DG, $gerenteDg)->getJson('/api/v1/me')->assertOk()->assertJsonPath('suscripcion', null);
+
+        // SUS-06 (RN-SUS-20): llega el token de la pasarela, nunca el número de la tarjeta.
+        $this->desde(self::DG, $empresa)->putJson('/api/v1/suscripcion/medio-de-pago', ['gateway' => 'FAKE', 'token' => '4111111111111111', 'brand' => 'Visa',
+            'last4' => '1111', 'exp_month' => 12, 'exp_year' => 2030, 'auto_pay' => true])->assertStatus(422)->assertJsonValidationErrors('token');
+        $this->tarjeta($empresa, 'declined', '0002');
+
+        // La corrida cobra con esa tarjeta: rechazada → con deuda y franja en /me.
+        $this->emisor($admin);
+        $this->consola($admin)->postJson('/api/v1/consola/facturacion/corridas', ['period' => now()->format('Y-m')])->assertCreated()->assertJsonPath('charged', 1);
+        $this->assertSame('PAST_DUE', DB::table('subscriptions')->where('id', $sub)->value('status'));
+        $this->desde(self::DG, $empresa)->getJson('/api/v1/me')->assertOk()->assertJsonPath('suscripcion.status', 'PAST_DUE');
+
+        // SUS-05: ve solo sus comprobantes emitidos; otra empresa no los ve.
+        $lista = $this->desde(self::DG, $empresa)->getJson('/api/v1/suscripcion/comprobantes')->assertOk()->json('data');
+        $this->assertCount(1, $lista);
+        $this->assertArrayNotHasKey('tenant_id', $lista[0]);
+        $contadoraDg = $this->ingresar(self::DG, 'mcardenas@donguando.pe');
+        $this->assertSame([], $this->desde(self::DG, $contadoraDg)->getJson('/api/v1/suscripcion/comprobantes')->assertOk()->json('data'));
+        $this->desde(self::DG, $contadoraDg)->getJson("/api/v1/suscripcion/comprobantes/{$lista[0]['id']}")->assertStatus(404);
+
+        // Cambia la tarjeta y paga el vencido: vuelve a activa y la franja desaparece.
+        $this->tarjeta($empresa, 'ok', '4242');
+        $p = $this->desde(self::DG, $empresa)->postJson("/api/v1/suscripcion/comprobantes/{$lista[0]['id']}/pagar")->assertOk();
+        $this->assertSame(['APPROVED', 'PAID'], [$p->json('status'), $p->json('comprobante.payment_status')]);
+        $this->assertSame('ACTIVE', DB::table('subscriptions')->where('id', $sub)->value('status'));
+        $this->desde(self::DG, $empresa)->getJson('/api/v1/me')->assertOk()->assertJsonPath('suscripcion', null);
+        $this->assertSame('Visa', $this->desde(self::DG, $empresa)->getJson('/api/v1/suscripcion')->json('medio_pago.brand'));
+        TenantContext::platform();
+        $this->assertSame(1, DB::table('saas_payment_methods')->where('tenant_id', $norte)->where('active', true)->count(), 'Una sola tarjeta activa');
+        $this->assertStringNotContainsString('4111', (string) DB::table('saas_payment_methods')->where('tenant_id', $norte)->pluck('token')->implode(','));
+        TenantContext::set(null);
+    }
+
+    public function test_cancelar_al_fin_del_periodo_deshacer_y_conservar_en_solo_lectura(): void
+    {
+        [, $sub, , $empresa] = $this->empresaActiva();
+        $this->desde(self::DG, $empresa)->postJson('/api/v1/suscripcion/cancelar', ['reason' => 'Cerramos la tienda', 'survey' => 'CLOSING'])
+            ->assertStatus(422)->assertJsonValidationErrors('exported');
+        $datos = ['reason' => 'Cerramos la tienda por remodelación', 'survey' => 'CLOSING', 'exported' => true];
+
+        // RN-SUS-17: al fin del período (el primer día del mes siguiente), y se puede deshacer antes.
+        $c = $this->desde(self::DG, $empresa)->postJson('/api/v1/suscripcion/cancelar', $datos)->assertOk();
+        $this->assertSame([true, now()->startOfMonth()->addMonth()->toDateString()], [$c->json('cancel_at_period_end'), $c->json('cancel_effective_on')]);
+        $this->desde(self::DG, $empresa)->getJson('/api/v1/me')->assertJsonPath('suscripcion.cancel_effective_on', now()->startOfMonth()->addMonth()->toDateString());
+        $this->desde(self::DG, $empresa)->postJson('/api/v1/suscripcion/cancelar/deshacer')->assertOk()->assertJsonPath('cancel_at_period_end', false);
+        $this->desde(self::DG, $empresa)->postJson('/api/v1/suscripcion/cancelar', $datos)->assertOk();
+
+        // Llega la fecha: cancelada, en solo lectura, con sus datos guardados 90 días.
+        $this->travelTo(now()->startOfMonth()->addMonth()->setTime(6, 20));
+        $this->artisan('sus:mora')->assertSuccessful();
+        $this->assertSame('CANCELLED', DB::table('subscriptions')->where('id', $sub)->value('status'));
+        $empresa = $this->ingresar(self::DG, 'rosa.medina@carnesdelnorte.pe', 'Norte#Carnes2026');
+        $this->desde(self::DG, $empresa)->postJson('/api/v1/plt/marcas', [])->assertStatus(402);
+        $r = $this->desde(self::DG, $empresa)->getJson('/api/v1/suscripcion')->assertOk();
+        $this->assertSame(['CANCELLED', today()->addDays(90)->toDateString()], [$r->json('status'), $r->json('conservacion_hasta')]);
+        // Sus rutas siguen respondiendo en solo lectura (con la regla, no con el bloqueo).
+        $this->desde(self::DG, $empresa)->postJson('/api/v1/suscripcion/cancelar/deshacer')->assertStatus(422)->assertJsonPath('code', 'RN-SUS-17');
+    }
+
+    public function test_contrato_de_limites_del_plan(): void
+    {
+        [, , $norte] = $this->empresaActiva();
+        TenantContext::set(TenantContext::find($norte));
+        $limite = Suscripcion::limite('users');
+        $this->assertNotNull($limite);
+        Suscripcion::exigirLimite('users', $limite - 1);   // cabe
+        try {
+            Suscripcion::exigirLimite('users', $limite);
+            $this->fail('Debió rechazar por el límite');
+        } catch (RuleError $e) {
+            $this->assertSame('RN-SUS-06', $e->rule);
+            $this->assertStringContainsString("permite {$limite} usuarios", $e->getMessage());
+        }
+        TenantContext::set(TenantContext::find($this->dg()));
+        $this->assertNull(Suscripcion::limite('users'), 'Sin suscripción no hay límites (RN-SUS-21)');
+        $this->assertTrue(Suscripcion::operativa());
+        TenantContext::set(null);
     }
 }

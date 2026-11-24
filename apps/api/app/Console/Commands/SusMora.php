@@ -18,7 +18,7 @@ class SusMora extends Command
         TenantContext::platform();
         try {
             $r = Mora::diaria();
-            $this->info("Pruebas: {$r['pruebas']} · con deuda: {$r['con_deuda']} · reintentos: {$r['reintentos']} · solo lectura: {$r['solo_lectura']} · suspendidas: {$r['suspendidas']}");
+            $this->info("Pruebas: {$r['pruebas']} · con deuda: {$r['con_deuda']} · reintentos: {$r['reintentos']} · solo lectura: {$r['solo_lectura']} · suspendidas: {$r['suspendidas']} · canceladas: {$r['canceladas']}");
         } finally {
             TenantContext::set(null);
         }

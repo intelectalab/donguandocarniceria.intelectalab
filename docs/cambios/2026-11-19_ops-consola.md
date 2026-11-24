@@ -730,3 +730,78 @@ En total el sistema tiene 352 pruebas, todas correctas. Revisado en el navegador
   - **RUC y OSE de Intelectalab (D-SUS-06):** sin RUC no se emite, y sin OSE los comprobantes quedan «por enviar».
 - **Pasarela real (D-SUS-02):** Mercado Pago o Culqi. Basta con escribir su adaptador.
 - **Tanda 9b:** la empresa registra su tarjeta, ve y paga sus comprobantes, y ve la franja de mora.
+
+# Tanda 9b (24/11): la suscripción vista por la empresa (SUS-01, SUS-04 a SUS-08)
+
+## Base de datos
+
+Migración `2026_11_24_000200_sus_suscripcion_de_la_empresa`:
+- `subscriptions`: `cancel_at_period_end`, `cancel_effective_on`, `cancel_reason`, `cancel_survey` y `cancel_requested_by`.
+- Parámetro de plataforma `sus_data_retention_days` (90).
+
+## Mi suscripción (`/suscripcion`, en el menú de la persona y en el buscador)
+
+Las pantallas SUS-01, 04, 05, 06, 07 y 08 del menú abren la pestaña que corresponde. Pestañas:
+- **Plan y uso:**
+  - plan, estado y lo que significa para la empresa;
+  - cuota (con descuento), próximo cobro o fin de la prueba, y tarjeta;
+  - barras de uso de usuarios del personal, marcas y locales contra el límite del plan, más los pedidos del mes.
+- **Comprobantes:**
+  - solo los emitidos de su empresa, con estado de pago y de SUNAT;
+  - detalle con los cobros;
+  - «Pagar» con la tarjeta registrada;
+  - «Imprimir o guardar en PDF» (representación impresa). El XML llegará con el OSE de Intelectalab.
+- **Medio de pago:**
+  - formulario de la pasarela de prueba. El número de la tarjeta se convierte en un token en el navegador y al sistema solo llegan el token, la marca, los 4 últimos dígitos y el vencimiento (RN-SUS-20);
+  - cobro automático sí o no, y correo para los comprobantes;
+  - tarjetas de prueba: si termina en 0002 la rechaza el banco, si termina en 9995 no hay fondos, cualquier otra válida se aprueba.
+- **Cancelar:**
+  - pide motivo, una respuesta de la encuesta y confirmar que sabe exportar sus datos;
+  - se cancela al fin del período pagado (el 1 del mes siguiente; en prueba, al terminar la prueba) y se puede deshacer antes;
+  - la tarea diaria la aplica, y la empresa queda en solo lectura con sus datos 90 días (RN-SUS-17).
+
+Quién ve qué, según los permisos de la spec:
+- ver la suscripción: gerencia, sistemas, administración y auditoría;
+- comprobantes: además, contabilidad;
+- tarjeta y pago: gerencia, sistemas y administración;
+- cancelar: gerencia y sistemas.
+
+Estos permisos valen aunque el plan no tenga el módulo SUS. Las rutas responden también en solo lectura o cancelada, para poder pagar. Una empresa sin suscripción (Don Guando) ve «opera sin suscripción».
+
+## Franja de la suscripción (SUS-08)
+
+En todo el sistema, arriba (no en la sesión del soporte):
+- **Con deuda:** días de mora, monto y la fecha en que pasa a solo lectura.
+- **Solo lectura:** qué puede hacer.
+- **Cancelada:** hasta cuándo se conservan los datos.
+- **Prueba por vencer sin tarjeta** (5 días antes).
+- **Cancelación pedida.**
+
+Lleva su botón (Pagar, Registrar tarjeta o Ver mi suscripción). La toma de `/me` (`suscripcion`).
+
+## Contrato de SUS
+
+En [contratos.md](../contratos.md#sus--planes-y-suscripciones): `Suscripcion::vigente()`, `operativa()`, `limite()`, `usado()` y `exigirLimite()` para los demás módulos. Queda pendiente conectar `exigirLimite` en el alta de usuarios, marcas y locales (SEG y PLT).
+
+## Archivos compartidos (una o pocas líneas)
+
+- `Access.php`: los permisos de SUS de la empresa entran a `DEL_SERVICIO`.
+- `SuscripcionVigente.php`: `api/v1/suscripcion*` permitido en solo lectura.
+- `MeController.php`: `suscripcion`.
+- Web: la franja y «Mi suscripción» en `AppShell` y `Header`, y el tipo de `/me`.
+
+## Pruebas
+
+3 pruebas nuevas en `OpsTest`:
+- plan y uso, empresa sin suscripción, tarjeta (rechaza un número en vez de token), cobro rechazado con franja, comprobantes solo de la empresa, pago aprobado que la reactiva;
+- cancelar al fin del período, deshacer y quedar en solo lectura con 90 días de conservación;
+- contrato de límites.
+
+En total el sistema tiene 355 pruebas, todas correctas. Revisado en el navegador contra `aycha_test` (1440 y 375 px) con una empresa con deuda vencida.
+
+## Pendiente (tanda 9c)
+
+- Cambiar de plan (SUS-02) con prorrateo, y complementos (SUS-03 y SUS-10).
+- Encender y apagar módulos según el plan (RN-SUS-08).
+- Historial de uso de 12 meses (SUS-04).
+- Métricas del negocio (OPS-10).

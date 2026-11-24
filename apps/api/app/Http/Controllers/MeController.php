@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Modulos\Ops\Services\Accesos;
+use App\Modulos\Sus\Services\Suscripcion;
 use App\Support\Access;
 use App\Support\PasswordPolicy;
 use App\Support\TenantContext;
@@ -72,6 +73,8 @@ class MeController extends Controller
             'establishments' => $establishments,
             // OPS-06: en una sesión de soporte, la franja con el nivel y el tiempo que queda.
             'soporte' => Accesos::paraMe($user),
+            // SUS-08: franja de mora, solo lectura, cancelación o prueba por vencer.
+            'suscripcion' => Suscripcion::paraMe(),
         ]);
     }
 }

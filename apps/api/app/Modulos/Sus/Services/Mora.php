@@ -29,6 +29,8 @@ final class Mora
     public static function diaria(): array
     {
         $r = ['pruebas' => 0, 'con_deuda' => 0, 'reintentos' => 0, 'solo_lectura' => 0, 'suspendidas' => 0];
+        // RN-SUS-17: las cancelaciones pedidas por la empresa que llegaron a su fecha (antes de facturar el mes).
+        $r['canceladas'] = Suscripcion::aplicarCancelaciones();
         // RN-SUS-15: pruebas vencidas.
         foreach (DB::table('subscriptions')->where('status', 'TRIAL')->where('trial_ends_at', '<=', now())->get() as $s) {
             $conMedio = DB::table('saas_payment_methods')->where('tenant_id', $s->tenant_id)->where('active', true)->exists();

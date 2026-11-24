@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, Home, KeyRound, LifeBuoy, LogOut, Menu, Moon, RotateCcw, Sun, User as UserIcon } from "lucide-react";
+import { ChevronDown, CreditCard, Home, KeyRound, LifeBuoy, LogOut, Menu, Moon, RotateCcw, Sun, User as UserIcon } from "lucide-react";
 import GlobalSearch, { type SearchScreen } from "./GlobalSearch";
 import ChangePasswordModal from "./ChangePasswordModal";
 import { api } from "@/lib/api";
@@ -27,13 +27,15 @@ type HeaderProps = {
   modulosDelDia?: string[];
   /** Puede abrir o ver tickets de soporte: muestra «Ayuda y soporte» en su menú. */
   soporte?: boolean;
+  /** Puede ver su suscripción: muestra «Mi suscripción» en su menú. */
+  suscripcion?: boolean;
 };
 
 // Botón de ícono de la barra: color de la marca, igual en tema claro y oscuro.
 const ICON_BUTTON =
   "relative flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-[10px] text-primary transition-colors hover:bg-primary-soft active:scale-95";
 
-export default function Header({ open, currentSection, crumbs = [], onToggle, user, onLogout, tenantName, screens, ready, modulosDelDia = [], soporte }: HeaderProps) {
+export default function Header({ open, currentSection, crumbs = [], onToggle, user, onLogout, tenantName, screens, ready, modulosDelDia = [], soporte, suscripcion }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -133,6 +135,12 @@ export default function Header({ open, currentSection, crumbs = [], onToggle, us
                   <Link href="/soporte" role="menuitem" onClick={() => setMenuOpen(false)} className={menuItem}>
                     <LifeBuoy size={16} className="shrink-0" />
                     Ayuda y soporte
+                  </Link>
+                )}
+                {suscripcion && (
+                  <Link href="/suscripcion" role="menuitem" onClick={() => setMenuOpen(false)} className={menuItem}>
+                    <CreditCard size={16} className="shrink-0" />
+                    Mi suscripción
                   </Link>
                 )}
                 <button role="menuitem" onClick={() => { setMenuOpen(false); setChangingPassword(true); }} className={menuItem}>
