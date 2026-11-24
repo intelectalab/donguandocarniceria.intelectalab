@@ -144,6 +144,7 @@ Route::prefix('v1/consola')->group(function () {
         Route::put('/complementos/{code}', [ComplementoController::class, 'guardar'])->where('code', '[A-Z0-9_]{2,20}');
         Route::post('/complementos/{code}/publicar', [ComplementoController::class, 'publicar'])->where('code', '[A-Z0-9_]{2,20}');
         Route::post('/complementos/{code}/retirar', [ComplementoController::class, 'retirar'])->where('code', '[A-Z0-9_]{2,20}');
+        Route::post('/mora/proceso', [CobroController::class, 'procesar'])->middleware('throttle:5,1');
         Route::post('/mora/{sub}/recordatorio', [CobroController::class, 'recordatorio'])->middleware('throttle:20,1')->whereUuid('sub');
         Route::post('/mora/{sub}/prorroga', [CobroController::class, 'prorroga'])->whereUuid('sub');
         Route::post('/mora/{sub}/cobrar', [CobroController::class, 'cobrarAhora'])->middleware('throttle:20,1')->whereUuid('sub');

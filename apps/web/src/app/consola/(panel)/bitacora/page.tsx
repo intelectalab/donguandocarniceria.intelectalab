@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Activity, CalendarDays, Headset, ShieldAlert } from "lucide-react";
-import { Button, Cifra, DataTable, Input, PageHeader, Select, type Column } from "@/components/ui";
+import { Button, Cifra, DataTable, DetailList, Input, Modal, PageHeader, Select, type Column } from "@/components/ui";
 import { mensajeDe } from "@/lib/api";
 import { apiConsola } from "@/lib/consola";
 import { fechaHora } from "@/lib/formato";
@@ -28,6 +28,7 @@ export default function BitacoraConsola() {
   const [error, setError] = useState("");
   const vacio = { search: "", action: "", user: "", tenant: "", desde: "", hasta: "", page: 1, per_page: 25 };
   const [f, setF] = useState(vacio);
+  const [visto, setVisto] = useState<Fila | null>(null);
   const filtrado = Boolean(f.search || f.action || f.user || f.tenant || f.desde || f.hasta);
   const c = r?.cifras;
   const num = (n: number) => n.toLocaleString("es-PE");
@@ -88,9 +89,38 @@ export default function BitacoraConsola() {
           {filtrado && <Button variant="ghost" onClick={() => setF({ ...vacio, per_page: f.per_page })}>Limpiar filtros</Button>}
         </div>
       </div>
-      <DataTable columns={columnas} rows={r?.data ?? []} loading={!r && !error} error={error} empty="No hay acciones con esos filtros."
+      <DataTable columns={columnas} rows={r?.data ?? []} loading={!r && !error} error={error} empty="No hay acciones con esos filtros." onRowClick={setVisto}
         pagination={r ? { page: r.current_page, lastPage: r.last_page, total: r.total, perPage: r.per_page, onPageChange: (p) => poner("page", p),
           onPerPageChange: (n) => poner("per_page", n) } : undefined} />
+      {visto && <DetalleAccion a={visto} onClose={() => setVisto(null)} />}
     </div>
+  );
+}
+
+/** Detalle de una acción (como el panel del prototipo): los datos de la fila y, abajo, el detalle completo tal como se guardó. */
+function DetalleAccion({ a, onClose }: { a: Fila; onClose: () => void }) {
+  const detalle = a.detail && Object.keys(a.detail).length > 0 ? a.detail : null;
+  return (
+    <Modal open onClose={onClose} size="lg" title={a.action_name} description={fechaHora(a.occurred_at)}>
+      <div className="grid gap-5">
+        <DetailList items={[
+          { label: "Quién", value: a.actor_name },
+          { label: "Empresa", value: a.tenant_short ?? "—" },
+          { label: "Motivo", value: a.reason ?? "—" },
+          { label: "IP", value: <span className="font-mono text-[12.5px]">{a.ip ?? "—"}</span> },
+        ]} />
+        {detalle && (
+          <div className="grid gap-2">
+            <p className="text-[13px] font-semibold text-ink">Detalle</p>
+            <DetailList items={Object.entries(detalle).map(([k, v]) => ({ label: etiqueta(k), value: typeof v === "object" && v !== null ? JSON.stringify(v) : String(v) }))} />
+            <details className="rounded-lg border border-line">
+              <summary className="cursor-pointer px-3 py-2 text-[12.5px] text-muted">Ver el registro completo</summary>
+              <pre className="max-h-[50vh] overflow-auto border-t border-line bg-surface-2 p-3 text-[12px] text-ink">{JSON.stringify({ accion: a.action_name, cuando: a.occurred_at, quien: a.actor_name,
+                empresa: a.tenant_short, motivo: a.reason, ip: a.ip, detalle }, null, 2)}</pre>
+            </details>
+          </div>
+        )}
+      </div>
+    </Modal>
   );
 }

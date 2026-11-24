@@ -868,6 +868,16 @@ class OpsTest extends TestCase
         $this->assertSame(['RESOLVED', 10], [$r->json('status'), $r->json('duracion_min')]);
         $this->assertSame('Resuelto: Boletas sin respuesta del OSE', $this->desde(self::DG, $gerente)->getJson('/api/v1/anuncios')->json('data.0.title'));
         $this->assertDatabaseHas('platform_audit_log', ['action' => 'INCIDENT_RESOLVED', 'entity_id' => $i['id']]);
+
+        // Cifras de la cabecera: ya no hay abiertos, el SEV1 cuenta en el mes, se avisó a tiempo y la mediana es 10 min.
+        $c = $this->consola($ing)->getJson('/api/v1/consola/incidentes?status=ABIERTOS')->json('cifras');
+        $this->assertSame([0, 1, 0, 0.2, 30], [$c['abiertos'], $c['graves_mes'], $c['fuera_de_plazo'], $c['mediana_horas'], $c['plazo_minutos']]);
+
+        // Un SEV2 abierto sin aviso pasado el plazo cuenta como fuera de plazo.
+        $this->consola($ing)->postJson('/api/v1/consola/incidentes', ['title' => 'Pagos lentos', 'severity' => 'SEV2', 'component_code' => 'PAYMENTS',
+            'affects_all' => true, 'started_at' => now()->subMinutes(31)->toIso8601String()])->assertCreated();
+        $c = $this->consola($ing)->getJson('/api/v1/consola/incidentes')->json('cifras');
+        $this->assertSame([1, 1], [$c['abiertos'], $c['fuera_de_plazo']]);
         unset($norte);
     }
 
@@ -965,6 +975,7 @@ class OpsTest extends TestCase
         $this->consola($admin)->postJson("/api/v1/consola/facturacion/{$f['id']}/cobrar")->assertOk()->assertJsonPath('status', 'DECLINED');
         $this->assertSame('PAST_DUE', DB::table('subscriptions')->where('id', $sub)->value('status'));
         $this->medioDePago($norte, 'fake_tok_ok');
+        $this->travel(1)->seconds();   // la hora se guarda al segundo: el segundo intento va después
         $this->consola($admin)->postJson("/api/v1/consola/facturacion/{$f['id']}/cobrar")->assertOk()->assertJsonPath('status', 'APPROVED');
         $v = $this->consola($admin)->getJson("/api/v1/consola/facturacion/{$f['id']}")->assertOk();
         $this->assertSame(['PAID', 0, 2], [$v->json('payment_status'), $v->json('saldo'), count($v->json('cobros'))]);
@@ -972,6 +983,7 @@ class OpsTest extends TestCase
 
         // RN-SUS-13: el aviso repetido no tiene efecto; uno sin firma válida tampoco.
         $cobros = $this->consola($admin)->getJson('/api/v1/consola/cobros?status=APPROVED')->assertOk()->json('data');
+        $this->assertSame(2, $cobros[0]['attempt_no'], 'El aprobado fue el segundo intento de ese comprobante');
         $evento = json_encode($cobros[0]['raw_event']);
         $this->postJson('/api/v1/publico/pasarela/fake', json_decode($evento, true), ['X-Firma' => str_repeat('0', 64)])
             ->assertStatus(401)->assertJsonPath('result', 'Firma inválida: sin efecto');
@@ -981,10 +993,17 @@ class OpsTest extends TestCase
         $this->assertSame(1, DB::table('saas_payments')->where('invoice_id', $f['id'])->where('status', 'APPROVED')->count());
         TenantContext::set(null);
 
+        // Cifras de la cabecera (sin depender del filtro) y los cobros por conciliar agrupados por día.
+        $l = $this->consola($admin)->getJson('/api/v1/consola/cobros?status=DECLINED')->assertOk();
+        $this->assertSame([1, 1, 1, 1], [$l->json('cifras.aprobados'), $l->json('cifras.rechazados'), $l->json('cifras.por_conciliar'), $l->json('cifras.avisos_repetidos')]);
+        $this->assertEquals($cobros[0]['amount'], $l->json('cifras.por_conciliar_monto'));
+        $this->assertSame([$cobros[0]['id']], $l->json('por_dia.0.ids'));
+
         // Conciliación: el abono menor que lo cobrado deja la comisión.
         $abono = $this->consola($admin)->postJson('/api/v1/consola/cobros/conciliar', ['payments' => [$cobros[0]['id']], 'reference' => 'ABONO-001',
             'settled_on' => today()->toDateString(), 'amount' => round($cobros[0]['amount'] - 10, 2)])->assertCreated();
         $this->assertEquals(10, $abono->json('fee'));
+        $this->assertSame([0, []], [$this->consola($admin)->getJson('/api/v1/consola/cobros')->json('cifras.por_conciliar'), $this->consola($admin)->getJson('/api/v1/consola/cobros')->json('por_dia')]);
         $this->consola($admin)->postJson('/api/v1/consola/cobros/conciliar', ['payments' => [$cobros[0]['id']], 'reference' => 'ABONO-002',
             'settled_on' => today()->toDateString(), 'amount' => 1])->assertStatus(422)->assertJsonPath('code', 'RN-SUS-13');
 
@@ -1031,8 +1050,19 @@ class OpsTest extends TestCase
         // CA-SUS-04: el pago confirmado la devuelve a activa en el momento.
         $this->medioDePago($norte, 'fake_tok_ok');
         $token = $this->entrar('ana.rios@intelectalab.com', $this->secretoAdmin);
-        $cola = $this->consola($token)->getJson('/api/v1/consola/mora')->assertOk()->json('data.0');
+        $r = $this->consola($token)->getJson('/api/v1/consola/mora')->assertOk();
+        $cola = $r->json('data.0');
         $this->assertSame(['SUSPENDED', 22], [$cola['status'], $cola['dias']]);
+        $this->assertMatchesRegularExpression('/^[A-Z0-9]{4}-\d{8}$/', $cola['factura_numero'], 'El número del comprobante que se debe');
+        // Cifras de la cabecera y la última corrida de la tarea diaria (queda en la bitácora).
+        $this->assertSame([1, 0, 1], [$r->json('cifras.en_mora'), $r->json('cifras.solo_lectura'), $r->json('cifras.suspendidas')]);
+        $this->assertEquals($cola['deuda'], $r->json('cifras.deuda_vencida'));
+        $this->assertSame(['Tarea diaria', 1], [$r->json('ultima_corrida.actor_name'), $r->json('ultima_corrida.resumen.suspendidas')]);
+        // A mano desde la consola: solo administración y cobranza; queda con su nombre.
+        [, $l1] = $this->cuenta($token, 'luis.soporte@intelectalab.com', 'SUPPORT_L1');
+        $this->consola($l1)->postJson('/api/v1/consola/mora/proceso')->assertStatus(422)->assertJsonPath('code', 'RN-OPS-10');
+        $this->consola($token)->postJson('/api/v1/consola/mora/proceso')->assertOk()->assertJsonPath('suspendidas', 0);
+        $this->assertSame('Ana Ríos Paredes', $this->consola($token)->getJson('/api/v1/consola/mora')->json('ultima_corrida.actor_name'));
         $this->consola($token)->postJson("/api/v1/consola/mora/{$sub}/cobrar")->assertOk()->assertJsonPath('status', 'APPROVED');
         $this->assertSame('ACTIVE', $estado());
         $this->assertSame('ACTIVE', DB::table('tenants')->where('id', $norte)->value('status'));

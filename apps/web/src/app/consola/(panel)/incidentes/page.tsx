@@ -2,8 +2,8 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CheckCircle2, Clock, Megaphone, Plus, Save } from "lucide-react";
-import { Alert, Badge, Button, Checkbox, DataTable, Field, Input, Modal, PageHeader, Select, StatusBadge, Textarea, toast, type Column, type Tone } from "@/components/ui";
+import { AlarmClock, CheckCircle2, Clock, Flame, Megaphone, Plus, Save, Siren, Timer } from "lucide-react";
+import { Alert, Badge, Button, Checkbox, Cifra, DataTable, Field, Input, Modal, PageHeader, Select, StatusBadge, Textarea, toast, type Column, type Tone } from "@/components/ui";
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { erroresDe, mensajeDe } from "@/lib/api";
 import { usePagina } from "@/lib/paginas";
@@ -19,7 +19,8 @@ type Incidente = {
 };
 type Detalle = Incidente & { empresas: { id: string; short: string }[]; tickets: { id: string; number: string; subject: string; status: string; tenant_short: string }[];
   linea: { status: string; status_name: string; message: string; public: boolean; author_name: string; at: string }[] };
-type Lista = { data: Incidente[]; current_page: number; last_page: number; per_page: number; total: number; severidades: Record<string, string>; estados: Record<string, string>; componentes: { code: string; name: string }[] };
+type Cifras = { abiertos: number; graves_mes: number; fuera_de_plazo: number; mediana_horas: number | null; plazo_minutos: number };
+type Lista = { data: Incidente[]; current_page: number; last_page: number; per_page: number; total: number; severidades: Record<string, string>; estados: Record<string, string>; componentes: { code: string; name: string }[]; cifras: Cifras };
 
 const TONO_SEV: Record<string, Tone> = { SEV1: "bad", SEV2: "bad", SEV3: "warn", SEV4: "neutral" };
 const ESTADOS: Record<string, [string, Tone]> = { INVESTIGATING: ["Investigando", "bad"], IDENTIFIED: ["Causa identificada", "warn"], MONITORING: ["En observación", "info"], RESOLVED: ["Resuelto", "ok"] };
@@ -29,6 +30,9 @@ const AVISO: Record<string, [string, string]> = {
   AVISADO: ["Clientes avisados", "text-ok"], NO_APLICA: ["", ""],
 };
 const duracion = (m: number) => (m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`);
+/** Minutos desde el inicio hasta el aviso a los clientes, como la columna «Aviso» del prototipo. */
+const minutosAviso = (i: Incidente) => (i.customers_notified_at ? Math.max(0, Math.round((new Date(i.customers_notified_at).getTime() - new Date(i.started_at).getTime()) / 60000)) : null);
+const horas = (h: number | null) => (h === null ? "—" : h < 1 ? `${Math.round(h * 60)} min` : `${h.toLocaleString("es-PE", { maximumFractionDigits: 1 })} h`);
 const aIso = (v: string) => (v ? new Date(v).toISOString() : null);
 
 function PlazoAviso({ a }: { a: Aviso }) {
@@ -61,18 +65,30 @@ function Contenido() {
 
   const columnas: Column<Incidente>[] = [
     { key: "title", header: "Incidente", cardTitle: true, render: (i) => (
-      <div><p className="font-semibold text-ink">{i.title}</p><p className="text-[12.5px] text-muted">{i.number}{i.component_name ? ` · ${i.component_name}` : ""}{i.source === "AUTO" ? " · abierto por la lectura de salud" : ""}</p></div>
+      <div><p className="font-semibold text-ink">{i.title}</p><p className="text-[12.5px] text-muted">{i.number}{i.source === "AUTO" ? " · abierto por la lectura de salud" : ""}</p></div>
     ) },
     { key: "severity", header: "Severidad", render: (i) => <Badge tone={TONO_SEV[i.severity]}>{i.severity_name}</Badge> },
+    { key: "component_name", header: "Componente", hideOnMobile: true, render: (i) => i.component_name ?? <span className="text-muted">—</span> },
     { key: "status", header: "Estado", render: (i) => <div className="grid gap-0.5"><StatusBadge status={i.status} labels={ESTADOS} /><PlazoAviso a={i.aviso} /></div> },
-    { key: "empresas", header: "Afecta a", hideOnMobile: true, render: (i) => (i.affects_all ? "Todas las empresas" : `${i.empresas} empresa(s)`) },
-    { key: "started_at", header: "Inicio y duración", hideOnMobile: true, render: (i) => <div><p>{fechaHora(i.started_at)}</p><p className="text-[12px] text-muted">{duracion(i.duracion_min)}</p></div> },
+    { key: "started_at", header: "Inicio", hideOnMobile: true, render: (i) => <span className="whitespace-nowrap">{fechaHora(i.started_at)}</span> },
+    { key: "duracion_min", header: "Duración", render: (i) => (i.resolved_at ? duracion(i.duracion_min) : <span>{duracion(i.duracion_min)} <span className="text-muted">· en curso</span></span>) },
+    { key: "empresas", header: "Empresas", align: "right", render: (i) => (i.affects_all ? "Todas" : String(i.empresas)) },
+    { key: "aviso", header: "Aviso", align: "right", hideOnMobile: true, render: (i) => { const m = minutosAviso(i); return m === null ? <span className="text-muted">—</span> : `${m} min`; } },
   ];
+  const c = lista?.cifras;
 
   return (
     <div className="grid gap-5">
       <PageHeader description="Un SEV1 o SEV2 se avisa a las empresas afectadas dentro del plazo (30 minutos): el mensaje público les llega como anuncio en su sistema y a sus administradores en la campana. Se resuelve con hora de cierre y causa raíz."
         actions={yo.puede["incident.manage"] ? <Button variant="primary" icon={Plus} onClick={() => setNuevo(true)}>Nuevo incidente</Button> : undefined} />
+      {c && (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Cifra titulo="Abiertos" valor={String(c.abiertos)} tono={c.abiertos ? "warn" : "ok"} icono={Siren} destacada={c.abiertos > 0} />
+          <Cifra titulo="SEV1 y SEV2 del mes" valor={String(c.graves_mes)} icono={Flame} />
+          <Cifra titulo="Avisos fuera de plazo" valor={String(c.fuera_de_plazo)} tono={c.fuera_de_plazo ? "bad" : "ok"} icono={AlarmClock} detalle={`Plazo de ${c.plazo_minutos} min`} />
+          <Cifra titulo="Tiempo medio de resolución" valor={horas(c.mediana_horas)} icono={Timer} detalle="Mediana" />
+        </div>
+      )}
       <div className="grid gap-3 sm:grid-cols-2 lg:max-w-2xl">
         <Select aria-label="Estado" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} placeholder="Todos"
           options={[{ value: "ABIERTOS", label: "Abiertos" }, ...Object.entries(ESTADOS).map(([value, [label]]) => ({ value, label }))]} />

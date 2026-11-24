@@ -993,3 +993,51 @@ Prueba: `test_bitacora_de_la_consola_con_filtros` revisa que las cifras no depen
 - **Vista en tabla o en tarjetas** con `VistaToggle` (componente nuevo en `components/ui`, que recuerda la vista elegida en cada pantalla). La tabla es la del prototipo: componente, estado, latencia, errores, cola, disponibilidad de 24 h y de 7 días, última lectura e incidente. La primera vez se abre en tabla.
 - En la Bitácora y en el historial de Parámetros, la primera cuenta ya no figura como «Servidor (ops:crear-admin)» sino como «Instalación del servidor». Las claves del detalle se muestran en español (Correo, RUC, Plan…).
 - **Falta del prototipo:** la tarjeta «Versiones desplegadas». El sistema todavía no guarda la versión de cada despliegue.
+
+# Incidentes, Mora y Cobros con lo del prototipo; detalle en la Bitácora (24/11)
+
+Se conserva lo que ya había (pestañas, acciones, diseño) y se agrega lo que el prototipo muestra.
+
+## Incidentes
+
+- **Cifras** (sin depender de los filtros):
+  - abiertos;
+  - SEV1 y SEV2 que empezaron este mes;
+  - avisos fuera de plazo: SEV1 o SEV2 avisados después del plazo, o abiertos sin aviso con el plazo vencido;
+  - tiempo medio de resolución (mediana).
+- **Columnas del prototipo:** componente, inicio y duración por separado (con «en curso»), empresas («Todas» si afecta a todas) y aviso (minutos desde el inicio hasta que se avisó).
+
+## Mora
+
+- **Cifras:** en mora, deuda vencida, en solo lectura y suspendidas, sobre toda la cola.
+- **Columnas del prototipo:** plan, estado, comprobante (con «y N más»), deuda, días de mora, próximo reintento y paso previsto. El medio de pago queda bajo la empresa.
+- **Tarjeta «Proceso diario de mora»:**
+  - dice cuándo corre solo (6:20) y muestra la última ejecución con su resumen;
+  - administración y cobranza la pueden ejecutar a mano con «Ejecutar reintentos y cambios de estado» (`POST /consola/mora/proceso`, 5 por minuto).
+  - Solo corre para hoy: el prototipo deja elegir la fecha porque es una demo, y en el sistema real eso sería simular el paso del tiempo.
+  - Cada corrida, la programada (`sus:mora`) o la manual, queda en la bitácora como «Proceso de mora ejecutado».
+
+## Cobros y conciliación
+
+Las pestañas se quedan.
+- **Cifras:**
+  - cobros aprobados, con el monto;
+  - rechazados;
+  - por conciliar, con el monto;
+  - avisos repetidos descartados.
+- **Filtro por empresa.**
+- **Columnas del prototipo:** fecha, empresa, comprobante, intento (cuántos cobros tuvo ese comprobante hasta ese), origen, monto, resultado, motivo, pasarela y referencia, y conciliado («Sí» con el abono o «Pendiente»).
+- **Tarjeta «Conciliación con el abono de la pasarela»:** los cobros aprobados sin conciliar, agrupados por día, con el botón «Conciliar abono», que abre el mismo formulario de siempre. No se estima la comisión: se conoce recién con el abono.
+
+## Bitácora
+
+- Había acciones que se veían con su código interno (INCIDENT_OPENED, BILLING_RUN y 23 más) porque no tenían nombre. Ya lo tienen todas, y la prueba `tests/Unit/BitacoraTest.php` falla si se registra una acción nueva sin su nombre en español.
+- Al hacer clic en una fila se abre el detalle: quién, empresa, motivo, IP, el detalle con sus nombres en español y, plegado, el registro completo tal como se guardó.
+
+## Pruebas
+
+En `OpsTest` se agregó:
+- las cifras de incidentes, con un SEV2 sin aviso pasado el plazo;
+- las cifras y el número de comprobante de mora;
+- la última corrida y la corrida manual, que soporte nivel 1 no puede ejecutar;
+- en cobros, el número de intento, las cifras y la agrupación por día.

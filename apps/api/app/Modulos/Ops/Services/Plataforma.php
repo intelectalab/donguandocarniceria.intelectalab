@@ -29,6 +29,16 @@ final class Plataforma
         'PLAN_DRAFT_CREATED' => 'Borrador de plan', 'PLAN_DRAFT_DELETED' => 'Borrador de plan borrado', 'PLAN_PUBLISHED' => 'Plan publicado',
         'PLAN_RETIRED' => 'Plan retirado', 'PARAMETER_CHANGED' => 'Parámetro cambiado', 'CATALOG_IMPORTED' => 'Catálogo global importado',
         'TENANT_SIGNUP' => 'Empresa creada por registro', 'SIGNUP_REJECTED' => 'Registro rechazado', 'DEMO_ATTENDED' => 'Pedido de demo atendido', 'DEMO_REOPENED' => 'Pedido de demo reabierto',
+        'DUNNING_RUN' => 'Proceso de mora ejecutado', 'DUNNING_REMINDER' => 'Recordatorio de pago enviado', 'DUNNING_EXTENSION' => 'Prórroga de mora',
+        'TICKET_ANSWERED' => 'Ticket respondido', 'TICKET_ASSIGNED' => 'Ticket asignado',
+        'ACCESS_REQUESTED' => 'Acceso de soporte pedido', 'ACCESS_CANCELLED' => 'Acceso de soporte cancelado', 'ACCESS_SESSION_STARTED' => 'Sesión de soporte iniciada',
+        'ACCESS_FINISHED' => 'Acceso de soporte terminado',
+        'HEALTH_RECORDED' => 'Lectura de salud registrada', 'INCIDENT_OPENED' => 'Incidente abierto', 'INCIDENT_EDITED' => 'Incidente editado',
+        'INCIDENT_UPDATED' => 'Actualización de incidente', 'INCIDENT_RESOLVED' => 'Incidente resuelto',
+        'ANNOUNCEMENT_SAVED' => 'Anuncio guardado', 'ANNOUNCEMENT_PUBLISHED' => 'Anuncio publicado', 'ANNOUNCEMENT_CANCELLED' => 'Anuncio cancelado',
+        'BILLING_RUN' => 'Corrida de facturación', 'INVOICE_DRAFT_DELETED' => 'Borrador de comprobante borrado', 'CREDIT_NOTE_ISSUED' => 'Nota de crédito emitida',
+        'PAYMENT_ATTEMPTED' => 'Cobro intentado', 'PAYMENTS_RECONCILED' => 'Cobros conciliados con un abono', 'METRICS_FROZEN' => 'Métricas congeladas',
+        'ADDON_SAVED' => 'Complemento guardado', 'ADDON_PUBLISHED' => 'Complemento publicado', 'ADDON_RETIRED' => 'Complemento retirado',
     ];
 
     /** Reglas de cada parámetro de plataforma: tipo y rango, para no guardar un valor que rompa la consola. */

@@ -53,13 +53,10 @@ PLT, SEG, MAE, INT y AUD son de cada empresa, pero algunas pantallas tocan datos
 - **Bitácora de accesos** (`access_log`, AUD-03) y **despacho del outbox** de eventos (INT-06).
 
 ## 4. Consola: lo que falta del prototipo 2.5
-*Anotado el 24/11/2026.* Ella pidió conservar el diseño actual y agregar lo que el prototipo muestra. Ya hechas: Bitácora y Salud.
+*Anotado el 24/11/2026.* Ella pidió conservar el diseño actual y agregar lo que el prototipo muestra. Ya hechas: Bitácora, Salud, Incidentes, Mora y Cobros y conciliación (24/11).
 
 | Pantalla | Lo que falta |
 |---|---|
-| Incidentes | Cifras: abiertos, SEV1/SEV2 del mes, avisos fuera de plazo, tiempo medio de resolución. Columnas: componente, empresas, aviso |
-| Mora | Cifras: en mora, deuda vencida, en solo lectura, suspendidas. Tarjeta «Proceso diario de mora» (fecha y botón). Columna del comprobante |
-| Cobros y conciliación | Cifras: aprobados, rechazados, por conciliar, avisos duplicados. Filtro por empresa. Columnas: intento, origen, motivo del rechazo (se conservan las pestañas) |
 | Facturación del SaaS | Filtros por tipo y empresa. Columnas: período, subtotal, IGV, estado en SUNAT. Vista previa de la corrida. Series en tabla con el número siguiente |
 | Catálogo de planes | Vista en tabla, cifras por producto, filtros por producto y estado; en el detalle, límites «bloquea / solo avisa» y dependencias de módulos |
 | Suscripciones | Cifras: MRR, empresas y cuántas en cada estado. Columnas: producto y uso más alto. Botón «Nueva suscripción» |

@@ -109,7 +109,15 @@ class CobroController extends Controller
 
     public function mora()
     {
-        return response()->json(Paginas::deLista(Mora::cola()));
+        $cola = Mora::cola();
+
+        return response()->json(Paginas::deLista($cola) + ['cifras' => Mora::cifras($cola), 'ultima_corrida' => Mora::ultimaCorrida()]);
+    }
+
+    /** Corre ahora el proceso diario de mora (reintentos y cambios de estado). */
+    public function procesar(Request $request)
+    {
+        return response()->json(Mora::ejecutar($this->quien($request)));
     }
 
     public function recordatorio(Request $request, string $sub)
