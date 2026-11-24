@@ -72,7 +72,8 @@ final class Suscripcion
     {
         return match ($clave) {
             // Los usuarios técnicos del soporte y los del portal B2B no cuentan (RN-SUS-06).
-            'users' => DB::table('users')->where('status', 'ACTIVE')->where(fn ($q) => $q->whereNull('user_type')->orWhereNotIn('user_type', ['PLATFORM_SUPPORT', 'B2B_CUSTOMER']))->count(),
+            // Las invitaciones pendientes y los bloqueados por intentos también ocupan su lugar.
+            'users' => DB::table('users')->whereIn('status', ['ACTIVE', 'INVITED', 'LOCKED'])->where(fn ($q) => $q->whereNull('user_type')->orWhereNotIn('user_type', ['PLATFORM_SUPPORT', 'B2B_CUSTOMER']))->count(),
             'brands' => DB::table('brands')->where('status', 'ACTIVE')->count(),
             'sites' => DB::table('establishments')->where('status', 'ACTIVE')->count(),
             default => 0,
@@ -88,7 +89,7 @@ final class Suscripcion
         }
         $uso = self::usado($clave);
         if ($uso + $agrega > $limite) {
-            RuleError::fail('RN-SUS-06', 'Tu plan permite '.$limite.' '.mb_strtolower(self::LIMITES[$clave][1])." y ya tienes {$uso}. Cambia de plan o contrata más para agregar otro.");
+            RuleError::fail('RN-SUS-06', 'Tu plan permite '.$limite.' '.mb_strtolower(self::LIMITES[$clave][1])." y ya tienes {$uso}. Cambia de plan o contrata un complemento para agregar más.");
         }
     }
 

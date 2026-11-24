@@ -930,3 +930,22 @@ Pendientes técnicos:
 - adaptadores de salud para los servicios externos;
 - tiempo de alta cuando exista el comprobante aceptado;
 - complementos de WhatsApp, minutos, pedidos y API.
+
+# Límites del plan en usuarios, marcas y locales (24/11, RN-SUS-06 y CA-SUS-02)
+
+`Suscripcion::exigirLimite()` (el contrato de SUS) ahora se llama antes de cada alta que suma al límite:
+- **SEG · Usuarios** (`Usuarios::crear` y `Usuarios::reactivar`): invitar o reactivar un usuario.
+- **PLT · Marcas** (`MarcaController`): crear una marca activa, pasar una a activa al editarla y activar varias a la vez.
+- **PLT · Locales** (`LocalController`): crear un local activo y pasar uno a activo al editarlo.
+
+Cómo funciona:
+- Si ya llegó al límite del plan (más sus complementos), la API responde 422 con el código `RN-SUS-06`. Por ejemplo: «Tu plan permite 3 marcas y ya tienes 3. Cambia de plan o contrata un complemento para agregar más.»
+- Lo inactivo se puede crear igual.
+- **Las invitaciones pendientes cuentan como usuarios.** Si no, se podrían invitar muchos y activarlos después.
+- Los técnicos del soporte y los del portal B2B no cuentan.
+- Don Guando (sin suscripción) no tiene límites.
+- Nada se borra si una empresa ya estaba por encima: solo no puede agregar más.
+
+En la consola, el uso de cada empresa (Empresas y Métricas) sigue contando solo los usuarios activos; el límite cuenta también los invitados.
+
+Prueba nueva en `OpsTest`: tres marcas entran y la cuarta activa no; inactiva sí, pero no se activa hasta contratar «1 marca más»; el tercer local no entra; con 15 usuarios (uno invitado) no se invita ni se reactiva, y con uno dado de baja sí se invita. En total el sistema tiene 359 pruebas, todas correctas.

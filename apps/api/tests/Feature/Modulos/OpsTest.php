@@ -1290,4 +1290,58 @@ class OpsTest extends TestCase
         TenantContext::platform();
         DB::table('platform_metric_runs')->delete();
     }
+
+    /* ---------------------------------------------------------------- límites del plan en SEG y PLT (RN-SUS-06) */
+
+    public function test_limites_del_plan_en_marcas_locales_y_usuarios(): void
+    {
+        [$admin, , $norte, $empresa] = $this->empresaActiva();   // Crecimiento: 15 usuarios, 3 marcas, 2 locales
+        $compania = $this->enEmpresa($norte, fn () => DB::table('companies')->value('id'));
+        $marca = fn (string $code, string $estado = 'ACTIVE') => $this->desde(self::DG, $empresa)->postJson('/api/v1/plt/marcas', [
+            'company_id' => $compania, 'code' => $code, 'name' => "Marca {$code}", 'primary_color' => '#8B1E3F', 'whatsapp_display_name' => "Marca {$code}",
+            'legal_footer' => 'Representación impresa del comprobante electrónico', 'sort_order' => 1, 'status' => $estado,
+        ]);
+
+        // CA-SUS-02: tres marcas entran; la cuarta activa se rechaza con el límite y el uso; inactiva sí se guarda.
+        foreach (['MA', 'MB', 'MC'] as $c) {
+            $marca($c)->assertCreated();
+        }
+        $marca('MD')->assertStatus(422)->assertJsonPath('code', 'RN-SUS-06')
+            ->assertJsonPath('message', 'Tu plan permite 3 marcas y ya tienes 3. Cambia de plan o contrata un complemento para agregar más.');
+        $cuarta = $marca('MD', 'INACTIVE')->assertCreated()->json('id');
+        $this->desde(self::DG, $empresa)->putJson('/api/v1/plt/marcas/estado', ['ids' => [$cuarta], 'status' => 'ACTIVE'])->assertStatus(422)->assertJsonPath('code', 'RN-SUS-06');
+
+        // Con el complemento «1 marca más» entra la cuarta.
+        $this->consola($admin)->putJson('/api/v1/consola/complementos/BRAND_1', ['name' => '1 marca más', 'kind' => 'LIMIT', 'limit_key' => 'brands', 'unit_qty' => 1, 'price_pen' => 40])->assertOk();
+        $this->consola($admin)->postJson('/api/v1/consola/complementos/BRAND_1/publicar')->assertOk();
+        $this->desde(self::DG, $empresa)->postJson('/api/v1/suscripcion/complementos/BRAND_1')->assertOk();
+        $this->desde(self::DG, $empresa)->putJson('/api/v1/plt/marcas/estado', ['ids' => [$cuarta], 'status' => 'ACTIVE'])->assertOk()->assertJsonPath('cambiadas', 1);
+
+        // Locales: dos entran, el tercero activo no.
+        $local = fn (string $code, string $sunat) => $this->desde(self::DG, $empresa)->postJson('/api/v1/plt/locales', [
+            'company_id' => $compania, 'code' => $code, 'name' => "Local {$code}", 'short' => "Local {$code}", 'est_type' => 'STORE',
+            'sunat_code' => $sunat, 'address' => 'Av. Industrial 123', 'has_counter' => true, 'status' => 'ACTIVE',
+        ]);
+        $local('L1', '0001')->assertCreated();
+        $local('L2', '0002')->assertCreated();
+        $local('L3', '0003')->assertStatus(422)->assertJsonPath('code', 'RN-SUS-06');
+
+        // Usuarios: las invitaciones pendientes cuentan; con 15 no se invita ni se reactiva.
+        $this->enEmpresa($norte, function () {
+            foreach (range(1, 14) as $i) {
+                DB::table('users')->insert(['name' => "Persona {$i}", 'email' => "persona{$i}@carnesdelnorte.pe", 'role' => 'VENDEDORA',
+                    'status' => $i === 14 ? 'INVITED' : 'ACTIVE', 'password' => 'x', 'failed_logins' => 0]);
+            }
+        });
+        $rol = $this->enEmpresa($norte, fn () => DB::table('roles')->where('code', 'ADMINISTRACION')->value('id'));
+        $nuevo = ['name' => 'Persona Nueva', 'email' => 'nueva@carnesdelnorte.pe', 'role_id' => $rol];
+        $this->desde(self::DG, $empresa)->postJson('/api/v1/seg/usuarios', $nuevo)->assertStatus(422)->assertJsonPath('code', 'RN-SUS-06');
+        $baja = $this->enEmpresa($norte, function () {
+            DB::table('users')->where('email', 'persona1@carnesdelnorte.pe')->update(['status' => 'INACTIVE']);
+
+            return DB::table('users')->where('email', 'persona1@carnesdelnorte.pe')->value('id');
+        });
+        $this->desde(self::DG, $empresa)->postJson('/api/v1/seg/usuarios', $nuevo)->assertCreated();
+        $this->desde(self::DG, $empresa)->postJson("/api/v1/seg/usuarios/{$baja}/reactivar")->assertStatus(422)->assertJsonPath('code', 'RN-SUS-06');
+    }
 }

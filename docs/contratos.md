@@ -379,7 +379,7 @@ Límite efectivo del plan contratado. `null` = sin límite.
 
 | Clave | Columna del plan | Qué cuenta (`usado()`) |
 |---|---|---|
-| `users` | `users_max` | Usuarios activos del personal, sin los técnicos de soporte (`PLATFORM_SUPPORT`) ni los del portal B2B (RN-SUS-06) |
+| `users` | `users_max` | Usuarios del personal activos, invitados o bloqueados por intentos (la invitación ya ocupa su lugar), sin los técnicos de soporte (`PLATFORM_SUPPORT`) ni los del portal B2B (RN-SUS-06) |
 | `brands` | `brands_max` | Marcas activas |
 | `sites` | `sites_max` | Locales activos |
 
@@ -391,7 +391,7 @@ Uso actual de esa clave en la empresa.
 
 ### `Suscripcion::exigirLimite(string $clave, int $agrega = 1): void`
 
-**RN-SUS-06.** Se llama **antes** de crear o reactivar un usuario, una marca o un local. Si `usado + agrega` pasa el límite, lanza `RuleError('RN-SUS-06', 'Tu plan permite N … y ya tienes M. …')`. Ejemplo en un servicio de PLT:
+**RN-SUS-06.** Se llama **antes** de crear o reactivar un usuario, una marca o un local. Si `usado + agrega` pasa el límite, lanza `RuleError('RN-SUS-06', 'Tu plan permite N … y ya tienes M. Cambia de plan o contrata un complemento para agregar más.')`. Ejemplo en un servicio de PLT:
 
 ```php
 Suscripcion::exigirLimite('brands');        // antes de insertar la marca
@@ -418,6 +418,6 @@ Todavía no se emiten al outbox de INT.
 
 ### Pendientes del contrato
 
-- **SEG y PLT:** llamar `exigirLimite('users' | 'brands' | 'sites')` en el alta y la reactivación de usuarios, marcas y locales (CA-SUS-02).
+- ~~**SEG y PLT:** llamar `exigirLimite` en el alta y la reactivación de usuarios, marcas y locales~~. **Hecho el 24/11/2026** (CA-SUS-02).
 - **API:** el límite de llamadas por día llega con los complementos (9c).
 - **RN-SUS-08:** hecho en 9c (`ModulosDelPlan::sincronizar()`); PLT revisa con `ModulosDelPlan::contratado()` antes de encender un módulo a mano.

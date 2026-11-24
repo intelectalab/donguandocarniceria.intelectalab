@@ -4,6 +4,7 @@ namespace App\Modulos\Plt\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modulos\Plt\Models\Establishment;
+use App\Modulos\Sus\Services\Suscripcion;
 use App\Support\Listado;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -38,7 +39,11 @@ class LocalController extends Controller
 
     public function store(Request $request)
     {
-        $local = Establishment::create($this->validar($request));
+        $datos = $this->validar($request);
+        if ($datos['status'] === 'ACTIVE') {
+            Suscripcion::exigirLimite('sites');   // RN-SUS-06: locales activos del plan
+        }
+        $local = Establishment::create($datos);
 
         return response()->json($local->fresh(), 201);
     }
@@ -46,7 +51,11 @@ class LocalController extends Controller
     public function update(Request $request, string $id)
     {
         $local = Establishment::findOrFail($id);
-        $local->update($this->validar($request, $local->id));
+        $datos = $this->validar($request, $local->id);
+        if ($datos['status'] === 'ACTIVE' && $local->status !== 'ACTIVE') {
+            Suscripcion::exigirLimite('sites');   // RN-SUS-06
+        }
+        $local->update($datos);
 
         return response()->json($local->fresh());
     }
