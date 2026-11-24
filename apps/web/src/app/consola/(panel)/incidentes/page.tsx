@@ -6,6 +6,7 @@ import { CheckCircle2, Clock, Megaphone, Plus, Save } from "lucide-react";
 import { Alert, Badge, Button, Checkbox, DataTable, Field, Input, Modal, PageHeader, Select, StatusBadge, Textarea, toast, type Column, type Tone } from "@/components/ui";
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { erroresDe, mensajeDe } from "@/lib/api";
+import { usePagina } from "@/lib/paginas";
 import { apiConsola } from "@/lib/consola";
 import { fechaHora } from "@/lib/formato";
 
@@ -18,7 +19,7 @@ type Incidente = {
 };
 type Detalle = Incidente & { empresas: { id: string; short: string }[]; tickets: { id: string; number: string; subject: string; status: string; tenant_short: string }[];
   linea: { status: string; status_name: string; message: string; public: boolean; author_name: string; at: string }[] };
-type Lista = { data: Incidente[]; severidades: Record<string, string>; estados: Record<string, string>; componentes: { code: string; name: string }[] };
+type Lista = { data: Incidente[]; current_page: number; last_page: number; per_page: number; total: number; severidades: Record<string, string>; estados: Record<string, string>; componentes: { code: string; name: string }[] };
 
 const TONO_SEV: Record<string, Tone> = { SEV1: "bad", SEV2: "bad", SEV3: "warn", SEV4: "neutral" };
 const ESTADOS: Record<string, [string, Tone]> = { INVESTIGATING: ["Investigando", "bad"], IDENTIFIED: ["Causa identificada", "warn"], MONITORING: ["En observación", "info"], RESOLVED: ["Resuelto", "ok"] };
@@ -49,11 +50,12 @@ function Contenido() {
   const [lista, setLista] = useState<Lista | null>(null);
   const [error, setError] = useState("");
   const [nuevo, setNuevo] = useState(false);
+  const pag = usePagina(JSON.stringify(f));
 
   const cargar = useCallback(() => {
     const q = new URLSearchParams(Object.entries(f).filter(([, v]) => v) as [string, string][]);
-    apiConsola<Lista>(`/incidentes?${q}`).then((r) => { setLista(r); setError(""); }).catch((e) => setError(mensajeDe(e)));
-  }, [f]);
+    apiConsola<Lista>(`/incidentes?${q}&${pag.qs}`).then((r) => { setLista(r); setError(""); }).catch((e) => setError(mensajeDe(e)));
+  }, [f, pag.qs]);
   useEffect(() => cargar(), [cargar]);
   const ver = (id: string | null) => router.replace(id ? `/consola/incidentes?incidente=${id}` : "/consola/incidentes", { scroll: false });
 
@@ -77,7 +79,7 @@ function Contenido() {
         <Select aria-label="Severidad" value={f.severity} onChange={(e) => setF({ ...f, severity: e.target.value })} placeholder="Toda severidad"
           options={Object.entries(lista?.severidades ?? {}).map(([value, label]) => ({ value, label }))} />
       </div>
-      <DataTable columns={columnas} rows={lista?.data ?? []} loading={!lista && !error} error={error} onRetry={cargar} onRowClick={(i) => ver(i.id)}
+      <DataTable columns={columnas} rows={lista?.data ?? []} loading={!lista && !error} error={error} onRetry={cargar} onRowClick={(i) => ver(i.id)} pagination={pag.props(lista)}
         empty="No hay incidentes con estos filtros." />
       {nuevo && lista && <FormIncidente lista={lista} onClose={() => setNuevo(false)} onListo={(i) => { setNuevo(false); cargar(); ver(i.id); }} />}
       {abierto && lista && <DetalleIncidente key={abierto} id={abierto} lista={lista} onClose={() => ver(null)} onCambio={cargar} />}

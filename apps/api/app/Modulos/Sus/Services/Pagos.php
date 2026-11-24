@@ -5,6 +5,7 @@ namespace App\Modulos\Sus\Services;
 use App\Modulos\Ops\Services\Consola;
 use App\Modulos\Sus\Services\Pasarelas\Pasarela;
 use App\Modulos\Sus\Services\Pasarelas\PasarelaFake;
+use App\Support\Paginas;
 use App\Support\RuleError;
 use App\Support\TenantContext;
 use Illuminate\Support\Facades\DB;
@@ -140,24 +141,24 @@ final class Pagos
             $f['conciliado'] ? $q->whereNotNull('p.settlement_id') : $q->whereNull('p.settlement_id')->where('p.status', 'APPROVED');
         }
 
-        return $q->orderByDesc('p.created_at')->limit(500)->get()->map(fn ($p) => [
+        return Paginas::de($q->orderByDesc('p.created_at')->orderBy('p.id'), fn ($p) => [
             'id' => $p->id, 'tenant_short' => $p->tenant_short, 'invoice_id' => $p->invoice_id, 'invoice_number' => $p->invoice_number, 'gateway' => $p->gateway,
             'gateway_ref' => $p->gateway_ref, 'amount' => (float) $p->amount, 'status' => $p->status, 'status_name' => self::ESTADOS[$p->status],
             'origin' => $p->origin, 'origin_name' => self::ORIGENES[$p->origin], 'error' => $p->error, 'tarjeta' => $p->brand ? "{$p->brand} ···· {$p->last4}" : null,
             'raw_event' => $p->raw_event ? json_decode($p->raw_event, true) : null, 'created_at' => $p->created_at, 'confirmed_at' => $p->confirmed_at,
             'settlement_reference' => $p->settlement_reference,
-        ])->all();
+        ], $f);
     }
 
     public static function eventos(): array
     {
-        return DB::table('saas_gateway_events')->orderByDesc('received_at')->limit(200)->get()
-            ->map(fn ($e) => array_merge((array) $e, ['payload' => json_decode($e->payload, true)]))->all();
+        return Paginas::de(DB::table('saas_gateway_events')->orderByDesc('received_at')->orderByDesc('id'),
+            fn ($e) => array_merge((array) $e, ['payload' => json_decode($e->payload, true)]));
     }
 
     public static function abonos(): array
     {
-        return DB::table('saas_settlements')->orderByDesc('settled_on')->limit(100)->get()->all();
+        return Paginas::de(DB::table('saas_settlements')->orderByDesc('settled_on')->orderBy('id'), fn ($a) => $a);
     }
 
     /* ------------------------------------------------------------------ internos */

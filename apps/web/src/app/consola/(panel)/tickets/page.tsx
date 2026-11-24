@@ -8,12 +8,13 @@ import { Conversacion, EstadoTicket, PlazoTicket, PrioridadTicket, type Ticket, 
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { PedirAcceso } from "@/components/consola/PedirAcceso";
 import { mensajeDe } from "@/lib/api";
+import { usePagina } from "@/lib/paginas";
 import { apiConsola } from "@/lib/consola";
 import { fechaHora } from "@/lib/formato";
 
 type Persona = { id: string; full_name: string; role: string };
 type Bandeja = {
-  data: TicketFila[];
+  data: TicketFila[]; current_page: number; last_page: number; per_page: number; total: number;
   cifras: { abiertos: number; sin_respuesta: number; vencidos: number; sin_asignar: number };
   personal: Persona[]; empresas: { id: string; short: string }[];
   categorias: Record<string, string>; prioridades: Record<string, string>; estados: Record<string, string>;
@@ -31,11 +32,12 @@ function Contenido() {
   const [f, setF] = useState<Filtros>({ status: "ACTIVOS", priority: "", tenant: "", assigned: "", search: "" });
   const [b, setB] = useState<Bandeja | null>(null);
   const [error, setError] = useState("");
+  const pag = usePagina(JSON.stringify(f));
 
   const cargar = useCallback(() => {
     const q = new URLSearchParams(Object.entries(f).filter(([, v]) => v) as [string, string][]);
-    apiConsola<Bandeja>(`/tickets?${q}`).then((r) => { setB(r); setError(""); }).catch((e) => setError(mensajeDe(e)));
-  }, [f]);
+    apiConsola<Bandeja>(`/tickets?${q}&${pag.qs}`).then((r) => { setB(r); setError(""); }).catch((e) => setError(mensajeDe(e)));
+  }, [f, pag.qs]);
   useEffect(() => {
     const t = setTimeout(cargar, f.search ? 300 : 0);
     return () => clearTimeout(t);
@@ -75,7 +77,7 @@ function Contenido() {
         <Select aria-label="Atiende" value={f.assigned} onChange={(e) => setF({ ...f, assigned: e.target.value })} placeholder="Cualquiera"
           options={[{ value: "NONE", label: "Sin asignar" }, ...(b?.personal ?? []).map((p) => ({ value: p.id, label: p.full_name }))]} />
       </div>
-      <DataTable columns={columnas} rows={b?.data ?? []} loading={!b && !error} error={error} onRetry={cargar} onRowClick={(t) => ver(t.id)}
+      <DataTable columns={columnas} rows={b?.data ?? []} loading={!b && !error} error={error} onRetry={cargar} onRowClick={(t) => ver(t.id)} pagination={pag.props(b)}
         empty="No hay tickets con estos filtros." />
       {abierto && b && <DetalleConsola key={abierto} id={abierto} personal={b.personal} onClose={() => ver(null)} onCambio={cargar} />}
     </div>

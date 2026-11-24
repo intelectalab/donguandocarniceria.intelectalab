@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Ban, CheckCircle2, ShieldCheck, XCircle } from "lucide-react";
 import { Alert, Badge, Button, DataTable, Field, Input, Modal, StatusBadge, confirmAction, toast, type Column, type Tone } from "@/components/ui";
 import { api, mensajeDe } from "@/lib/api";
+import { usePagina, type Pagina } from "@/lib/paginas";
 import { fechaHora } from "@/lib/formato";
 import { useSesion } from "@/lib/sesion";
 import { MODULOS } from "@/lib/modulos";
@@ -73,13 +74,14 @@ export function BitacoraAcceso({ eventos }: { eventos: Evento[] }) {
 /** OPS-14 Accesos de soporte: aprobar o rechazar lo que pide el soporte, revocar lo vigente y ver lo que hizo. */
 export function AccesosEmpresa({ abierto, onAbrir, onCambio }: { abierto: string | null; onAbrir: (id: string | null) => void; onCambio?: () => void }) {
   const sesion = useSesion();
-  const [datos, setDatos] = useState<{ data: Acceso[]; horas_por_defecto: number; max_horas: number } | null>(null);
+  const [datos, setDatos] = useState<(Pagina<Acceso> & { horas_por_defecto: number; max_horas: number }) | null>(null);
+  const pag = usePagina();
   const [error, setError] = useState("");
   const [aprobando, setAprobando] = useState<Acceso | null>(null);
 
   const cargar = useCallback(() => {
-    api<{ data: Acceso[]; horas_por_defecto: number; max_horas: number }>("/v1/soporte/accesos").then((r) => { setDatos(r); setError(""); }).catch((e) => setError(mensajeDe(e)));
-  }, []);
+    api<Pagina<Acceso> & { horas_por_defecto: number; max_horas: number }>(`/v1/soporte/accesos?${pag.qs}`).then((r) => { setDatos(r); setError(""); }).catch((e) => setError(mensajeDe(e)));
+  }, [pag.qs]);
   useEffect(() => cargar(), [cargar]);
   const cambio = () => { cargar(); onCambio?.(); };
 
@@ -139,7 +141,7 @@ export function AccesosEmpresa({ abierto, onAbrir, onCambio }: { abierto: string
   return (
     <div className="grid gap-4">
       <Alert tone="info">El equipo de GestionCarnica no entra a los datos de tu empresa sin tu aprobación. Cada acceso es temporal, personal y queda registrado.</Alert>
-      <DataTable columns={columnas} rows={datos?.data ?? []} loading={!datos && !error} error={error} onRetry={cargar} onRowClick={(a) => onAbrir(a.id)}
+      <DataTable columns={columnas} rows={datos?.data ?? []} loading={!datos && !error} error={error} onRetry={cargar} onRowClick={(a) => onAbrir(a.id)} pagination={pag.props(datos)}
         empty="El soporte no ha pedido acceso a tu empresa." />
       {aprobando && datos && <Aprobar a={aprobando} porDefecto={datos.horas_por_defecto} max={datos.max_horas} onClose={() => setAprobando(null)}
         onListo={() => { setAprobando(null); cambio(); }} />}

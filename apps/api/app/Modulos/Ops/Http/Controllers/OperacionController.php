@@ -46,7 +46,7 @@ class OperacionController extends Controller
             'severity' => ['nullable', Rule::in(array_keys(Incidentes::SEVERIDADES))],
         ]);
 
-        return response()->json(['data' => Incidentes::lista($f), 'severidades' => Incidentes::SEVERIDADES, 'estados' => Incidentes::ESTADOS,
+        return response()->json(Incidentes::lista($f) + ['severidades' => Incidentes::SEVERIDADES, 'estados' => Incidentes::ESTADOS,
             'componentes' => Salud::tablero()['data']]);
     }
 

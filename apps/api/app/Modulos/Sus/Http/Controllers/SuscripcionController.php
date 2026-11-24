@@ -17,7 +17,7 @@ class SuscripcionController extends Controller
 
     public function comprobantes()
     {
-        return response()->json(['data' => Suscripcion::comprobantes()]);
+        return response()->json(Suscripcion::comprobantes());
     }
 
     public function comprobante(string $id)

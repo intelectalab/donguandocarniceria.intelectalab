@@ -5,6 +5,7 @@ import { CreditCard, FileMinus, FilePlus2, Play, Send, Trash2 } from "lucide-rea
 import { Alert, Badge, Button, DataTable, Field, Input, Modal, PageHeader, Select, Tabs, confirmAction, toast, type Column, type Tone } from "@/components/ui";
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { erroresDe, mensajeDe } from "@/lib/api";
+import { usePagina } from "@/lib/paginas";
 import { apiConsola } from "@/lib/consola";
 import { fecha, fechaHora, soles } from "@/lib/formato";
 
@@ -21,7 +22,7 @@ type Detalle = Comprobante & {
 };
 type Corrida = { id: string; period: string; run_no: number; drafts: number; issued: number; charged: number; total: number; notes: string[]; created_by_name: string; created_at: string };
 type Serie = { code: string; doc_type_name: string; applies_to: string | null; next_number: number; ultimo: string | null; active: boolean };
-type Datos = { data: Comprobante[]; corridas: Corrida[]; series: Serie[]; emisor: string | null };
+type Datos = { data: Comprobante[]; current_page: number; last_page: number; per_page: number; total: number; corridas: Corrida[]; series: Serie[]; emisor: string | null };
 
 const PAGO: Record<string, Tone> = { UNPAID: "warn", PAID: "ok", CREDITED: "neutral", NA: "neutral" };
 const estadoTexto = (c: Comprobante) => (c.status === "DRAFT" ? "Borrador" : c.doc_type === "CREDIT_NOTE" ? "Emitida" : c.vencido ? "Vencido" : c.payment_status_name);
@@ -37,11 +38,12 @@ export default function Facturacion() {
   const [error, setError] = useState("");
   const [abierto, setAbierto] = useState<string | null>(null);
   const [corriendo, setCorriendo] = useState(false);
+  const pag = usePagina(JSON.stringify(f));
 
   const cargar = useCallback(() => {
     const q = new URLSearchParams(Object.entries(f).filter(([, v]) => v) as [string, string][]);
-    apiConsola<Datos>(`/facturacion?${q}`).then((r) => { setDatos(r); setError(""); }).catch((e) => setError(mensajeDe(e)));
-  }, [f]);
+    apiConsola<Datos>(`/facturacion?${q}&${pag.qs}`).then((r) => { setDatos(r); setError(""); }).catch((e) => setError(mensajeDe(e)));
+  }, [f, pag.qs]);
   useEffect(() => cargar(), [cargar]);
 
   async function corrida() {
@@ -84,7 +86,7 @@ export default function Facturacion() {
         <Alert tone="warn" title="Falta el RUC emisor de Intelectalab">Mientras no se registre en Parámetros de plataforma («RUC con el que factura Intelectalab»), los comprobantes quedan en borrador: no se emiten ni se cobran.</Alert>
       )}
       <Tabs value={tab} onChange={setTab} tabs={[
-        { key: "comprobantes", label: "Comprobantes", count: datos?.data.filter((c) => c.status === "DRAFT").length },
+        { key: "comprobantes", label: "Comprobantes" },
         { key: "corridas", label: "Corridas" }, { key: "series", label: "Series" },
       ]} />
       {tab === "comprobantes" && (
@@ -96,7 +98,7 @@ export default function Facturacion() {
               options={[{ value: "UNPAID", label: "Por cobrar" }, { value: "PAID", label: "Pagados" }, { value: "CREDITED", label: "Anulados con nota" }]} />
             <Input aria-label="Período" type="month" value={f.period} onChange={(e) => setF({ ...f, period: e.target.value })} />
           </div>
-          <DataTable columns={columnas} rows={datos?.data ?? []} loading={!datos && !error} error={error} onRetry={cargar} onRowClick={(c) => setAbierto(c.id)}
+          <DataTable columns={columnas} rows={datos?.data ?? []} loading={!datos && !error} error={error} onRetry={cargar} onRowClick={(c) => setAbierto(c.id)} pagination={pag.props(datos)}
             empty="No hay comprobantes con estos filtros." />
         </>
       )}

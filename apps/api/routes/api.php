@@ -132,6 +132,8 @@ Route::prefix('v1/consola')->group(function () {
         Route::post('/facturacion/{id}/cobrar', [CobroController::class, 'cobrar'])->middleware('throttle:20,1')->whereUuid('id');
         Route::get('/cobros', [CobroController::class, 'cobros']);
         Route::post('/cobros/conciliar', [CobroController::class, 'conciliar']);
+        Route::get('/cobros/eventos', [CobroController::class, 'eventos']);
+        Route::get('/cobros/abonos', [CobroController::class, 'abonos']);
         Route::get('/mora', [CobroController::class, 'mora']);
         // OPS-10 Métricas del negocio (congelar un mes: administración y cobranza; lo valida el servicio)
         Route::get('/metricas', [MetricaController::class, 'index']);

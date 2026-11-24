@@ -7,10 +7,11 @@ import { Alert, Button, DataTable, Field, Input, Modal, PageHeader, Select, Tabs
 import { AccesosEmpresa } from "@/components/soporte/AccesosEmpresa";
 import { Conversacion, EstadoTicket, PrioridadTicket, type Ticket, type TicketFila } from "@/components/soporte/tickets";
 import { api, erroresDe, mensajeDe } from "@/lib/api";
+import { usePagina } from "@/lib/paginas";
 import { fechaHora } from "@/lib/formato";
 import { useSesion } from "@/lib/sesion";
 
-type Lista = { data: TicketFila[]; categorias: Record<string, string>; prioridades: Record<string, string> };
+type Lista = { data: TicketFila[]; current_page: number; last_page: number; per_page: number; total: number; categorias: Record<string, string>; prioridades: Record<string, string> };
 
 /** Soporte: la empresa pide ayuda al equipo de GestionCarnica, sigue la conversación y califica la atención. */
 export default function Soporte() {
@@ -47,10 +48,11 @@ function MisTickets() {
   const [lista, setLista] = useState<Lista | null>(null);
   const [error, setError] = useState("");
   const [nuevo, setNuevo] = useState(false);
+  const pag = usePagina();
 
   const cargar = useCallback(() => {
-    api<Lista>("/v1/soporte/tickets").then((r) => { setLista(r); setError(""); }).catch((e) => setError(mensajeDe(e)));
-  }, []);
+    api<Lista>(`/v1/soporte/tickets?${pag.qs}`).then((r) => { setLista(r); setError(""); }).catch((e) => setError(mensajeDe(e)));
+  }, [pag.qs]);
   useEffect(() => cargar(), [cargar]);
 
   const puedeAbrir = Boolean(sesion.can("ops.ticket.create"));
@@ -72,7 +74,7 @@ function MisTickets() {
       <PageHeader
         description={todos ? "Los pedidos de ayuda de tu empresa al equipo de GestionCarnica y en qué quedó cada uno." : "Tus pedidos de ayuda al equipo de GestionCarnica y en qué quedó cada uno."}
         actions={puedeAbrir ? <Button variant="primary" icon={Plus} onClick={() => setNuevo(true)}>Nuevo ticket</Button> : undefined} />
-      <DataTable columns={columnas} rows={lista?.data ?? []} loading={!lista && !error} error={error} onRetry={cargar} onRowClick={(t) => ver(t.id)}
+      <DataTable columns={columnas} rows={lista?.data ?? []} loading={!lista && !error} error={error} onRetry={cargar} onRowClick={(t) => ver(t.id)} pagination={pag.props(lista)}
         empty={<span className="inline-flex items-center gap-2"><LifeBuoy size={16} aria-hidden="true" />Aún no hay tickets. Si algo no funciona o tienes una duda, abre uno.</span>} />
       {nuevo && lista && <NuevoTicket lista={lista} onClose={() => setNuevo(false)} onCreado={(t) => { setNuevo(false); cargar(); ver(t.id); }} />}
       {abierto && <DetalleTicket key={abierto} id={abierto} onClose={() => ver(null)} onCambio={cargar} />}

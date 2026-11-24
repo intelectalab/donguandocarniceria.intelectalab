@@ -4,6 +4,7 @@ namespace App\Modulos\Sus\Services;
 
 use App\Modulos\Ops\Services\Consola;
 use App\Modulos\Plt\Services\Ruc;
+use App\Support\Paginas;
 use App\Support\RuleError;
 use App\Support\TenantContext;
 use Illuminate\Support\Carbon;
@@ -224,10 +225,12 @@ final class Facturacion
                 $q->where($col, $f[$k]);
             }
         }
-        $filas = $q->orderByRaw("f.status = 'DRAFT' DESC")->orderByDesc('f.issue_date')->orderByDesc('f.created_at')->limit(500)->get();
-        $saldos = self::saldos($filas->pluck('id')->all());
+        $q->orderByRaw("f.status = 'DRAFT' DESC")->orderByDesc('f.issue_date')->orderByDesc('f.created_at')->orderBy('f.id');
+        $pagina = Paginas::de($q, fn ($x) => $x, $f);
+        $saldos = self::saldos(array_column($pagina['data'], 'id'));
+        $pagina['data'] = array_map(fn ($x) => self::presentar($x, $saldos[$x->id] ?? null), $pagina['data']);
 
-        return $filas->map(fn ($x) => self::presentar($x, $saldos[$x->id] ?? null))->all();
+        return $pagina;
     }
 
     public static function ver(string $id): array

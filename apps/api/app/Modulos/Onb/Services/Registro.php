@@ -153,7 +153,7 @@ final class Registro
         self::vencerViejos();
 
         return DB::table('tenant_signups as s')->leftJoin('tenants as t', 't.id', '=', 's.tenant_id')->leftJoin('saas_plans as p', 'p.code', '=', 's.plan_code')
-            ->orderByRaw("s.status = 'PENDING' DESC")->orderByDesc('s.created_at')->limit(500)
+            ->orderByRaw("s.status = 'PENDING' DESC")->orderByDesc('s.created_at')
             ->get(['s.id', 's.ruc', 's.legal_name', 's.trade_name', 's.business_type', 's.plan_code', 'p.name as plan_name', 's.contact_name', 's.email',
                 's.phone', 's.status', 's.code_attempts', 's.verified_at', 's.tenant_id', 't.short as tenant_short', 's.rejected_reason', 's.source',
                 's.created_at', 's.updated_at'])

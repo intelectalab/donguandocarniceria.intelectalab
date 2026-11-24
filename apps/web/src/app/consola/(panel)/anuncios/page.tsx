@@ -5,6 +5,7 @@ import { Ban, Megaphone, Pencil, Plus, Save, Send } from "lucide-react";
 import { Badge, Button, Checkbox, DataTable, Field, Input, Modal, PageHeader, Select, StatusBadge, Textarea, confirmAction, toast, type Column, type Tone } from "@/components/ui";
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { erroresDe, mensajeDe } from "@/lib/api";
+import { usePagina } from "@/lib/paginas";
 import { apiConsola } from "@/lib/consola";
 import { fechaHora } from "@/lib/formato";
 
@@ -13,7 +14,7 @@ type Anuncio = {
   starts_at: string; ends_at: string | null; maintenance_starts_at: string | null; maintenance_ends_at: string | null; status: string; status_name: string;
   published_at: string | null; incident_id: string | null; incident_number: string | null; created_by_name: string; created_at: string;
 };
-type Lista = { data: Anuncio[]; planes: { code: string; name: string }[]; empresas: { id: string; short: string }[]; aviso_horas: number };
+type Lista = { data: Anuncio[]; current_page: number; last_page: number; per_page: number; total: number; planes: { code: string; name: string }[]; empresas: { id: string; short: string }[]; aviso_horas: number };
 
 const ESTADOS: Record<string, [string, Tone]> = { DRAFT: ["Borrador", "neutral"], SCHEDULED: ["Programado", "info"], ACTIVE: ["Publicado", "ok"], ENDED: ["Terminado", "neutral"], CANCELLED: ["Cancelado", "neutral"] };
 const TONO_TIPO: Record<string, Tone> = { INFO: "info", MAINTENANCE: "warn", INCIDENT: "bad", FEATURE: "primary" };
@@ -28,10 +29,11 @@ export default function Anuncios() {
   const [lista, setLista] = useState<Lista | null>(null);
   const [error, setError] = useState("");
   const [editando, setEditando] = useState<Anuncio | "nuevo" | null>(null);
+  const pag = usePagina();
 
   const cargar = useCallback(() => {
-    apiConsola<Lista>("/anuncios").then((r) => { setLista(r); setError(""); }).catch((e) => setError(mensajeDe(e)));
-  }, []);
+    apiConsola<Lista>(`/anuncios?${pag.qs}`).then((r) => { setLista(r); setError(""); }).catch((e) => setError(mensajeDe(e)));
+  }, [pag.qs]);
   useEffect(() => cargar(), [cargar]);
 
   async function accion(a: Anuncio, ruta: "publicar" | "cancelar") {
@@ -72,7 +74,7 @@ export default function Anuncios() {
     <div className="grid gap-5">
       <PageHeader description={`Las empresas ven solo los anuncios dirigidos a ellas, como una franja en su sistema mientras dure la ventana. Un mantenimiento se anuncia con al menos ${lista?.aviso_horas ?? 48} horas de anticipación. Los de incidentes se publican desde el incidente.`}
         actions={puede ? <Button variant="primary" icon={Plus} onClick={() => setEditando("nuevo")}>Nuevo anuncio</Button> : undefined} />
-      <DataTable columns={columnas} rows={lista?.data ?? []} loading={!lista && !error} error={error} onRetry={cargar}
+      <DataTable columns={columnas} rows={lista?.data ?? []} loading={!lista && !error} error={error} onRetry={cargar} pagination={pag.props(lista)}
         empty={<span className="inline-flex items-center gap-2"><Megaphone size={16} aria-hidden="true" />Todavía no hay anuncios.</span>} />
       {editando && lista && <FormAnuncio lista={lista} actual={editando === "nuevo" ? undefined : editando} onClose={() => setEditando(null)} onListo={() => { setEditando(null); cargar(); }} />}
     </div>

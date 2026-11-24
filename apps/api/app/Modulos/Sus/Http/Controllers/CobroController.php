@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modulos\Sus\Services\Facturacion;
 use App\Modulos\Sus\Services\Mora;
 use App\Modulos\Sus\Services\Pagos;
+use App\Support\Paginas;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -24,8 +25,8 @@ class CobroController extends Controller
             'period' => ['nullable', 'regex:/^\d{4}-\d{2}$/'],
         ]);
 
-        return response()->json([
-            'data' => Facturacion::lista($f), 'corridas' => Facturacion::corridas(), 'series' => Facturacion::series(),
+        return response()->json(Facturacion::lista($f) + [
+            'corridas' => Facturacion::corridas(), 'series' => Facturacion::series(),
             'emisor' => Facturacion::emisor(), 'tipos' => Facturacion::TIPOS, 'pagos' => Facturacion::PAGO,
         ]);
     }
@@ -79,7 +80,17 @@ class CobroController extends Controller
             'conciliado' => ['nullable', Rule::in(['0', '1'])],
         ]);
 
-        return response()->json(['data' => Pagos::lista($f), 'eventos' => Pagos::eventos(), 'abonos' => Pagos::abonos()]);
+        return response()->json(Pagos::lista($f));
+    }
+
+    public function eventos()
+    {
+        return response()->json(Pagos::eventos());
+    }
+
+    public function abonos()
+    {
+        return response()->json(Pagos::abonos());
     }
 
     public function conciliar(Request $request)
@@ -98,7 +109,7 @@ class CobroController extends Controller
 
     public function mora()
     {
-        return response()->json(['data' => Mora::cola()]);
+        return response()->json(Paginas::deLista(Mora::cola()));
     }
 
     public function recordatorio(Request $request, string $sub)

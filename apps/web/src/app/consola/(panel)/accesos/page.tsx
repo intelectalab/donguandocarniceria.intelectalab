@@ -8,6 +8,7 @@ import { Alcance, ContenidoAcceso, ESTADOS_ACCESO, quedan, type Acceso, type Acc
 import { PedirAcceso, entrarConAcceso } from "@/components/consola/PedirAcceso";
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { mensajeDe } from "@/lib/api";
+import { usePagina, type Pagina } from "@/lib/paginas";
 import { apiConsola } from "@/lib/consola";
 import { fechaHora } from "@/lib/formato";
 
@@ -21,15 +22,16 @@ function Contenido() {
   const router = useRouter();
   const abierto = useSearchParams().get("acceso");
   const [f, setF] = useState({ status: "ABIERTOS", tenant: "" });
-  const [filas, setFilas] = useState<Acceso[] | null>(null);
+  const [filas, setFilas] = useState<Pagina<Acceso> | null>(null);
+  const pag = usePagina(JSON.stringify(f));
   const [empresas, setEmpresas] = useState<{ id: string; short: string }[]>([]);
   const [error, setError] = useState("");
   const [pedir, setPedir] = useState(false);
 
   const cargar = useCallback(() => {
     const q = new URLSearchParams(Object.entries(f).filter(([, v]) => v) as [string, string][]);
-    apiConsola<{ data: Acceso[] }>(`/accesos?${q}`).then((r) => { setFilas(r.data); setError(""); }).catch((e) => setError(mensajeDe(e)));
-  }, [f]);
+    apiConsola<Pagina<Acceso>>(`/accesos?${q}&${pag.qs}`).then((r) => { setFilas(r); setError(""); }).catch((e) => setError(mensajeDe(e)));
+  }, [f, pag.qs]);
   useEffect(() => cargar(), [cargar]);
   useEffect(() => {
     apiConsola<{ empresas: { id: string; short: string }[] }>("/accesos/opciones").then((r) => setEmpresas(r.empresas)).catch(() => undefined);
@@ -89,7 +91,7 @@ function Contenido() {
         <Select aria-label="Empresa" value={f.tenant} onChange={(e) => setF({ ...f, tenant: e.target.value })} placeholder="Todas las empresas"
           options={empresas.map((t) => ({ value: t.id, label: t.short }))} />
       </div>
-      <DataTable columns={columnas} rows={filas ?? []} loading={!filas && !error} error={error} onRetry={cargar} onRowClick={(a) => ver(a.id)}
+      <DataTable columns={columnas} rows={filas?.data ?? []} loading={!filas && !error} error={error} onRetry={cargar} onRowClick={(a) => ver(a.id)} pagination={pag.props(filas)}
         empty={<span className="inline-flex items-center gap-2"><KeyRound size={16} aria-hidden="true" />No hay accesos con estos filtros.</span>} />
       {pedir && <PedirAcceso onClose={() => setPedir(false)} onPedido={() => { setPedir(false); cargar(); }} />}
       {abierto && <DetalleConsola key={abierto} id={abierto} onClose={() => ver(null)} />}

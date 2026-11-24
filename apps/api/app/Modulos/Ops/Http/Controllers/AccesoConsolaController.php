@@ -17,7 +17,7 @@ class AccesoConsolaController extends Controller
             'tenant' => ['nullable', 'uuid'],
         ]);
 
-        return response()->json(['data' => Accesos::listaConsola($f), 'estados' => Accesos::ESTADOS]);
+        return response()->json(Accesos::listaConsola($f) + ['estados' => Accesos::ESTADOS]);
     }
 
     public function opciones(Request $request)

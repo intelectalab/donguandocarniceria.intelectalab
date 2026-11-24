@@ -7,6 +7,7 @@ import { Alert, Badge, Button, Checkbox, DataTable, Field, Input, Modal, PageHea
 import { PasarelaPrueba, type TarjetaTokenizada } from "@/components/suscripcion/PasarelaPrueba";
 import { CambiarPlan, Complementos } from "@/components/suscripcion/CambiarPlan";
 import { api, erroresDe, mensajeDe } from "@/lib/api";
+import { usePagina, type Pagina } from "@/lib/paginas";
 import { fecha, fechaHora, soles } from "@/lib/formato";
 import { useSesion } from "@/lib/sesion";
 
@@ -139,12 +140,13 @@ function PlanYUso({ r, onPagar }: { r: Resumen; onPagar: () => void }) {
 }
 
 function Comprobantes({ puedePagar, tieneTarjeta, onCambio }: { puedePagar: boolean; tieneTarjeta: boolean; onCambio: () => void }) {
-  const [lista, setLista] = useState<Comprobante[] | null>(null);
+  const [lista, setLista] = useState<Pagina<Comprobante> | null>(null);
+  const pag = usePagina();
   const [error, setError] = useState("");
   const [abierto, setAbierto] = useState<string | null>(null);
   const cargar = useCallback(() => {
-    api<{ data: Comprobante[] }>("/v1/suscripcion/comprobantes").then((x) => { setLista(x.data); setError(""); }).catch((e) => setError(mensajeDe(e)));
-  }, []);
+    api<Pagina<Comprobante>>(`/v1/suscripcion/comprobantes?${pag.qs}`).then((x) => { setLista(x); setError(""); }).catch((e) => setError(mensajeDe(e)));
+  }, [pag.qs]);
   useEffect(() => cargar(), [cargar]);
 
   const columnas: Column<Comprobante>[] = [
@@ -158,7 +160,7 @@ function Comprobantes({ puedePagar, tieneTarjeta, onCambio }: { puedePagar: bool
 
   return (
     <>
-      <DataTable columns={columnas} rows={lista ?? []} loading={!lista && !error} error={error} onRetry={cargar} onRowClick={(c) => setAbierto(c.id)}
+      <DataTable columns={columnas} rows={lista?.data ?? []} loading={!lista && !error} error={error} onRetry={cargar} onRowClick={(c) => setAbierto(c.id)} pagination={pag.props(lista)}
         empty="Todavía no hay comprobantes de GestionCarnica." />
       {abierto && <DetalleComprobante key={abierto} id={abierto} puedePagar={puedePagar} tieneTarjeta={tieneTarjeta} onClose={() => setAbierto(null)}
         onPagado={() => { cargar(); onCambio(); }} />}

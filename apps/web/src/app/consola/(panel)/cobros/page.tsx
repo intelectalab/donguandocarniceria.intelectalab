@@ -5,6 +5,7 @@ import { Landmark } from "lucide-react";
 import { Badge, Button, DataTable, Field, Input, Modal, PageHeader, Select, Tabs, toast, type Column, type Tone } from "@/components/ui";
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { erroresDe, mensajeDe } from "@/lib/api";
+import { usePagina, type Pagina } from "@/lib/paginas";
 import { apiConsola } from "@/lib/consola";
 import { fecha, fechaHora, soles } from "@/lib/formato";
 
@@ -14,7 +15,7 @@ type Cobro = {
 };
 type Evento = { id: number; gateway: string; event_id: string; type: string; signature_ok: boolean; payload: unknown; result: string; received_at: string };
 type Abono = { id: string; gateway: string; reference: string; settled_on: string; gross: number; amount: number; fee: number; created_by_name: string };
-type Datos = { data: Cobro[]; eventos: Evento[]; abonos: Abono[] };
+type Datos = Pagina<Cobro>;
 
 const TONO: Record<string, Tone> = { APPROVED: "ok", DECLINED: "bad", PENDING: "neutral" };
 
@@ -29,12 +30,22 @@ export default function Cobros() {
   const [marcados, setMarcados] = useState<string[]>([]);
   const [conciliar, setConciliar] = useState(false);
   const [crudo, setCrudo] = useState<unknown>(null);
+  const [eventos, setEventos] = useState<Pagina<Evento> | null>(null);
+  const [abonos, setAbonos] = useState<Pagina<Abono> | null>(null);
+  const pag = usePagina(JSON.stringify(f));
+  const pagEventos = usePagina();
+  const pagAbonos = usePagina();
 
   const cargar = useCallback(() => {
     const q = new URLSearchParams(Object.entries(f).filter(([, v]) => v) as [string, string][]);
-    apiConsola<Datos>(`/cobros?${q}`).then((r) => { setDatos(r); setError(""); }).catch((e) => setError(mensajeDe(e)));
-  }, [f]);
+    apiConsola<Datos>(`/cobros?${q}&${pag.qs}`).then((r) => { setDatos(r); setError(""); }).catch((e) => setError(mensajeDe(e)));
+  }, [f, pag.qs]);
   useEffect(() => cargar(), [cargar]);
+  // Los avisos y los abonos se piden al abrir su pestaña, cada uno con su paginación.
+  useEffect(() => {
+    if (tab === "eventos") apiConsola<Pagina<Evento>>(`/cobros/eventos?${pagEventos.qs}`).then(setEventos).catch((e) => setError(mensajeDe(e)));
+    if (tab === "abonos") apiConsola<Pagina<Abono>>(`/cobros/abonos?${pagAbonos.qs}`).then(setAbonos).catch((e) => setError(mensajeDe(e)));
+  }, [tab, pagEventos.qs, pagAbonos.qs]);
 
   const columnas: Column<Cobro>[] = [
     { key: "invoice_number", header: "Comprobante", cardTitle: true, render: (c) => <div><p className="font-semibold text-ink">{c.invoice_number}</p><p className="text-[12.5px] text-muted">{c.tenant_short}</p></div> },
@@ -63,33 +74,26 @@ export default function Cobros() {
             <Select aria-label="Conciliación" value={f.conciliado} onChange={(e) => setF({ ...f, conciliado: e.target.value })} placeholder="Conciliados o no"
               options={[{ value: "0", label: "Aprobados sin conciliar" }, { value: "1", label: "Conciliados" }]} />
           </div>
-          <DataTable columns={columnas} rows={datos?.data ?? []} loading={!datos && !error} error={error} onRetry={cargar} empty="No hay cobros con estos filtros."
+          <DataTable columns={columnas} rows={datos?.data ?? []} loading={!datos && !error} error={error} onRetry={cargar} empty="No hay cobros con estos filtros." pagination={pag.props(datos)}
             selection={puede ? { selected: marcados, onChange: setMarcados, canSelect: (c) => c.status === "APPROVED" && !c.settlement_reference,
               actions: <Button size="sm" variant="primary" icon={Landmark} onClick={() => setConciliar(true)}>Conciliar con un abono</Button> } : undefined} />
         </>
       )}
       {tab === "eventos" && (
-        <div className="grid gap-1.5">
-          {(datos?.eventos ?? []).length === 0 && <p className="text-[13px] text-muted">Todavía no llegaron avisos.</p>}
-          {(datos?.eventos ?? []).map((e) => (
-            <div key={e.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-[12.5px]">
-              <Badge tone={e.signature_ok ? "ok" : "bad"}>{e.signature_ok ? "Firma válida" : "Firma inválida"}</Badge>
-              <span className="text-ink">{e.result}</span><span className="text-muted">{e.event_id} · {fechaHora(e.received_at)}</span>
-              <button type="button" className="cursor-pointer text-primary hover:underline" onClick={() => setCrudo(e.payload)}>Ver aviso</button>
-            </div>
-          ))}
-        </div>
+        <DataTable rows={eventos?.data ?? []} rowKey={(e) => String(e.id)} loading={!eventos} empty="Todavía no llegaron avisos." pagination={pagEventos.props(eventos)} columns={[
+          { key: "signature_ok", header: "Firma", render: (e) => <Badge tone={e.signature_ok ? "ok" : "bad"}>{e.signature_ok ? "Válida" : "Inválida"}</Badge> },
+          { key: "result", header: "Resultado", cardTitle: true, render: (e) => <span className="text-ink">{e.result}</span> },
+          { key: "received_at", header: "Llegó", hideOnMobile: true, render: (e) => <div className="text-[12.5px]"><p>{fechaHora(e.received_at)}</p><p className="text-muted">{e.event_id}</p></div> },
+          { key: "ver", header: "", align: "right", render: (e) => <button type="button" className="cursor-pointer text-[12.5px] text-primary hover:underline" onClick={() => setCrudo(e.payload)}>Ver aviso</button> },
+        ]} />
       )}
       {tab === "abonos" && (
-        <div className="grid gap-1.5">
-          {(datos?.abonos ?? []).length === 0 && <p className="text-[13px] text-muted">Todavía no hay abonos conciliados.</p>}
-          {(datos?.abonos ?? []).map((a) => (
-            <div key={a.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-surface px-3 py-2 text-[13px]">
-              <span className="font-semibold text-ink">{a.reference}</span><span>{fecha(a.settled_on)}</span>
-              <span>Cobrado {soles(a.gross)}</span><span>Abonado {soles(a.amount)}</span><span className="text-muted">Comisión {soles(a.fee)}</span>
-            </div>
-          ))}
-        </div>
+        <DataTable rows={abonos?.data ?? []} loading={!abonos} empty="Todavía no hay abonos conciliados." pagination={pagAbonos.props(abonos)} columns={[
+          { key: "reference", header: "Abono", cardTitle: true, render: (a) => <div><p className="font-semibold text-ink">{a.reference}</p><p className="text-[12.5px] text-muted">{fecha(a.settled_on)}</p></div> },
+          { key: "gross", header: "Cobrado", align: "right", render: (a) => soles(a.gross) },
+          { key: "amount", header: "Abonado", align: "right", render: (a) => soles(a.amount) },
+          { key: "fee", header: "Comisión", align: "right", render: (a) => soles(a.fee) },
+        ]} />
       )}
       {conciliar && <Conciliar cobros={elegidos} onClose={() => setConciliar(false)} onListo={() => { setConciliar(false); setMarcados([]); cargar(); }} />}
       {crudo !== null && (

@@ -8,6 +8,7 @@ import { DataTable, PageHeader, Select, StatusBadge, buttonClass, type Column } 
 import { BarraUso, ESTADOS_SUSCRIPCION, type Empresa } from "@/components/consola/empresas";
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { mensajeDe } from "@/lib/api";
+import { usePaginaLocal } from "@/lib/paginas";
 import { apiConsola } from "@/lib/consola";
 import { fecha, soles } from "@/lib/formato";
 
@@ -37,6 +38,7 @@ export default function Empresas() {
     }
     return r;
   }, [filas, buscar, estado, orden]);
+  const pagina = usePaginaLocal(visibles, `${buscar}|${estado}|${orden}`);
 
   const cifras = useMemo(() => {
     const f = filas ?? [];
@@ -84,7 +86,7 @@ export default function Empresas() {
         ))}
       </div>
 
-      <DataTable columns={columnas} rows={visibles} loading={!filas && !error} error={error} onRetry={cargar}
+      <DataTable columns={columnas} rows={pagina.filas} pagination={pagina.props} loading={!filas && !error} error={error} onRetry={cargar}
         empty={buscar || estado ? "Ninguna empresa coincide con la búsqueda." : "Aún no hay empresas."}
         search={{ value: buscar, onChange: setBuscar, placeholder: "Buscar por nombre o RUC" }}
         sort={orden} onSortChange={setOrden}

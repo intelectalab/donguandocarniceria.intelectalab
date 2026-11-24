@@ -7,6 +7,7 @@ use App\Modulos\Ops\Services\Consola;
 use App\Modulos\Ops\Services\Empresas;
 use App\Modulos\Ops\Services\Suscripciones;
 use App\Support\Access;
+use App\Support\Paginas;
 use App\Support\RuleError;
 use App\Support\TenantContext;
 use Illuminate\Support\Carbon;
@@ -130,9 +131,8 @@ final class Suscripcion
     /** Comprobantes emitidos de la empresa (los borradores no se ven: aún no existen para ella). */
     public static function comprobantes(): array
     {
-        $ids = DB::table('saas_invoices')->where('status', 'ISSUED')->orderByDesc('issue_date')->orderByDesc('created_at')->limit(120)->pluck('id');
-
-        return $ids->map(fn ($id) => self::sinInternos(Facturacion::ver($id)))->all();
+        return Paginas::de(DB::table('saas_invoices')->where('status', 'ISSUED')->orderByDesc('issue_date')->orderByDesc('created_at')->orderBy('id')->select('id'),
+            fn ($f) => self::sinInternos(Facturacion::ver($f->id)));
     }
 
     public static function comprobante(string $id): array

@@ -12,8 +12,7 @@ class TicketController extends Controller
 {
     public function index(Request $request)
     {
-        return response()->json([
-            'data' => Tickets::deLaEmpresa($request->user()),
+        return response()->json(Tickets::deLaEmpresa($request->user()) + [
             'categorias' => Tickets::CATEGORIAS, 'prioridades' => Tickets::PRIORIDADES,
         ]);
     }

@@ -5,6 +5,7 @@ namespace App\Modulos\Ops\Services;
 use App\Models\User;
 use App\Modulos\Seg\Services\Bitacora;
 use App\Modulos\Seg\Services\Sesiones;
+use App\Support\Paginas;
 use App\Support\Params;
 use App\Support\RuleError;
 use App\Support\TenantContext;
@@ -145,9 +146,9 @@ final class Accesos
         if (! empty($f['tenant'])) {
             $q->where('a.tenant_id', $f['tenant']);
         }
-        $filas = $q->orderByRaw("CASE a.status WHEN 'ACTIVE' THEN 0 WHEN 'PENDING' THEN 1 ELSE 2 END")->orderByDesc('a.created_at')->limit(300)->get();
+        $q->orderByRaw("CASE a.status WHEN 'ACTIVE' THEN 0 WHEN 'PENDING' THEN 1 ELSE 2 END")->orderByDesc('a.created_at')->orderBy('a.id');
 
-        return $filas->map(fn ($a) => self::presentar($a))->all();
+        return Paginas::de($q, fn ($a) => self::presentar($a), $f);
     }
 
     /** Datos para el formulario de pedido: empresas activas, sus módulos encendidos y el tope de horas. */
@@ -171,12 +172,11 @@ final class Accesos
 
     public static function deLaEmpresa(User $u): array
     {
-        $filas = DB::table('support_accesses as a')->leftJoin('support_tickets as k', 'k.id', '=', 'a.ticket_id')
+        $q = DB::table('support_accesses as a')->leftJoin('support_tickets as k', 'k.id', '=', 'a.ticket_id')
             ->select('a.*', 'k.number as ticket_number', 'k.subject as ticket_subject')
-            ->orderByRaw("CASE a.status WHEN 'PENDING' THEN 0 WHEN 'ACTIVE' THEN 1 ELSE 2 END")->orderByDesc('a.created_at')->limit(100)->get();
+            ->orderByRaw("CASE a.status WHEN 'PENDING' THEN 0 WHEN 'ACTIVE' THEN 1 ELSE 2 END")->orderByDesc('a.created_at')->orderBy('a.id');
 
-        return [
-            'data' => $filas->map(fn ($a) => self::presentar($a))->all(),
+        return Paginas::de($q, fn ($a) => self::presentar($a)) + [
             'horas_por_defecto' => self::porDefecto(), 'max_horas' => self::maximo(),
         ];
     }

@@ -4,6 +4,7 @@ namespace App\Modulos\Ops\Services;
 
 use App\Models\User;
 use App\Support\Access;
+use App\Support\Paginas;
 use App\Support\RuleError;
 use App\Support\TenantContext;
 use Illuminate\Support\Carbon;
@@ -54,7 +55,7 @@ final class Tickets
             $q->where('opened_by', $u->id);
         }
 
-        return $q->limit(300)->get()->map(fn ($t) => self::fila($t))->all();
+        return Paginas::de($q, fn ($t) => self::fila($t));
     }
 
     public static function verDeLaEmpresa(User $u, string $id): array
@@ -123,19 +124,20 @@ final class Tickets
             $texto = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], mb_strtolower(trim($f['search']))).'%';
             $q->where(fn ($w) => $w->whereRaw('lower(k.subject) LIKE ?', [$texto])->orWhereRaw('lower(k.number) LIKE ?', [$texto])->orWhereRaw('lower(t.short) LIKE ?', [$texto]));
         }
+        // Las cifras son de todo lo filtrado (no solo de la página).
+        $c = (clone $q)->reorder()->select(DB::raw(<<<'SQL'
+            count(*) FILTER (WHERE k.status NOT IN ('RESOLVED','CLOSED')) AS abiertos,
+            count(*) FILTER (WHERE k.status NOT IN ('RESOLVED','CLOSED') AND k.first_response_at IS NULL) AS sin_respuesta,
+            count(*) FILTER (WHERE k.status NOT IN ('RESOLVED','CLOSED') AND k.first_response_at IS NULL AND k.first_response_due_at < now()) AS vencidos,
+            count(*) FILTER (WHERE k.status NOT IN ('RESOLVED','CLOSED') AND k.assigned_platform_user IS NULL) AS sin_asignar
+            SQL))->first();
         // Urgentes y los que vencen antes, primero; los cerrados al final.
-        $filas = $q->orderByRaw("k.status IN ('RESOLVED','CLOSED')")
+        $q->orderByRaw("k.status IN ('RESOLVED','CLOSED')")
             ->orderByRaw("CASE k.priority WHEN 'URGENT' THEN 0 WHEN 'HIGH' THEN 1 WHEN 'NORMAL' THEN 2 ELSE 3 END")
-            ->orderBy('k.first_response_due_at')->limit(500)->get()->map(fn ($t) => self::fila($t))->all();
+            ->orderBy('k.first_response_due_at')->orderBy('k.id');
 
-        return [
-            'data' => $filas,
-            'cifras' => [
-                'abiertos' => count(array_filter($filas, fn ($t) => ! in_array($t['status'], ['RESOLVED', 'CLOSED'], true))),
-                'sin_respuesta' => count(array_filter($filas, fn ($t) => $t['plazo']['estado'] === 'PENDIENTE' || $t['plazo']['estado'] === 'VENCIDO')),
-                'vencidos' => count(array_filter($filas, fn ($t) => $t['plazo']['estado'] === 'VENCIDO')),
-                'sin_asignar' => count(array_filter($filas, fn ($t) => ! $t['assigned_platform_user'] && ! in_array($t['status'], ['RESOLVED', 'CLOSED'], true))),
-            ],
+        return Paginas::de($q, fn ($t) => self::fila($t), $f) + [
+            'cifras' => ['abiertos' => (int) $c->abiertos, 'sin_respuesta' => (int) $c->sin_respuesta, 'vencidos' => (int) $c->vencidos, 'sin_asignar' => (int) $c->sin_asignar],
             'personal' => DB::table('platform_users')->where('status', 'ACTIVE')->orderBy('full_name')->get(['id', 'full_name', 'role']),
             'empresas' => DB::table('tenants')->orderBy('short')->get(['id', 'short']),
         ];

@@ -949,3 +949,26 @@ Cómo funciona:
 En la consola, el uso de cada empresa (Empresas y Métricas) sigue contando solo los usuarios activos; el límite cuenta también los invitados.
 
 Prueba nueva en `OpsTest`: tres marcas entran y la cuarta activa no; inactiva sí, pero no se activa hasta contratar «1 marca más»; el tercer local no entra; con 15 usuarios (uno invitado) no se invita ni se reactiva, y con uno dado de baja sí se invita. En total el sistema tiene 359 pruebas, todas correctas.
+
+# Paginación y buscador (24/11)
+
+## Buscador en Parámetros de plataforma
+
+Busca por nombre, descripción o valor (sin tildes ni mayúsculas) y agrupa en «Consola, soporte y operación», «Suscripciones y cobro» y «Registro de empresas».
+
+De paso se corrigió:
+- El RUC y el nombre con que factura Intelectalab se editan como texto: antes se mandaban como número y el nombre quedaba vacío.
+- Los valores que son listas o grupos se leen bien (por ejemplo «Urgente: 1 · Alta: 4 · …»).
+
+## Paginación
+
+Antes, varias listas traían de una vez un tope de 100 a 500 filas, sin avisar si había más. Ahora:
+- **Paginadas en el servidor** (`App\Support\Paginas`, mismo contrato que `Listado`: `data`, `current_page`, `last_page`, `per_page`, `total`; 25 por página, máximo 100):
+  - consola: Bandeja de tickets, Accesos de soporte, Incidentes, Anuncios, Facturación del SaaS, Cobros, Avisos de la pasarela, Abonos y Mora;
+  - empresa: Mis tickets, Accesos de soporte y Comprobantes de Mi suscripción.
+- **Las cifras de la bandeja** (abiertos, sin primera respuesta, plazo vencido, sin asignar) siguen contando todo lo filtrado, no solo la página.
+- **Paginadas en el navegador** (`usePaginaLocal`): Empresas, Suscripciones y Registros y demos. Filtran, ordenan y cuentan sobre la lista completa, así que se paginan después de filtrar.
+- **Web:** `usePagina()` en `lib/paginas.ts` lleva la página y las filas por página. Al cambiar un filtro vuelve sola a la primera página.
+- **Avisos y abonos de Cobros:** cada pestaña se carga por separado (`/consola/cobros/eventos` y `/consola/cobros/abonos`).
+
+Prueba: en la bandeja, una por página: página 2 de 2, total 2 y las cifras con los 2 abiertos. En total el sistema tiene 359 pruebas, todas correctas. Revisado en el navegador con 30 tickets: «Mostrando 1 a 25 de 30» y, en la página 2, «26 a 30».

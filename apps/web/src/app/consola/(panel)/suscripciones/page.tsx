@@ -8,6 +8,7 @@ import { AccionesSuscripcion } from "@/components/consola/AccionesSuscripcion";
 import { BarraUso, ESTADOS_SUSCRIPCION, type Uso } from "@/components/consola/empresas";
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { mensajeDe } from "@/lib/api";
+import { usePaginaLocal } from "@/lib/paginas";
 import { apiConsola } from "@/lib/consola";
 import { fecha, fechaHora, porcentaje, soles } from "@/lib/formato";
 
@@ -32,6 +33,7 @@ export default function Suscripciones() {
   useEffect(() => { cargar(); }, []);
   const abrir = (id: string) => apiConsola<Detalle>(`/suscripciones/${id}`).then(setAbierta).catch((e) => setError(mensajeDe(e)));
   const visibles = useMemo(() => (filas ?? []).filter((f) => !estado || f.status === estado), [filas, estado]);
+  const pagina = usePaginaLocal(visibles, estado);
 
   const columnas: Column<Suscripcion>[] = [
     { key: "short", header: "Empresa", cardTitle: true, render: (s) => <div><p className="font-semibold text-ink">{s.short}</p><p className="text-[12.5px] text-muted">{s.ruc ? `RUC ${s.ruc}` : s.tenant_name}</p></div> },
@@ -46,7 +48,7 @@ export default function Suscripciones() {
     <div className="grid gap-5">
       <PageHeader description="La suscripción de cada empresa cliente con su plan y versión, el estado y los días que lleva, su MRR y su uso. Abre una para ver su historial, extender la prueba, pactar un descuento o cambiar su estado." />
       {error && <Alert tone="bad">{error}</Alert>}
-      <DataTable columns={columnas} rows={visibles} loading={!filas && !error} onRowClick={(s) => abrir(s.id)}
+      <DataTable columns={columnas} rows={pagina.filas} pagination={pagina.props} loading={!filas && !error} onRowClick={(s) => abrir(s.id)}
         empty="Aún no hay suscripciones: las empresas que se dan de alta desde la consola aparecen aquí."
         toolbar={<Select value={estado} onChange={(e) => setEstado(e.target.value)} aria-label="Estado"
           options={[{ value: "", label: "Todos los estados" }, ...Object.entries(ESTADOS_SUSCRIPCION).map(([v, [l]]) => ({ value: v, label: l }))]} />} />

@@ -606,6 +606,9 @@ class OpsTest extends TestCase
         $this->assertSame(2, $b->json('cifras.abiertos'));
         $this->assertSame(2, $b->json('cifras.sin_asignar'));
         $this->assertNotEmpty($b->json('data.0.tenant_short'));
+        // Paginada: una por página, pero las cifras son de todo lo filtrado.
+        $p = $this->consola($lectura)->getJson('/api/v1/consola/tickets?per_page=1&page=2')->assertOk();
+        $this->assertSame([1, 2, 2, 2, 2], [count($p->json('data')), $p->json('total'), $p->json('last_page'), $p->json('current_page'), $p->json('cifras.abiertos')]);
         $this->consola($lectura)->postJson("/api/v1/consola/tickets/{$t['id']}/responder", ['body' => 'Hola', 'status' => 'RESOLVED'])
             ->assertStatus(422)->assertJsonPath('code', 'RN-OPS-10');
         $this->consola($soporte)->getJson('/api/v1/consola/tickets?status=OPEN&priority=LOW')->assertOk()->assertJsonCount(1, 'data');

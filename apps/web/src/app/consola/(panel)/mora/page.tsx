@@ -5,6 +5,7 @@ import { BellRing, CalendarClock, CreditCard } from "lucide-react";
 import { Badge, Button, DataTable, Field, Input, Modal, PageHeader, toast, type Column, type Tone } from "@/components/ui";
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { erroresDe, mensajeDe } from "@/lib/api";
+import { usePagina, type Pagina } from "@/lib/paginas";
 import { apiConsola } from "@/lib/consola";
 import { fecha, fechaHora, soles } from "@/lib/formato";
 
@@ -21,13 +22,14 @@ const ACCION: Record<string, string> = { REMINDER: "Recordatorio", EXTENSION: "P
 export default function Mora() {
   const yo = useUsuarioConsola();
   const puede = Boolean(yo.puede["billing.manage"]);
-  const [filas, setFilas] = useState<Fila[] | null>(null);
+  const [filas, setFilas] = useState<Pagina<Fila> | null>(null);
+  const pag = usePagina();
   const [error, setError] = useState("");
   const [prorroga, setProrroga] = useState<Fila | null>(null);
 
   const cargar = useCallback(() => {
-    apiConsola<{ data: Fila[] }>("/mora").then((r) => { setFilas(r.data); setError(""); }).catch((e) => setError(mensajeDe(e)));
-  }, []);
+    apiConsola<Pagina<Fila>>(`/mora?${pag.qs}`).then((r) => { setFilas(r); setError(""); }).catch((e) => setError(mensajeDe(e)));
+  }, [pag.qs]);
   useEffect(() => cargar(), [cargar]);
 
   async function accion(f: Fila, ruta: "recordatorio" | "cobrar") {
@@ -68,7 +70,7 @@ export default function Mora() {
   return (
     <div className="grid gap-5">
       <PageHeader description="Un comprobante vencido deja a la empresa con deuda (sigue operando). Se reintenta el cobro a los 1, 3 y 5 días; a los 7 días pasa a solo lectura y 15 días después, a suspendida. El pago confirmado la devuelve a activa en el momento. Una prórroga pospone esos pasos." />
-      <DataTable columns={columnas} rows={filas ?? []} rowKey={(f) => f.subscription_id} loading={!filas && !error} error={error} onRetry={cargar}
+      <DataTable columns={columnas} rows={filas?.data ?? []} rowKey={(f) => f.subscription_id} loading={!filas && !error} error={error} onRetry={cargar} pagination={pag.props(filas)}
         empty="Ninguna empresa debe comprobantes." />
       {prorroga && <Prorroga f={prorroga} onClose={() => setProrroga(null)} onListo={() => { setProrroga(null); cargar(); }} />}
     </div>

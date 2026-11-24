@@ -6,6 +6,7 @@ import { CheckCircle2, RotateCcw, XCircle } from "lucide-react";
 import { Badge, Button, DataTable, PageHeader, StatusBadge, Tabs, confirmAction, toast, type Column } from "@/components/ui";
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { mensajeDe } from "@/lib/api";
+import { usePaginaLocal } from "@/lib/paginas";
 import { apiConsola } from "@/lib/consola";
 import { fechaHora } from "@/lib/formato";
 
@@ -38,6 +39,8 @@ export default function RegistrosYDemos() {
   useEffect(() => { cargar(); }, []);
   const porAtender = useMemo(() => (demos ?? []).filter((d) => !d.attended_at).length, [demos]);
   const porVerificar = useMemo(() => (registros ?? []).filter((r) => r.status === "PENDING").length, [registros]);
+  const pagRegistros = usePaginaLocal(registros ?? []);
+  const pagDemos = usePaginaLocal(demos ?? []);
 
   async function rechazar(r: RegistroFila) {
     const c = await confirmAction({ title: `¿Rechazar el registro de ${r.trade_name}?`, danger: true, confirmLabel: "Rechazar", reason: { min: 5 },
@@ -109,10 +112,10 @@ export default function RegistrosYDemos() {
         { key: "demos", label: "Pedidos de demo", count: porAtender },
       ]} />
       {tab === "registros" ? (
-        <DataTable columns={colRegistros} rows={registros ?? []} loading={!registros && !error} error={error} onRetry={cargar}
+        <DataTable columns={colRegistros} rows={pagRegistros.filas} pagination={pagRegistros.props} loading={!registros && !error} error={error} onRetry={cargar}
           empty="Aún nadie se registró desde la página." />
       ) : (
-        <DataTable columns={colDemos} rows={demos ?? []} loading={!demos && !error} error={error} onRetry={cargar} empty="Aún no hay pedidos de demo." />
+        <DataTable columns={colDemos} rows={pagDemos.filas} pagination={pagDemos.props} loading={!demos && !error} error={error} onRetry={cargar} empty="Aún no hay pedidos de demo." />
       )}
     </div>
   );

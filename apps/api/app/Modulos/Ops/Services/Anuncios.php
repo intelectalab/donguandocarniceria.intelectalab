@@ -2,6 +2,7 @@
 
 namespace App\Modulos\Ops\Services;
 
+use App\Support\Paginas;
 use App\Support\RuleError;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -21,11 +22,10 @@ final class Anuncios
 
     public static function lista(): array
     {
-        $filas = DB::table('platform_announcements as a')->leftJoin('platform_incidents as i', 'i.id', '=', 'a.incident_id')
-            ->select('a.*', 'i.number as incident_number')->orderByDesc('a.created_at')->limit(200)->get();
+        $q = DB::table('platform_announcements as a')->leftJoin('platform_incidents as i', 'i.id', '=', 'a.incident_id')
+            ->select('a.*', 'i.number as incident_number')->orderByDesc('a.created_at')->orderBy('a.id');
 
-        return [
-            'data' => $filas->map(fn ($a) => self::presentar($a))->all(),
+        return Paginas::de($q, fn ($a) => self::presentar($a)) + [
             'planes' => DB::table('saas_plans')->orderBy('sort_order')->get(['code', 'name']),
             'empresas' => DB::table('tenants')->where('status', 'ACTIVE')->orderBy('short')->get(['id', 'short']),
             'aviso_horas' => self::anticipacion(),

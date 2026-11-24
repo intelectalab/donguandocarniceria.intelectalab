@@ -2,6 +2,7 @@
 
 namespace App\Modulos\Ops\Services;
 
+use App\Support\Paginas;
 use App\Support\RuleError;
 use App\Support\TenantContext;
 use Illuminate\Support\Carbon;
@@ -33,11 +34,14 @@ final class Incidentes
         if (! empty($f['severity'])) {
             $q->where('i.severity', $f['severity']);
         }
-        $filas = $q->orderByRaw("i.status = 'RESOLVED'")->orderBy('i.severity')->orderByDesc('i.started_at')->limit(200)->get();
-        $afectadas = DB::table('platform_incident_tenants')->whereIn('incident_id', $filas->pluck('id'))->selectRaw('incident_id, count(*) AS n')->groupBy('incident_id')->pluck('n', 'incident_id');
-        $tickets = DB::table('support_tickets')->whereIn('incident_id', $filas->pluck('id'))->selectRaw('incident_id, count(*) AS n')->groupBy('incident_id')->pluck('n', 'incident_id');
+        $q->orderByRaw("i.status = 'RESOLVED'")->orderBy('i.severity')->orderByDesc('i.started_at')->orderBy('i.id');
+        $pagina = Paginas::de($q, fn ($i) => $i, $f);
+        $ids = array_column($pagina['data'], 'id');
+        $afectadas = DB::table('platform_incident_tenants')->whereIn('incident_id', $ids)->selectRaw('incident_id, count(*) AS n')->groupBy('incident_id')->pluck('n', 'incident_id');
+        $tickets = DB::table('support_tickets')->whereIn('incident_id', $ids)->selectRaw('incident_id, count(*) AS n')->groupBy('incident_id')->pluck('n', 'incident_id');
+        $pagina['data'] = array_map(fn ($i) => self::presentar($i) + ['empresas' => (int) ($afectadas[$i->id] ?? 0), 'tickets' => (int) ($tickets[$i->id] ?? 0)], $pagina['data']);
 
-        return $filas->map(fn ($i) => self::presentar($i) + ['empresas' => (int) ($afectadas[$i->id] ?? 0), 'tickets' => (int) ($tickets[$i->id] ?? 0)])->all();
+        return $pagina;
     }
 
     public static function ver(string $id): array
