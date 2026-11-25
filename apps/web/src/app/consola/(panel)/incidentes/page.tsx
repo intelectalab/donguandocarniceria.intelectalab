@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlarmClock, CheckCircle2, Clock, Flame, Megaphone, Plus, Save, Siren, Timer } from "lucide-react";
-import { Alert, Badge, Button, Checkbox, Cifra, DataTable, Field, Input, Modal, PageHeader, Select, StatusBadge, Textarea, toast, type Column, type Tone } from "@/components/ui";
+import { Alert, Badge, Button, Checkbox, Cifra, DataTable, Field, FiltroSelect, Input, Modal, PageHeader, Select, StatusBadge, Textarea, toast, type Column, type Tone } from "@/components/ui";
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { erroresDe, mensajeDe } from "@/lib/api";
 import { usePagina } from "@/lib/paginas";
@@ -89,13 +89,13 @@ function Contenido() {
           <Cifra titulo="Tiempo medio de resolución" valor={horas(c.mediana_horas)} icono={Timer} detalle="Mediana" />
         </div>
       )}
-      <div className="grid gap-3 sm:grid-cols-2 lg:max-w-2xl">
-        <Select aria-label="Estado" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} placeholder="Todos"
-          options={[{ value: "ABIERTOS", label: "Abiertos" }, ...Object.entries(ESTADOS).map(([value, [label]]) => ({ value, label }))]} />
-        <Select aria-label="Severidad" value={f.severity} onChange={(e) => setF({ ...f, severity: e.target.value })} placeholder="Toda severidad"
-          options={Object.entries(lista?.severidades ?? {}).map(([value, label]) => ({ value, label }))} />
-      </div>
-      <DataTable {...pag.orden} columns={columnas} rows={lista?.data ?? []} loading={!lista && !error} error={error} onRetry={cargar} onRowClick={(i) => ver(i.id)} pagination={pag.props(lista)}
+      <DataTable toolbar={<>
+          <FiltroSelect etiqueta="Estado" ancho={170} value={f.status} onChange={(v) => setF({ ...f, status: v })}
+            options={[{ value: "ABIERTOS", label: "Abiertos" }, ...Object.entries(ESTADOS).map(([value, [label]]) => ({ value, label }))]} />
+          <FiltroSelect etiqueta="Severidad" todos="todas" ancho={160} value={f.severity} onChange={(v) => setF({ ...f, severity: v })}
+            options={Object.entries(lista?.severidades ?? {}).map(([value, label]) => ({ value, label }))} />
+        </>}
+        {...pag.orden} columns={columnas} rows={lista?.data ?? []} loading={!lista && !error} error={error} onRetry={cargar} onRowClick={(i) => ver(i.id)} pagination={pag.props(lista)}
         empty="No hay incidentes con estos filtros." />
       {nuevo && lista && <FormIncidente lista={lista} onClose={() => setNuevo(false)} onListo={(i) => { setNuevo(false); cargar(); ver(i.id); }} />}
       {abierto && lista && <DetalleIncidente key={abierto} id={abierto} lista={lista} onClose={() => ver(null)} onCambio={cargar} />}

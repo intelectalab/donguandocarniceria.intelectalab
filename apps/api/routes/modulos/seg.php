@@ -52,6 +52,12 @@ Route::prefix('seg')->group(function () {
     Route::put('/mi-cuenta/preferencias', [MiCuentaController::class, 'preferencias'])->middleware('throttle:30,1');
     Route::post('/mi-cuenta/probar-clave', [MiCuentaController::class, 'probarClave'])->middleware('throttle:30,1');
     Route::put('/mi-cuenta/menu', [MiCuentaController::class, 'menu'])->middleware('throttle:60,1');  // estrellas del menú
+    // SEG-03 y SEG-06: segundo factor de la propia persona (activar, códigos de recuperación nuevos, desactivar)
+    Route::get('/mi-cuenta/segundo-factor', [MiCuentaController::class, 'segundoFactor']);
+    Route::post('/mi-cuenta/segundo-factor/preparar', [MiCuentaController::class, 'prepararSegundoFactor'])->middleware('throttle:10,1');
+    Route::post('/mi-cuenta/segundo-factor/activar', [MiCuentaController::class, 'activarSegundoFactor'])->middleware('throttle:10,1');
+    Route::post('/mi-cuenta/segundo-factor/codigos', [MiCuentaController::class, 'regenerarCodigos'])->middleware('throttle:10,1');
+    Route::post('/mi-cuenta/segundo-factor/desactivar', [MiCuentaController::class, 'desactivarSegundoFactor'])->middleware('throttle:10,1');
 
     // SEG-07 Mis sesiones y dispositivos: cada persona las suyas, sin permiso especial ni acceso al módulo.
     Route::get('/mis-sesiones', [SesionController::class, 'mias']);

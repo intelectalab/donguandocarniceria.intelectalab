@@ -82,7 +82,8 @@ const POR_PERMISO: Record<string, Record<string, string>> = {
  * Menú de la persona: los grupos en su orden; un módulo sale si el rol lo puede ver (letra L o C)
  * y tiene al menos una pantalla visible. Sin el módulo, solo las pantallas que abre un permiso suyo.
  */
-export function menuDe(acceso: AccesoModulo[], roles: string[], permisos: string[] = []): GrupoDelMenu[] {
+export function menuDe(acceso: AccesoModulo[], roles: string[], permisos: string[] = [], ocultas: string[] = []): GrupoDelMenu[] {
+  const fuera = new Set(ocultas);   // las que no existen en este ambiente (el simulador en producción)
   const porCodigo = new Map(acceso.map((a) => [a.code, a]));
   return GRUPOS.map((g) => ({
     name: g.name,
@@ -91,9 +92,9 @@ export function menuDe(acceso: AccesoModulo[], roles: string[], permisos: string
       const m = moduloPorCodigo(code);
       if (!a || !m) return [];
       const solo = POR_PERMISO[code] ?? {};
-      const visibles = /[LC]/.test(a.actions)
+      const visibles = (/[LC]/.test(a.actions)
         ? m.screens.filter((p) => pantallaVisible(code, p, roles))
-        : m.screens.filter((p) => !FUERA_DEL_MENU.has(p.code) && solo[p.code] && permisos.includes(solo[p.code]));
+        : m.screens.filter((p) => !FUERA_DEL_MENU.has(p.code) && solo[p.code] && permisos.includes(solo[p.code]))).filter((p) => !fuera.has(p.code));
       return visibles.length ? [{ ...m, enabled: a.enabled, actions: a.actions, visibles }] : [];
     }),
   })).filter((g) => g.modulos.length > 0);

@@ -39,18 +39,20 @@ PLT, SEG, MAE, INT y AUD son de cada empresa, pero algunas pantallas tocan datos
 | MAE-08 Ubigeo | Tabla global; la importa el operador de plataforma | Solo consulta |
 | MAE-09 Entidades financieras | Tabla global (`financial_institutions`) | Solo consulta |
 | PLT-10 Parámetros | Las definiciones son globales (`parameter_definitions`); el valor es de la empresa | Cambia su valor dentro del rango |
-| INT-13 Simulador de integraciones | Solo existe en ambientes de prueba | Oculto en producción |
+| INT-13 Simulador de integraciones | Solo existe en ambientes de prueba | Oculto en producción (*hecho el 24/11/2026:* con `APP_ENV=production` la API lo rechaza y sale del menú) |
 
 **Por hacer:** al construir cada una, que la API rechace escrituras de empresa sobre tablas globales (hoy el RLS no las cubre porque no tienen `tenant_id`) y que la pantalla se muestre de solo lectura.
 
 *Hecho el 17/11/2026 para MAE-07, 08 y 09:* las tres pantallas son de solo consulta y la aplicación solo tiene `SELECT` sobre `sunat_catalog_items`, `ubigeo` y `financial_institutions`. Se actualizan con el comando descrito en [catalogos-globales.md](catalogos-globales.md).
 
 ## 3. Otros pendientes conocidos
-- **Segundo factor** (SEG-02, SEG-03): pendiente por decisión del equipo; no se implementa por ahora.
+- ~~**Segundo factor** (SEG-02, SEG-03)~~. *Hecho el 24/11/2026, opcional por ahora:* cada persona lo activa en Mi cuenta; para hacerlo obligatorio a los roles que lo exigen se enciende el parámetro `seg_mfa_enforce`. Ver [cambios/2026-11-26_aud-y-segundo-factor.md](cambios/2026-11-26_aud-y-segundo-factor.md).
 - **Cumplimiento de RN-PLT-01 y RN-PLT-02:** `FORCE ROW LEVEL SECURITY` (hoy solo `ENABLE`), FK compuestas `(tenant_id, x_id)`, función `plt_rls_gaps()` y que CI falle si devuelve filas.
 - ~~**Fecha límite de cierre guardada al cerrar**~~ (PLT-09). *Hecho el 07/11/2026 con PLT-10:* `accounting_periods.close_due_date` se llena al cerrar y los meses ya cerrados se completaron con el día vigente (5).
 - ~~**Colores de la marca en todo el sistema**~~ (PLT-01 y PLT-06). *Hecho el 07/11/2026:* ver `docs/cambios/2026-11-07_colores-de-la-marca-en-el-sistema.md`.
 - **Bitácora de accesos** (`access_log`, AUD-03) y **despacho del outbox** de eventos (INT-06).
+- **Archivo de la depuración fuera del servidor** (D-AUD-03). Hoy los archivos cifrados de la depuración (AUD-07) quedan en el disco privado del mismo servidor. La decisión es guardarlos en un almacenamiento aparte que no permita sobrescribir. Falta elegir el proveedor.
+- **Grabaciones de llamadas** (TEL): la política de 12 meses ya está en AUD-06 y la depuración respeta las retenidas por caso legal. Falta que TEL guarde grabaciones, y validar el plazo con un abogado de datos personales (D-AUD-02).
 
 ## 4. Consola: lo que falta del prototipo 2.5
 *Anotado el 24/11/2026.* Ella pidió conservar el diseño actual y agregar lo que el prototipo muestra. Ya hechas: Bitácora, Salud, Incidentes, Mora, Cobros y conciliación, Facturación, Catálogo de planes, Suscripciones, Empresas, Ficha de empresa, Registros y demos, Métricas, Tickets, Anuncios, Accesos, Complementos, Usuarios y Parámetros (24/11). Todas las listas se ordenan por columna. Lo que queda abajo necesita datos que el sistema todavía no guarda.

@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\User;
 use App\Modulos\Seg\Services\Bitacora;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -235,7 +236,9 @@ final class Exportar
     {
         $this->libro->setActiveSheetIndex(0);
         $nombre = preg_replace('/[^a-z0-9-]+/', '-', mb_strtolower($archivo)).'-'.now('America/Lima')->format('Y-m-d').'.xlsx';
-        Bitacora::registrar('EXPORT_DOWNLOADED', ['user' => $this->quien, 'detail' => "Exportó «{$this->titulo}» ({$this->filas} filas)",
+        // Un reporte común: va a la bitácora de accesos (AUD-03). Las exportaciones con datos personales (AUD-05) se anotan
+        // aparte como EXPORT_DOWNLOADED y cuentan entre los accesos a datos sensibles (AUD-04).
+        Bitacora::registrar('REPORT_EXPORTED', ['user' => $this->quien, 'detail' => "Exportó «{$this->titulo}» ({$this->filas} filas)",
             'details' => ['report' => $this->titulo, 'file' => $nombre, 'rows' => $this->filas]]);
         $libro = $this->libro;
 
@@ -247,6 +250,27 @@ final class Exportar
             'Cache-Control' => 'private, no-store',
             'X-Content-Type-Options' => 'nosniff',
         ]);
+    }
+
+    /**
+     * Guarda el libro en un disco privado (las exportaciones de AUD-05, que se descargan después con enlace temporal).
+     * No deja la descarga en la bitácora: eso lo hace quien entrega el archivo.
+     *
+     * @return array{sha256: string, size: int}
+     */
+    public function guardar(string $disco, string $ruta): array
+    {
+        $this->libro->setActiveSheetIndex(0);
+        $tmp = tempnam(sys_get_temp_dir(), 'exp');
+        try {
+            (new Xlsx($this->libro))->save($tmp);
+            $this->libro->disconnectWorksheets();
+            Storage::disk($disco)->put($ruta, (string) file_get_contents($tmp));
+
+            return ['sha256' => hash_file('sha256', $tmp), 'size' => (int) filesize($tmp)];
+        } finally {
+            @unlink($tmp);
+        }
     }
 
     /* ------------------------------------------------------------------ apoyo */

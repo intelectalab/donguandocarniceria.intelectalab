@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { CalendarClock, CheckCircle2, Clock, MessageSquare, RotateCcw, XCircle } from "lucide-react";
-import { Badge, Button, Cifra, DataTable, PageHeader, Select, StatusBadge, Tabs, confirmAction, toast, type Column } from "@/components/ui";
+import { Badge, Button, Cifra, confirmAction, DataTable, FiltroSelect, PageHeader, StatusBadge, Tabs, toast, type Column } from "@/components/ui";
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { mensajeDe } from "@/lib/api";
 import { useOrdenLocal, usePaginaLocal } from "@/lib/paginas";
@@ -163,15 +163,15 @@ export default function RegistrosYDemos() {
       ]} />
       {tab === "registros" ? (
         <>
-          <div className="grid gap-3 sm:grid-cols-3 lg:max-w-3xl">
-            <Select aria-label="Estado" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} placeholder="Todos los estados"
-              options={Object.entries(ESTADOS).map(([value, [label]]) => ({ value, label }))} />
-            <Select aria-label="Rubro" value={f.rubro} onChange={(e) => setF({ ...f, rubro: e.target.value })} placeholder="Todos los rubros"
-              options={porRubro.map((x) => ({ value: x.label, label: x.label }))} />
-            <Select aria-label="Origen" value={f.origen} onChange={(e) => setF({ ...f, origen: e.target.value })} placeholder="Todos los orígenes"
-              options={porOrigen.map((x) => ({ value: x.label, label: x.label }))} />
-          </div>
-          <DataTable {...ordR.orden} columns={colRegistros} rows={pagRegistros.filas} pagination={pagRegistros.props} loading={!registros && !error} error={error} onRetry={cargar}
+          <DataTable toolbar={<>
+              <FiltroSelect etiqueta="Estado" ancho={170} value={f.status} onChange={(v) => setF({ ...f, status: v })}
+                options={Object.entries(ESTADOS).map(([value, [label]]) => ({ value, label }))} />
+              <FiltroSelect etiqueta="Rubro" ancho={170} value={f.rubro} onChange={(v) => setF({ ...f, rubro: v })}
+                options={porRubro.map((x) => ({ value: x.label, label: x.label }))} />
+              <FiltroSelect etiqueta="Origen" ancho={170} value={f.origen} onChange={(v) => setF({ ...f, origen: v })}
+                options={porOrigen.map((x) => ({ value: x.label, label: x.label }))} />
+            </>}
+            {...ordR.orden} columns={colRegistros} rows={pagRegistros.filas} pagination={pagRegistros.props} loading={!registros && !error} error={error} onRetry={cargar}
             empty={f.status || f.rubro || f.origen ? "Ningún registro con esos filtros." : "Aún nadie se registró desde la página."} />
         </>
       ) : (

@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Ban, KeyRound, LogIn, Plus, XCircle } from "lucide-react";
-import { Alert, Button, DataTable, Modal, PageHeader, Select, StatusBadge, confirmAction, toast, type Column } from "@/components/ui";
+import { Alert, Button, confirmAction, DataTable, FiltroSelect, Modal, PageHeader, StatusBadge, toast, type Column } from "@/components/ui";
 import { Alcance, ContenidoAcceso, ESTADOS_ACCESO, quedan, type Acceso, type AccesoDetalle } from "@/components/soporte/AccesosEmpresa";
 import { PedirAcceso, entrarConAcceso } from "@/components/consola/PedirAcceso";
 import { useUsuarioConsola } from "@/components/consola/sesion";
@@ -86,13 +86,13 @@ function Contenido() {
     <div className="grid gap-5">
       <PageHeader description="La consola no ve los datos de negocio de una empresa. Para revisarlos se pide un acceso temporal que la empresa aprueba; es personal y todo lo que se hace con él queda registrado en los dos lados."
         actions={puedePedir ? <Button variant="primary" icon={Plus} onClick={() => setPedir(true)}>Pedir acceso</Button> : undefined} />
-      <div className="grid gap-3 sm:grid-cols-2 lg:max-w-2xl">
-        <Select aria-label="Estado" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} placeholder="Todos los estados"
-          options={[{ value: "ABIERTOS", label: "Por aprobar y vigentes" }, ...Object.entries(ESTADOS_ACCESO).map(([value, [label]]) => ({ value, label }))]} />
-        <Select aria-label="Empresa" value={f.tenant} onChange={(e) => setF({ ...f, tenant: e.target.value })} placeholder="Todas las empresas"
-          options={empresas.map((t) => ({ value: t.id, label: t.short }))} />
-      </div>
-      <DataTable {...pag.orden} columns={columnas} rows={filas?.data ?? []} loading={!filas && !error} error={error} onRetry={cargar} onRowClick={(a) => ver(a.id)} pagination={pag.props(filas)}
+      <DataTable toolbar={<>
+          <FiltroSelect etiqueta="Estado" ancho={170} value={f.status} onChange={(v) => setF({ ...f, status: v })}
+            options={[{ value: "ABIERTOS", label: "Por aprobar y vigentes" }, ...Object.entries(ESTADOS_ACCESO).map(([value, [label]]) => ({ value, label }))]} />
+          <FiltroSelect etiqueta="Empresa" todos="todas" ancho={170} value={f.tenant} onChange={(v) => setF({ ...f, tenant: v })}
+            options={empresas.map((t) => ({ value: t.id, label: t.short }))} />
+        </>}
+        {...pag.orden} columns={columnas} rows={filas?.data ?? []} loading={!filas && !error} error={error} onRetry={cargar} onRowClick={(a) => ver(a.id)} pagination={pag.props(filas)}
         empty={<span className="inline-flex items-center gap-2"><KeyRound size={16} aria-hidden="true" />No hay accesos con estos filtros.</span>} />
       <section className="grid gap-2 rounded-xl border border-line bg-surface p-4 shadow-card text-[13px]">
         <p className="font-semibold text-ink">Cómo funciona</p>

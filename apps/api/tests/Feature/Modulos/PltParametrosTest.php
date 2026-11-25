@@ -30,7 +30,7 @@ class PltParametrosTest extends TestCase
         $this->assertSame('DEFAULT', $p['plt_period_close_day']['source']);
         $this->assertSame('95', $p['plt_series_alert_pct']['value']);
         $this->assertSame('TENANT', $p['plt_series_alert_pct']['source']);
-        $this->assertSame(271, $r->json('resumen.total'));
+        $this->assertSame(272, $r->json('resumen.total'));   // 271 del prototipo + seg_mfa_enforce (segundo factor obligatorio)
 
         // Los que no son números recuperaron su valor por defecto.
         $alm = collect($this->gerente()->getJson('/api/v1/plt/parametros?module=ALM')->json('parametros'))->keyBy('key');

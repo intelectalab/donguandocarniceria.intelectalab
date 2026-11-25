@@ -26,6 +26,9 @@ Schedule::command('ped:vencer-borradores')->hourly()->withoutOverlapping();
 // OPS · RN-OPS-09: vence cada minuto los accesos de soporte cumplidos (desactiva su usuario técnico).
 // OPS · RN-OPS-15: cierra los tickets resueltos sin respuesta del cliente (ops_ticket_auto_close_days), cada mañana.
 Schedule::command('ops:vencer-accesos')->everyMinute()->withoutOverlapping();
+
+// INT-06: envía los mensajes salientes que tocan y reintenta los fallidos (RN-INT-08, RN-INT-09).
+Schedule::command('int:despachar')->everyMinute()->withoutOverlapping();
 // SUS · RN-SUS-10: mora diaria (deuda, reintentos, solo lectura, suspensión) y pruebas vencidas, en hora de Lima.
 Schedule::command('sus:mora')->dailyAt('06:20')->timezone('America/Lima')->withoutOverlapping();
 // SUS · SUS-12: corrida de cobro del mes, el día 1 (sin RUC emisor quedan en borrador).
@@ -35,4 +38,7 @@ Schedule::command('ops:metricas cierre')->monthlyOn(1, '03:00')->timezone('Ameri
 Schedule::command('ops:metricas uso')->dailyAt('05:10')->timezone('America/Lima')->withoutOverlapping();
 // OPS · OPS-07: lectura de salud de los componentes con sonda propia (D-OPS-01).
 Schedule::command('ops:leer-salud')->everyMinute()->withoutOverlapping();
+// AUD: depuración mensual según las políticas de retención (RN-AUD-08) y la revisión de accesos de cada trimestre (RN-AUD-10).
+Schedule::command('aud:depurar')->monthlyOn(1, '03:30')->timezone('America/Lima')->withoutOverlapping();
+Schedule::command('aud:revision-trimestral')->dailyAt('07:10')->timezone('America/Lima')->withoutOverlapping();
 Schedule::command('ops:cerrar-tickets')->dailyAt('05:30')->timezone('America/Lima')->withoutOverlapping();

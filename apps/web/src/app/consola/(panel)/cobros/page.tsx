@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { CheckCircle2, Landmark, Repeat, Scale, XCircle } from "lucide-react";
-import { Badge, Button, Cifra, DataTable, Field, Input, Modal, PageHeader, Select, Tabs, toast, type Column, type Tone } from "@/components/ui";
+import { Badge, Button, Cifra, DataTable, Field, FiltroSelect, Input, Modal, PageHeader, Tabs, toast, type Column, type Tone } from "@/components/ui";
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { erroresDe, mensajeDe } from "@/lib/api";
 import { usePagina, type Pagina } from "@/lib/paginas";
@@ -85,15 +85,15 @@ export default function Cobros() {
       <Tabs value={tab} onChange={setTab} tabs={[{ key: "cobros", label: "Cobros" }, { key: "eventos", label: "Avisos de la pasarela" }, { key: "abonos", label: "Abonos" }]} />
       {tab === "cobros" && (
         <>
-          <div className="grid gap-3 sm:grid-cols-3 lg:max-w-3xl">
-            <Select aria-label="Empresa" value={f.tenant} onChange={(e) => setF({ ...f, tenant: e.target.value })} placeholder="Todas las empresas"
-              options={(datos?.empresas ?? []).map((t) => ({ value: t.id, label: t.short }))} />
-            <Select aria-label="Resultado" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} placeholder="Todo resultado"
-              options={[{ value: "APPROVED", label: "Aprobados" }, { value: "DECLINED", label: "Rechazados" }, { value: "PENDING", label: "Esperando a la pasarela" }]} />
-            <Select aria-label="Conciliación" value={f.conciliado} onChange={(e) => setF({ ...f, conciliado: e.target.value })} placeholder="Conciliados o no"
-              options={[{ value: "0", label: "Aprobados sin conciliar" }, { value: "1", label: "Conciliados" }]} />
-          </div>
-          <DataTable {...pag.orden} columns={columnas} rows={datos?.data ?? []} loading={!datos && !error} error={error} onRetry={cargar} empty="No hay cobros con estos filtros." pagination={pag.props(datos)}
+          <DataTable toolbar={<>
+              <FiltroSelect etiqueta="Empresa" todos="todas" ancho={170} value={f.tenant} onChange={(v) => setF({ ...f, tenant: v })}
+                options={(datos?.empresas ?? []).map((t) => ({ value: t.id, label: t.short }))} />
+              <FiltroSelect etiqueta="Resultado" ancho={160} value={f.status} onChange={(v) => setF({ ...f, status: v })}
+                options={[{ value: "APPROVED", label: "Aprobados" }, { value: "DECLINED", label: "Rechazados" }, { value: "PENDING", label: "Esperando a la pasarela" }]} />
+              <FiltroSelect etiqueta="Conciliación" todos="todas" ancho={170} value={f.conciliado} onChange={(v) => setF({ ...f, conciliado: v })}
+                options={[{ value: "0", label: "Aprobados sin conciliar" }, { value: "1", label: "Conciliados" }]} />
+            </>}
+            {...pag.orden} columns={columnas} rows={datos?.data ?? []} loading={!datos && !error} error={error} onRetry={cargar} empty="No hay cobros con estos filtros." pagination={pag.props(datos)}
             selection={puede ? { selected: marcados, onChange: setMarcados, canSelect: (c) => c.status === "APPROVED" && !c.settlement_reference,
               actions: <Button size="sm" variant="primary" icon={Landmark} onClick={() => setConciliar({ ids: elegidos.map((c) => c.id), bruto: elegidos.reduce((s, c) => s + c.amount, 0) })}>Conciliar con un abono</Button> } : undefined} />
           {(datos?.por_dia.length ?? 0) > 0 && (

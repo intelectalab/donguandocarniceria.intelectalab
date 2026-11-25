@@ -11,6 +11,8 @@ import { aplicarModo } from "./modoColor";
 export type Accion = "C" | "L" | "E" | "A";
 
 export type Me = {
+  /** Pantallas que no existen en este ambiente (el simulador de integraciones en producción). */
+  pantallas_ocultas?: string[];
   user: { id: string; name: string; email: string; role: string; default_brand_id: string | null; ui_theme_mode?: string | null; must_change_password: boolean; password_vencida?: boolean; menu_favs?: string[]; menu_corto?: boolean | null };
   tenant: { id: string; name: string; short: string; plan: string; logo_url?: string | null };
   roles: string[];

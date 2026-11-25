@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Building2, FlaskConical, HeartPulse, Headset, KeyRound, Plus, RefreshCw, ShieldAlert, TrendingDown, TrendingUp } from "lucide-react";
-import { Button, Cifra, DataTable, PageHeader, Select, StatusBadge, buttonClass, toast, type Column } from "@/components/ui";
+import { Button, buttonClass, Cifra, DataTable, FiltroSelect, PageHeader, StatusBadge, toast, type Column } from "@/components/ui";
 import { BarraUso, ESTADOS_SUSCRIPCION, SaludBadge, type Empresa } from "@/components/consola/empresas";
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { mensajeDe } from "@/lib/api";
@@ -142,12 +142,11 @@ export default function Empresas() {
         sort={orden} onSortChange={setOrden}
         onRowClick={(e) => router.push(`/consola/empresas/ficha?id=${e.id}`)}
         toolbar={<>
-          <Select value={nivel} onChange={(e) => setNivel(e.target.value)} aria-label="Salud"
-            options={[{ value: "", label: "Toda salud" }, { value: "HEALTHY", label: "Saludables" }, { value: "AT_RISK", label: "En riesgo" }, { value: "CRITICAL", label: "Críticas" }]} />
-          <Select value={plan} onChange={(e) => setPlan(e.target.value)} aria-label="Plan"
-            options={[{ value: "", label: "Todos los planes" }, ...planes.map(([v, l]) => ({ value: v, label: l }))]} />
-          <Select value={estado} onChange={(e) => setEstado(e.target.value)} aria-label="Estado de la suscripción"
-            options={[{ value: "", label: "Todos los estados" }, ...Object.entries(ESTADOS_SUSCRIPCION).map(([v, [l]]) => ({ value: v, label: l })), { value: "NONE", label: "Sin suscripción" }]} />
+          <FiltroSelect etiqueta="Salud" todos="toda" ancho={150} value={nivel} onChange={setNivel}
+            options={[{ value: "HEALTHY", label: "Saludables" }, { value: "AT_RISK", label: "En riesgo" }, { value: "CRITICAL", label: "Críticas" }]} />
+          <FiltroSelect etiqueta="Plan" ancho={160} value={plan} onChange={setPlan} options={planes.map(([v, l]) => ({ value: v, label: l }))} />
+          <FiltroSelect etiqueta="Estado" ancho={170} value={estado} onChange={setEstado}
+            options={[...Object.entries(ESTADOS_SUSCRIPCION).map(([v, [l]]) => ({ value: v, label: l })), { value: "NONE", label: "Sin suscripción" }]} />
         </>} />
       <p className="text-[12.5px] text-muted">Salud de 0 a 100 = actividad (último ingreso de sus usuarios) + cobro (estado y días de mora) + soporte (tickets abiertos y urgentes), con los pesos de Parámetros de plataforma. El OSE y WhatsApp se sumarán cuando existan esas integraciones.</p>
     </div>

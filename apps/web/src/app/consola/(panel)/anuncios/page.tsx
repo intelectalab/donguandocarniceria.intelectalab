@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Ban, Megaphone, Pencil, Plus, Save, Send } from "lucide-react";
-import { Alert, Badge, Button, Checkbox, DataTable, DetailList, Field, Input, Modal, PageHeader, Select, StatusBadge, Textarea, confirmAction, toast, type Column, type Tone } from "@/components/ui";
+import { Alert, Badge, Button, Checkbox, confirmAction, DataTable, DetailList, Field, FiltroSelect, Input, Modal, PageHeader, Select, StatusBadge, Textarea, toast, type Column, type Tone } from "@/components/ui";
 import { useUsuarioConsola } from "@/components/consola/sesion";
 import { erroresDe, mensajeDe } from "@/lib/api";
 import { usePagina } from "@/lib/paginas";
@@ -77,13 +77,13 @@ export default function Anuncios() {
     <div className="grid gap-5">
       <PageHeader description={`Las empresas ven solo los anuncios dirigidos a ellas, como una franja en su sistema mientras dure la ventana. Un mantenimiento se anuncia con al menos ${lista?.aviso_horas ?? 48} horas de anticipación. Los de incidentes se publican desde el incidente.`}
         actions={puede ? <Button variant="primary" icon={Plus} onClick={() => setEditando("nuevo")}>Nuevo anuncio</Button> : undefined} />
-      <div className="grid gap-3 sm:grid-cols-2 lg:max-w-2xl">
-        <Select aria-label="Estado" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} placeholder="Todos los estados"
-          options={Object.entries(ESTADOS).map(([value, [label]]) => ({ value, label }))} />
-        <Select aria-label="Tipo" value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })} placeholder="Todos los tipos"
-          options={Object.entries(lista?.tipos ?? {}).map(([value, label]) => ({ value, label }))} />
-      </div>
-      <DataTable {...pag.orden} columns={columnas} rows={lista?.data ?? []} loading={!lista && !error} error={error} onRetry={cargar} pagination={pag.props(lista)} onRowClick={setVisto}
+      <DataTable toolbar={<>
+          <FiltroSelect etiqueta="Estado" ancho={170} value={f.status} onChange={(v) => setF({ ...f, status: v })}
+            options={Object.entries(ESTADOS).map(([value, [label]]) => ({ value, label }))} />
+          <FiltroSelect etiqueta="Tipo" ancho={160} value={f.kind} onChange={(v) => setF({ ...f, kind: v })}
+            options={Object.entries(lista?.tipos ?? {}).map(([value, label]) => ({ value, label }))} />
+        </>}
+        {...pag.orden} columns={columnas} rows={lista?.data ?? []} loading={!lista && !error} error={error} onRetry={cargar} pagination={pag.props(lista)} onRowClick={setVisto}
         empty={<span className="inline-flex items-center gap-2"><Megaphone size={16} aria-hidden="true" />Todavía no hay anuncios.</span>} />
       {visto && lista && (
         <Modal open onClose={() => setVisto(null)} size="lg" title={visto.title} description={<StatusBadge status={visto.status} labels={ESTADOS} />}>

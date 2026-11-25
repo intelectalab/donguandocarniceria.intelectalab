@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Modulos\Int\Services\Notificaciones;
 use App\Support\Access;
 use App\Support\Listado;
 use Illuminate\Database\Query\Builder;
@@ -88,18 +89,13 @@ class NotificationController extends Controller
         return fn ($q) => $q->where('tone', 'bad')->orWhere(fn ($w) => $w->where('tone', 'warn')->whereIn('module', $modulos));
     }
 
-    /** Las de la persona y las de su rol, con cuándo la leyó ella (leida_en, null = sin leer). */
+    /**
+     * Las de la persona y las de su rol, con cuándo la leyó ella (leida_en, null = sin leer), sin los tipos que apagó
+     * en la app salvo los críticos (RN-INT-15, INT-10). La misma consulta del centro de notificaciones.
+     */
     private function mias(Request $request): Builder
     {
-        $user = $request->user();
-        $roles = Access::for($user)['roles'];
-        $q = DB::table('notifications as n')
-            ->leftJoin('notification_reads as r', fn ($j) => $j->on('r.notification_id', '=', 'n.id')->where('r.user_id', $user->id))
-            ->where(fn ($w) => $w->where('n.user_id', $user->id)->orWhere(fn ($x) => $x->whereNull('n.user_id')->whereIn('n.role', $roles)))
-            ->select(['n.id', 'n.user_id', 'n.title', 'n.body', 'n.module', 'n.tone', 'n.ref', 'n.at'])
-            ->selectRaw('CASE WHEN n.user_id IS NULL THEN r.read_at ELSE n.read_at END AS leida_en');
-
-        return DB::query()->fromSub($q, 's');
+        return Notificaciones::mias($request->user());
     }
 
     private function fila(object $n): array
@@ -108,8 +104,8 @@ class NotificationController extends Controller
 
         return [
             'id' => $n->id,
-            'title' => $n->title,
-            'body' => $n->body,
+            'title' => Notificaciones::sinCodigos($n->title),
+            'body' => Notificaciones::sinCodigos($n->body),
             'module' => $n->module,
             'tone' => $n->tone,
             'read' => $n->leida_en !== null,

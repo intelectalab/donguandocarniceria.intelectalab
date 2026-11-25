@@ -7,7 +7,10 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicoController;
 use App\Http\Controllers\TenantController;
+use App\Modulos\Aud\Http\Controllers\AuditoriaController;
 use App\Modulos\Cli\Http\Controllers\EnlaceController;
+use App\Modulos\Int\Http\Controllers\AvisoArchivoController;
+use App\Modulos\Int\Http\Controllers\WebhookController;
 use App\Modulos\Onb\Http\Controllers\RegistroController;
 use App\Modulos\Ops\Http\Controllers\AccesoConsolaController;
 use App\Modulos\Ops\Http\Controllers\BandejaController;
@@ -45,6 +48,20 @@ Route::prefix('v1/publico')->group(function () {
     // SUS · aviso firmado de la pasarela de cobro (RN-SUS-20): sin firma válida no tiene efecto.
     Route::post('/pasarela/{gateway}', PasarelaController::class)->middleware('throttle:120,1')->where('gateway', '[a-z]{3,12}');
 });
+
+// INT-04 · webhooks de entrada de los proveedores: públicos, sin sesión. La empresa sale del token de la URL y sin firma
+// válida no se procesan (RN-INT-04). Responden 200 a todo evento firmado, también a uno repetido (RN-INT-05).
+Route::post('/hooks/{token}', [WebhookController::class, 'recibir'])->middleware('throttle:120,1')->where('token', '[A-Za-z0-9]{16,80}');
+
+// AUD-05 · descarga de una exportación con su enlace firmado (vence a las 24 horas, RN-AUD-05): sin sesión; la firma
+// lleva la exportación, la empresa, quién la pidió y el vencimiento.
+Route::get('/v1/exportaciones/{id}', [AuditoriaController::class, 'descargarExportacion'])->name('aud.exportacion')
+    ->middleware(['signed:relative', 'throttle:30,1'])->whereUuid('id');
+
+// INT-11 · descarga de un archivo adjunto con su enlace firmado y temporal (RN-INT-17): sin sesión; la firma lleva el
+// archivo, la empresa y el vencimiento. Se firma la ruta relativa para que valga detrás del proxy.
+Route::get('/v1/archivos/{id}', [AvisoArchivoController::class, 'descargar'])->name('int.archivo')
+    ->middleware(['signed:relative', 'throttle:60,1'])->whereUuid('id');
 
 // OPS · Consola de Intelectalab: sin empresa (no pasa por «tenant» ni por Sanctum). Usuarios de plataforma con
 // su propio ingreso, segundo factor obligatorio y sesión «gcc_…» (middleware «consola»). Ver docs/cambios.
@@ -157,6 +174,10 @@ Route::prefix('v1')->middleware('tenant')->group(function () {
     Route::get('/tenant', TenantController::class);
     Route::get('/tenant/logo', [TenantController::class, 'logo'])->middleware('throttle:60,1');
     Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+    // SEG-02 y SEG-03: el paso del segundo factor, con el desafío que entregó el ingreso (sin sesión todavía).
+    Route::post('/auth/mfa/verificar', [AuthController::class, 'verificarSegundoFactor'])->middleware('throttle:10,1');
+    Route::post('/auth/mfa/preparar', [AuthController::class, 'prepararSegundoFactor'])->middleware('throttle:10,1');
+    Route::post('/auth/mfa/activar', [AuthController::class, 'activarSegundoFactor'])->middleware('throttle:10,1');
     Route::post('/auth/forgot', [PasswordResetController::class, 'forgot'])->middleware('throttle:5,1');
     Route::post('/auth/reset', [PasswordResetController::class, 'reset'])->middleware('throttle:10,1');
     Route::get('/auth/password-rule', [ProfileController::class, 'passwordRule']);
