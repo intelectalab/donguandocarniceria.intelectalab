@@ -100,15 +100,16 @@ final class Facturacion
     /** Cifras de cabecera de Facturación: por cobrar, vencido y pagado en el mes, borradores. */
     public static function cifras(): array
     {
+        // «Hoy» es el de la aplicación (hora de Lima), el mismo con que se calcula el vencimiento al emitir.
         $saldos = DB::selectOne(<<<'SQL'
             SELECT count(*) FILTER (WHERE f.status = 'DRAFT') AS borradores,
                    count(*) FILTER (WHERE f.status = 'ISSUED' AND f.doc_type <> 'CREDIT_NOTE' AND f.payment_status = 'UNPAID') AS por_cobrar,
                    coalesce(sum(f.total) FILTER (WHERE f.status = 'ISSUED' AND f.doc_type <> 'CREDIT_NOTE' AND f.payment_status = 'UNPAID'), 0) AS por_cobrar_monto,
-                   count(*) FILTER (WHERE f.status = 'ISSUED' AND f.doc_type <> 'CREDIT_NOTE' AND f.payment_status = 'UNPAID' AND f.due_date < current_date) AS vencidos,
-                   coalesce(sum(f.total) FILTER (WHERE f.status = 'ISSUED' AND f.doc_type <> 'CREDIT_NOTE' AND f.payment_status = 'UNPAID' AND f.due_date < current_date), 0) AS vencido_monto,
-                   coalesce(sum(f.total) FILTER (WHERE f.status = 'ISSUED' AND f.doc_type <> 'CREDIT_NOTE' AND f.issue_date >= date_trunc('month', current_date)), 0) AS emitido_mes
-            FROM saas_invoices f
-            SQL);
+                   count(*) FILTER (WHERE f.status = 'ISSUED' AND f.doc_type <> 'CREDIT_NOTE' AND f.payment_status = 'UNPAID' AND f.due_date < h.hoy) AS vencidos,
+                   coalesce(sum(f.total) FILTER (WHERE f.status = 'ISSUED' AND f.doc_type <> 'CREDIT_NOTE' AND f.payment_status = 'UNPAID' AND f.due_date < h.hoy), 0) AS vencido_monto,
+                   coalesce(sum(f.total) FILTER (WHERE f.status = 'ISSUED' AND f.doc_type <> 'CREDIT_NOTE' AND f.issue_date >= date_trunc('month', h.hoy)), 0) AS emitido_mes
+            FROM saas_invoices f CROSS JOIN (SELECT ?::date AS hoy) h
+            SQL, [today('America/Lima')->toDateString()]);
 
         return array_map(fn ($v) => is_numeric($v) && str_contains((string) $v, '.') ? round((float) $v, 2) : (int) $v, (array) $saldos);
     }
