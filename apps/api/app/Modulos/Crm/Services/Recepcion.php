@@ -159,6 +159,22 @@ class Recepcion
     }
 
     /**
+     * Alguien borró desde la app del celular de la empresa (coexistencia) un mensaje enviado: el original se conserva,
+     * queda el estado y se levanta la alerta de control (RN-CRM-04 y 17). Lo llamará el adaptador del proveedor oficial.
+     */
+    public static function borradoEnApp(string $externalId, ?Carbon $cuando = null): ?string
+    {
+        $m = DB::table('conversation_messages')->where('external_id', $externalId)->where('direction', 'OUT')->first(['id', 'conversation_id', 'sender_user_id', 'body']);
+        if (! $m || DB::table('message_status_events')->where('message_id', $m->id)->where('status', 'DELETED_IN_APP')->exists()) {
+            return null;
+        }
+        DB::table('message_status_events')->insert(['message_id' => $m->id, 'status' => 'DELETED_IN_APP', 'occurred_at' => $cuando ?? now(), 'created_at' => now()]);
+        $cv = Conversaciones::fila($m->conversation_id);
+
+        return Control::senal('APP_DELETION', 'Mensaje borrado desde la app del celular', $m->sender_user_id ?? $cv->assigned_user_id, $m->body, $cv, $m->id);
+    }
+
+    /**
      * Procesador del webhook de WhatsApp Cloud (lo instala CRM en INT). Lee mensajes y estados de cada cambio. El número
      * es el enlazado al conector del webhook.
      */

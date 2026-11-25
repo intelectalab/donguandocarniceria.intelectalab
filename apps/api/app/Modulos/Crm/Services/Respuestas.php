@@ -74,6 +74,10 @@ class Respuestas
             }
         }
         $duenio = $marca ? null : ($antes?->owner_user_id ?? $u->id);
+        // RN-CRM-16: una respuesta rápida no puede llevar lo que activaría una alerta de control.
+        if ($d['status'] === 'ACTIVE' && ($h = Control::revisar((string) $d['body']))) {
+            RuleError::fail('RN-CRM-16', "El texto activaría la alerta «{$h[0]['regla']->name}» («{$h[0]['coincidencia']}»): corrígelo.");
+        }
         if (DB::table('quick_replies')->where('shortcut', $atajo)->where(fn ($q) => $marca ? $q->where('brand_id', $marca) : $q->where('owner_user_id', $duenio))
             ->when($id, fn ($q) => $q->where('id', '<>', $id))->exists()) {
             RuleError::fail('RN-CRM-10', "Ya existe el atajo {$atajo} en ese alcance.");

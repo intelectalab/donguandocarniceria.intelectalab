@@ -192,6 +192,9 @@ class Tareas
                 if ($n) {
                     $creadas++;
                     $porMarca[$cv->brand_id] = ($porMarca[$cv->brand_id] ?? 0) + 1;
+                    // Y la alerta de control de baja gravedad para la vendedora asignada (la de la cola no tiene a quién).
+                    $ultimo = DB::table('conversation_messages')->where('conversation_id', $cv->id)->where('direction', 'IN')->orderByDesc('sent_at')->value('body');
+                    Control::senal('UNANSWERED_CHAT', "Sin respuesta {$m} min en horario", $cv->assigned_user_id, $ultimo, $cv);
                 }
             });
         }

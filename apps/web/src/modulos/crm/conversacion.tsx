@@ -20,6 +20,8 @@ export type Mensaje = {
   referral: { ad_code?: string; headline?: string } | null; unsupported_kind: string | null; sent_at: string; sender_name: string | null; template_name: string | null;
   category: string | null; category_name: string | null; transcript: string | null; estado: string | null; estado_name: string | null; borrado_cliente: boolean; borrado_app: boolean;
   estados: { status: string; name: string; at: string }[]; costo: { amount: number; reason: string } | null; external_id: string;
+  /** Solo para quien revisa alertas (la vendedora no ve las suyas). */
+  alertas?: { id: string; severity: string; gravedad: string; estado: string; regla: string; coincidencia: string }[];
 };
 export type Ficha = Resumen & {
   mensajes: Mensaje[]; notas: { at: string; user_name: string; text: string }[];
@@ -27,7 +29,7 @@ export type Ficha = Resumen & {
   costo_proximo: { usadas: number; cuota: number; servicio: { amount: number; reason: string }; utilidad: { amount: number; reason: string }; marketing: { amount: number; reason: string } } | null;
   proveedor: { conectado: boolean; codigo: string | null; prueba: boolean; aviso: string | null };
   puede: { responder: boolean; reasignar: boolean; cerrar: boolean; notas: boolean; simular: boolean; consentimiento: boolean; crear_pedido: boolean };
-  marketing: boolean | null;
+  marketing: boolean | null; alertas_abiertas?: number | null;
   miembros: Opcion[]; cierres: Opcion[]; etiquetas: string[]; respuestas: { id: string; shortcut: string; body: string }[];
   cliente: { id: string; nombre: string; celular: string | null; documento: string | null; pedidos: number; ultimos: { id: string; number: string; status: string; at: string; total: number }[]; marketing: boolean | null } | null;
   lead: { id: string; status: string; source: string; ad_code: string | null; first_contact_at: string; lost_reason: string | null; full_name: string } | null;
@@ -106,7 +108,7 @@ function Cuerpo({ m }: { m: Mensaje }) {
 }
 
 /** El hilo: mensajes y notas internas por día; clic en un mensaje para ver su detalle. */
-function Hilo({ c, onMensaje }: { c: Ficha; onMensaje: (m: Mensaje) => void }) {
+export function Hilo({ c, onMensaje }: { c: Ficha; onMensaje: (m: Mensaje) => void }) {
   const caja = useRef<HTMLDivElement>(null);
   useEffect(() => { if (caja.current) caja.current.scrollTop = caja.current.scrollHeight; }, [c.mensajes.length, c.notas.length]);
   const items = [...c.mensajes.map((m) => ({ at: m.sent_at, m })), ...c.notas.map((n) => ({ at: n.at, n }))].sort((a, b) => a.at.localeCompare(b.at));
@@ -130,6 +132,11 @@ function Hilo({ c, onMensaje }: { c: Ficha; onMensaje: (m: Mensaje) => void }) {
           <button key={m.id} type="button" onClick={() => onMensaje(m)} title="Ver el detalle del mensaje"
             className={`max-w-[82%] cursor-pointer rounded-2xl px-3 py-2 text-left text-[13.5px] shadow-card ${sale ? "justify-self-end rounded-br-md" : "justify-self-start rounded-bl-md bg-surface text-ink"} ${sale && sistema ? "bg-surface-2 text-ink" : sale ? "bg-primary text-primary-ink" : ""}`}>
             <Cuerpo m={m} />
+            {m.alertas && m.alertas.length > 0 && (
+              <span className="mt-1.5 grid gap-1">
+                {m.alertas.map((a) => <span key={a.id} className="rounded-md bg-bad px-2 py-0.5 text-[11px] font-semibold text-white" title={`${a.regla} · ${a.estado}`}>Alerta {a.gravedad.toLowerCase()}: {a.regla} «{a.coincidencia}»</span>)}
+              </span>
+            )}
             <span className={`mt-1 flex items-center justify-end gap-1.5 text-[10.5px] ${sale && !sistema ? "opacity-80" : "text-muted"}`}>
               {sistema && <Bot className="size-3" />}
               {hora(m.sent_at)}{sale ? ` · ${m.sender_name ?? m.origin_name}` : ""}
@@ -483,6 +490,7 @@ export function Conversacion({ c, onCambio, enLista }: { c: Ficha; onCambio: (x:
           {c.puede.simular && <Button size="sm" variant="ghost" icon={FlaskConical} onClick={() => setAbierto("simular")} title="Entrada de prueba, como si llegara del proveedor">Simular cliente</Button>}
         </div>
       </div>
+      {c.alertas_abiertas ? <Alert tone="bad">{c.alertas_abiertas === 1 ? "1 alerta de control abierta" : `${c.alertas_abiertas} alertas de control abiertas`} en este chat. <Link href={`/m/crm/crm-12?conversacion=${c.id}`} className="font-semibold underline">Revisar</Link></Alert> : null}
       <Hilo c={c} onMensaje={setMsg} />
       <CajaRespuesta c={c} onCambio={onCambio} />
       {msg && <DetalleMensaje m={msg} onClose={() => setMsg(null)} />}
