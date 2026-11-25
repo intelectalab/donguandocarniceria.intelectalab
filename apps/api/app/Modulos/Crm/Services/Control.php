@@ -166,11 +166,28 @@ class Control
         return $r && $vendedora ? self::levantar($r, $coincidencia, $vendedora, (string) $extracto, $cv, $mensaje, $fuente) : null;
     }
 
-    private static function levantar(object $r, string $coincidencia, string $vendedora, string $extracto, ?object $cv, ?string $mensaje, string $fuente): string
+    /**
+     * Revisa la transcripción de una llamada (TEL-10) y crea sus alertas con fuente «transcripción de llamada».
+     * $celularCliente: el número del propio cliente no alerta. Devuelve los ids de las alertas.
+     */
+    public static function revisarLlamada(string $llamada, string $texto, ?string $vendedora, ?string $marca, ?string $celularCliente): array
+    {
+        if (! $vendedora) {
+            return [];
+        }
+        $ids = [];
+        foreach (self::revisar($texto, $celularCliente) as $h) {
+            $ids[] = self::levantar($h['regla'], $h['coincidencia'], $vendedora, $texto, null, null, 'CALL_TRANSCRIPT', $llamada, $marca);
+        }
+
+        return $ids;
+    }
+
+    private static function levantar(object $r, string $coincidencia, string $vendedora, string $extracto, ?object $cv, ?string $mensaje, string $fuente, ?string $llamada = null, ?string $marca = null): string
     {
         $id = DB::table('control_alerts')->insertGetId([
             'rule_id' => $r->id, 'rule_code' => $r->code, 'source_type' => $fuente, 'message_id' => $mensaje, 'conversation_id' => $cv?->id, 'user_id' => $vendedora,
-            'brand_id' => $cv?->brand_id, 'severity' => $r->severity, 'matched_text' => mb_substr($coincidencia, 0, 500), 'excerpt' => mb_substr(trim($extracto), 0, 250) ?: '—',
+            'call_id' => $llamada, 'brand_id' => $cv?->brand_id ?? $marca, 'severity' => $r->severity, 'matched_text' => mb_substr($coincidencia, 0, 500), 'excerpt' => mb_substr(trim($extracto), 0, 250) ?: '—',
             'status' => 'OPEN', 'raised_at' => DB::raw('clock_timestamp()'), 'created_at' => now(), 'updated_at' => now(),
         ], 'id');
         Events::emit('control_alert.raised', 'control_alerts', $id, ['user_id' => $vendedora, 'rule' => $r->code, 'severity' => $r->severity]);
@@ -179,7 +196,7 @@ class Control
             'severity' => $r->severity === 'HIGH' ? 'CRITICAL' : 'WARNING', 'type' => 'SECURITY', 'at' => now(),
             'title' => 'Alerta de control ('.mb_strtolower(self::GRAVEDADES[$r->severity] ?? $r->severity).')',
             'body' => mb_substr("{$nombre} · {$r->name}: «{$coincidencia}»", 0, 1000),
-            'ref' => json_encode(['href' => "/m/crm/crm-12?id={$id}", 'brand_id' => $cv?->brand_id])]);
+            'ref' => json_encode(['href' => "/m/crm/crm-12?id={$id}", 'brand_id' => $cv?->brand_id ?? $marca])]);
 
         return $id;
     }

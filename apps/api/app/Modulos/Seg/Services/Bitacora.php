@@ -25,14 +25,14 @@ final class Bitacora
         'MFA_OK' => 'Segundo factor correcto', 'MFA_FAILED' => 'Segundo factor fallido', 'MFA_CHALLENGE' => 'Pidió el segundo factor',
         'MFA_ENABLED' => 'Segundo factor activado', 'MFA_DISABLED' => 'Segundo factor desactivado', 'MFA_CODES_REGENERATED' => 'Códigos de recuperación nuevos',
         'RECOVERY_CODE_USED' => 'Usó un código de recuperación', 'AUDIT_VIEWED' => 'Consultó la auditoría', 'SENSITIVE_VIEW' => 'Vio datos personales sin enmascarar',
-        'FILE_DOWNLOADED' => 'Descargó un archivo confidencial', 'RECORDING_PLAYED' => 'Reprodujo una grabación', 'PASSWORD_RESET' => 'Contraseña restablecida',
+        'FILE_DOWNLOADED' => 'Descargó un archivo confidencial', 'RECORDING_PLAYED' => 'Reprodujo una grabación', 'RECORDING_DOWNLOADED' => 'Descargó una grabación', 'PASSWORD_RESET' => 'Contraseña restablecida',
         'PASSWORD_RESET_REQUESTED' => 'Pidió restablecer contraseña', 'PASSWORD_CHANGED' => 'Contraseña cambiada', 'PROFILE_UPDATED' => 'Preferencias cambiadas',
         'PERMISSION_DENIED' => 'Permiso denegado', 'MODULE_DISABLED' => 'Módulo apagado', 'DEVICE_PENDING' => 'Celular por aprobar',
         'ROLE_CHANGED' => 'Rol o permisos cambiados', 'EXPORT_DOWNLOADED' => 'Descargó una exportación con datos personales', 'REPORT_EXPORTED' => 'Exportó un reporte', 'DEVICE_APPROVED' => 'Dispositivo aprobado', 'DEVICE_REVOKED' => 'Dispositivo revocado', 'LOGIN_DENIED_DEVICE' => 'Celular no aprobado',
     ];
 
     /**
-     * @param  array{user?: ?User, email?: ?string, details?: ?array, detail?: ?string, entity?: ?string, entity_id?: ?string, device_id?: ?string}  $o
+     * @param  array{user?: ?User, email?: ?string, details?: ?array, detail?: ?string, entity?: ?string, entity_id?: ?string, device_id?: ?string, modulo?: string}  $o
      */
     public static function registrar(string $evento, array $o = [], bool $denegado = false): void
     {
@@ -44,7 +44,7 @@ final class Bitacora
             'user_id' => $u?->id,
             'email_attempted' => isset($o['email']) ? mb_substr(mb_strtolower(trim($o['email'])), 0, 80) : null,
             'event' => $evento,
-            'module_code' => 'SEG',
+            'module_code' => $o['modulo'] ?? 'SEG',
             'ip' => mb_substr((string) ($r?->ip() ?: '0.0.0.0'), 0, 40),
             'user_agent' => $ua !== '' ? mb_substr($ua, 0, 80) : null,
             'details' => isset($o['details']) ? json_encode($o['details'], JSON_UNESCAPED_UNICODE) : null,

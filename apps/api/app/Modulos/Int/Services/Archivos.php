@@ -109,14 +109,15 @@ final class Archivos
     }
 
     /** RN-INT-17: enlace firmado y temporal; los sensibles piden permiso y quedan en la bitácora (también el intento sin permiso). */
-    public static function enlace(string $id, User $quien): array
+    /** $autorizado: el módulo dueño ya revisó el permiso (por ejemplo, escuchar una grabación con tel.recording.*). */
+    public static function enlace(string $id, User $quien, bool $autorizado = false): array
     {
         $f = self::fila($id);
         if ($f->status !== 'ACTIVE') {
             RuleError::fail('RN-INT-18', 'El archivo fue eliminado.');
         }
         $sensible = in_array($f->classification, self::SENSIBLES, true);
-        if ($sensible && ! Access::can($quien, 'int.file.view_confidential')) {
+        if ($sensible && ! $autorizado && ! Access::can($quien, 'int.file.view_confidential')) {
             Events::emit('file.download_denied', 'file_attachments', $id, ['by' => $quien->id, 'name' => $f->file_name, 'classification' => $f->classification]);
             RuleError::fail('RN-INT-17', "{$f->file_name} es ".mb_strtolower(self::CLASIFICACIONES[$f->classification]).': descargarlo pide el permiso de ver archivos confidenciales.');
         }
