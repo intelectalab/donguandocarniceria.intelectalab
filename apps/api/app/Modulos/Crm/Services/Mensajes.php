@@ -129,6 +129,10 @@ class Mensajes
                     'owner_user_id' => DB::raw('coalesce(owner_user_id, '.DB::getPdo()->quote($u->id).'::uuid)'), 'updated_at' => $ahora]);
             }
             Events::emit('message.sent', 'conversation_messages', $id, ['conversation' => $cv->id, 'queued' => (bool) $cola, 'by' => $u?->id]);
+            // RN-CRM-15 y 16: lo que escribe una persona pasa por las reglas de control (las plantillas y los productos del catálogo no).
+            if ($humano && empty($o['template_id']) && $o['msg_type'] === 'TEXT') {
+                Control::revisarMensaje($id, $cv, $o['body'], $u->id);
+            }
 
             return ['id' => $id, 'estado' => $cola ? 'QUEUED' : 'NOT_SENT',
                 'aviso' => $cola ? null : 'El número todavía no tiene el proveedor oficial conectado: el mensaje queda registrado, pero no sale.'];

@@ -134,7 +134,7 @@ class CrmSupervisionTest extends TestCase
         $cola = $this->como(self::SUPERVISORA)->postJson('/api/v1/crm/simular', ['channel_id' => $canal, 'from' => '+15559900202', 'name' => 'Luis Cola', 'texto' => 'Hola'])
             ->assertCreated()->json('conversation_id');
         $tareas = fn () => $this->enEmpresa(fn () => DB::table('crm_tasks')->where('task_type', 'UNANSWERED_CHAT')->whereIn('conversation_id', [$cv, $cola])->count());
-        $avisos = fn () => $this->enEmpresa(fn () => DB::table('notifications')->where('module', 'CRM')->where('role', 'SUPERVISORA_VENTAS')->count());
+        $avisos = fn () => $this->enEmpresa(fn () => DB::table('notifications')->where('module', 'CRM')->where('role', 'SUPERVISORA_VENTAS')->where('title', 'not like', 'Alerta de control%')->count());
         $antes = $avisos();
 
         // A los 10 min todavía no; a los 16 min sí: tarea para la vendedora asignada y aviso a la supervisión.
@@ -202,7 +202,8 @@ class CrmSupervisionTest extends TestCase
         $this->assertSame('Llamé y quedó para el domingo', $this->enEmpresa(fn () => DB::table('crm_tasks')->where('id', $deA)->value('result')));
         $falla = function (callable $f) {
             try {
-                $this->enEmpresa($f);
+                // En un punto de guardado: el error no deja abortada la transacción de la prueba.
+                $this->enEmpresa(fn () => DB::transaction($f));
                 $this->fail('La base debió rechazarlo');
             } catch (QueryException) {
                 $this->assertTrue(true);
@@ -271,7 +272,8 @@ class CrmSupervisionTest extends TestCase
         // La base: sin evidencia ni de quién no entra, y el historial no se cambia ni se borra.
         $falla = function (callable $f) {
             try {
-                $this->enEmpresa($f);
+                // En un punto de guardado: el error no deja abortada la transacción de la prueba.
+                $this->enEmpresa(fn () => DB::transaction($f));
                 $this->fail('La base debió rechazarlo');
             } catch (QueryException) {
                 $this->assertTrue(true);

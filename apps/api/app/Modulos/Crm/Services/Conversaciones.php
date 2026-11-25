@@ -177,7 +177,10 @@ class Conversaciones
             ->get(['m.*', 'x.name as sender_name', 't.name as template_name', 'g.amount as charge_amount', 'g.reason as charge_reason_real', 'g.category as charge_category']);
         $estados = DB::table('message_status_events')->whereIn('message_id', $msgs->pluck('id'))->orderBy('occurred_at')->get()->groupBy('message_id');
         $trans = DB::table('message_transcripts')->whereIn('message_id', $msgs->pluck('id'))->pluck('transcript', 'message_id');
-        $mensajes = $msgs->map(function ($m) use ($estados, $trans, $ch) {
+        // RN-CRM-17: las alertas de cada mensaje solo las ve quien las revisa (la vendedora no ve las suyas).
+        $alertas = Access::can($u, 'crm.alert.review') ? DB::table('control_alerts as a')->join('control_alert_rules as r', 'r.id', '=', 'a.rule_id')->whereIn('a.message_id', $msgs->pluck('id'))
+            ->get(['a.id', 'a.message_id', 'a.severity', 'a.status', 'a.matched_text', 'r.name'])->groupBy('message_id') : collect();
+        $mensajes = $msgs->map(function ($m) use ($estados, $trans, $ch, $alertas) {
             $es = collect($estados[$m->id] ?? [])->pluck('status')->all();
             $ultimo = collect(['READ', 'DELIVERED', 'SENT', 'FAILED', 'QUEUED', 'NOT_SENT'])->first(fn ($s) => in_array($s, $es, true));
 
@@ -192,11 +195,14 @@ class Conversaciones
                 'costo' => $m->direction === 'OUT' && $ch->kind === 'WHATSAPP' ? ($m->charge_reason_real ? ['amount' => (float) $m->charge_amount, 'reason' => Mensajes::MOTIVOS_COSTO[$m->charge_reason_real] ?? $m->charge_reason_real]
                     : ((float) $m->cost > 0 ? ['amount' => (float) $m->cost, 'reason' => Mensajes::MOTIVOS_COSTO[$m->charge_reason] ?? 'Cobrado'] : null)) : null,
                 'external_id' => $m->external_id,
+                'alertas' => collect($alertas[$m->id] ?? [])->map(fn ($a) => ['id' => $a->id, 'severity' => $a->severity, 'gravedad' => Control::GRAVEDADES[$a->severity] ?? $a->severity,
+                    'estado' => Control::ESTADOS[$a->status] ?? $a->status, 'regla' => $a->name, 'coincidencia' => $a->matched_text])->values()->all(),
             ];
         })->all();
 
         $c = self::conector($ch);
         $panel = self::panel($fila, $u);
+        $alertasAbiertas = Access::can($u, 'crm.alert.review') ? DB::table('control_alerts')->where('conversation_id', $id)->whereIn('status', ['OPEN', 'UNDER_REVIEW'])->count() : null;
 
         return self::resumen($fila, $ahora) + [
             'mensajes' => $mensajes,
@@ -213,6 +219,7 @@ class Conversaciones
                 'crear_pedido' => Access::can($u, 'crm.conversation.create_order') && self::puedeResponder($v, $u),
             ],
             'marketing' => Consentimientos::marketing($v->customer_id, $v->contact_id),
+            'alertas_abiertas' => $alertasAbiertas,
             'miembros' => DB::table('channel_members as m')->join('users as x', 'x.id', '=', 'm.user_id')->where('m.channel_id', $v->channel_id)->where('m.active', true)
                 ->orderBy('x.name')->get(['x.id', 'x.name', 'm.member_role'])->map(fn ($x) => ['value' => $x->id, 'label' => $x->name.' · '.(Equipos::ROLES[$x->member_role] ?? '')])->all(),
             'cierres' => collect(self::CIERRES)->map(fn ($l, $k) => ['value' => $k, 'label' => $l])->values()->all(),

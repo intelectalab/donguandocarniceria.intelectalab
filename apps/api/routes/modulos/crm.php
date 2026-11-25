@@ -2,6 +2,7 @@
 
 use App\Modulos\Crm\Http\Controllers\CanalController;
 use App\Modulos\Crm\Http\Controllers\ClienteController;
+use App\Modulos\Crm\Http\Controllers\ControlController;
 use App\Modulos\Crm\Http\Controllers\ConversacionController;
 use App\Modulos\Crm\Http\Controllers\PlantillaController;
 use App\Modulos\Crm\Http\Controllers\SupervisionController;
@@ -103,6 +104,25 @@ Route::prefix('crm')->group(function () {
     Route::get('/consentimientos/clientes', [SupervisionController::class, 'clientesConsentimiento'])->middleware(['modulo:CRM', 'permiso:crm.consent.manage', 'throttle:60,1,crmget-consentimientos-clientes']);
     Route::post('/consentimientos', [SupervisionController::class, 'registrarConsentimiento'])->middleware(['modulo:CRM', 'permiso:crm.consent.manage', 'throttle:30,1,crmpost-consentimientos']);
     Route::get('/consentimientos/avisos', [SupervisionController::class, 'avisos'])->middleware(['modulo:CRM', $verConsent, 'throttle:60,1,crmget-consentimientos-avisos']);
+
+    // CRM-12 Alertas de control: las revisa la supervisora o la gerencia; la vendedora no ve las suyas (RN-CRM-17).
+    Route::get('/alertas', [ControlController::class, 'alertas'])->middleware(['modulo:CRM', 'permiso:crm.alert.review', 'throttle:60,1,crmget-alertas']);
+    Route::get('/alertas/{id}', [ControlController::class, 'alerta'])->middleware(['modulo:CRM', 'permiso:crm.alert.review', 'throttle:120,1,crmget-alerta'])->whereUuid('id');
+    Route::post('/alertas/{id}/revision', [ControlController::class, 'revisarAlerta'])->middleware(['modulo:CRM', 'permiso:crm.alert.review', 'throttle:60,1,crmpost-alertas-revision'])->whereUuid('id');
+
+    // CRM-13 Reglas e identificadores oficiales: los cambia crm.alert_rule.manage; la supervisión los consulta y prueba textos.
+    $verReglas = 'permiso:crm.alert_rule.manage|crm.alert.review';
+    Route::get('/reglas', [ControlController::class, 'reglas'])->middleware(['modulo:CRM', $verReglas, 'throttle:60,1,crmget-reglas']);
+    Route::post('/reglas', [ControlController::class, 'guardarRegla'])->middleware(['modulo:CRM', 'permiso:crm.alert_rule.manage', 'throttle:30,1,crmpost-reglas']);
+    Route::put('/reglas/{id}', [ControlController::class, 'guardarRegla'])->middleware(['modulo:CRM', 'permiso:crm.alert_rule.manage', 'throttle:30,1,crmput-reglas'])->whereUuid('id');
+    Route::post('/reglas/probar', [ControlController::class, 'probar'])->middleware(['modulo:CRM', $verReglas, 'throttle:30,1,crmpost-reglas-probar']);
+    Route::get('/identificadores', [ControlController::class, 'identificadores'])->middleware(['modulo:CRM', $verReglas, 'throttle:60,1,crmget-identificadores']);
+    Route::post('/identificadores', [ControlController::class, 'guardarIdentificador'])->middleware(['modulo:CRM', 'permiso:crm.alert_rule.manage', 'throttle:30,1,crmpost-identificadores']);
+    Route::put('/identificadores/{id}', [ControlController::class, 'guardarIdentificador'])->middleware(['modulo:CRM', 'permiso:crm.alert_rule.manage', 'throttle:30,1,crmput-identificadores'])->whereUuid('id');
+
+    // CRM-14 Revisión por muestreo (RN-CRM-18): la hace la supervisora; la gerencia la consulta.
+    Route::get('/muestreo', [ControlController::class, 'muestreo'])->middleware(['modulo:CRM', 'permiso:crm.review.perform|crm.alert.review', 'throttle:60,1,crmget-muestreo']);
+    Route::post('/muestreo/{id}', [ControlController::class, 'revisarMuestra'])->middleware(['modulo:CRM', 'permiso:crm.review.perform', 'throttle:60,1,crmpost-muestreo'])->whereUuid('id');
 
     // El estado propio de quien atiende chats (para el reparto, RN-CRM-02).
     Route::get('/mi-estado', [CanalController::class, 'miEstado'])->middleware(['modulo:CRM', 'permiso:crm.conversation.view_own|crm.conversation.view_all']);
