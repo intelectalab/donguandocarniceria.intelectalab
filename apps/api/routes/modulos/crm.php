@@ -4,9 +4,10 @@ use App\Modulos\Crm\Http\Controllers\CanalController;
 use App\Modulos\Crm\Http\Controllers\ClienteController;
 use App\Modulos\Crm\Http\Controllers\ConversacionController;
 use App\Modulos\Crm\Http\Controllers\PlantillaController;
+use App\Modulos\Crm\Http\Controllers\SupervisionController;
 use Illuminate\Support\Facades\Route;
 
-// CRM · Bandeja omnicanal, leads y control de vendedoras: bandeja (CRM-01), conversación (CRM-02), números y cuentas (CRM-07) y equipos y turnos (CRM-08).
+// CRM · Bandeja omnicanal, leads y control de vendedoras: bandeja, conversación, pedido desde el chat, ficha 360, leads, supervisión, números, equipos, plantillas, costos, tareas y consentimientos.
 Route::prefix('crm')->group(function () {
     // Cada límite por minuto lleva su propia cuenta (tercer parámetro): sin él, Laravel suma todas las rutas de la persona
     // y una vendedora activa en la bandeja (que se actualiza sola) podría chocar con el límite de otra acción.
@@ -84,6 +85,24 @@ Route::prefix('crm')->group(function () {
     Route::get('/leads/{id}', [ClienteController::class, 'lead'])->middleware(['modulo:CRM', $verChats])->whereUuid('id');
     Route::post('/leads', [ClienteController::class, 'crearLead'])->middleware(['modulo:CRM', 'permiso:crm.lead.manage', 'throttle:30,1,crmpost-leads']);
     Route::post('/leads/{id}/estado', [ClienteController::class, 'estadoLead'])->middleware(['modulo:CRM', 'permiso:crm.lead.manage', 'throttle:60,1,crmpost-leads-estado'])->whereUuid('id');
+
+    // CRM-06 Supervisión en vivo: la supervisión, la gerencia y la auditoría (RN-CRM-02, 03 y 14). Reasignar o tomar usa la ruta de la conversación.
+    $verSupervision = 'permiso:crm.conversation.view_all';
+    Route::get('/supervision', [SupervisionController::class, 'panel'])->middleware(['modulo:CRM', $verSupervision, 'throttle:120,1,crmget-supervision']);
+    Route::get('/supervision/vendedoras', [SupervisionController::class, 'vendedoras'])->middleware(['modulo:CRM', $verSupervision, 'throttle:120,1,crmget-supervision-vendedoras']);
+    Route::get('/supervision/{tipo}', [SupervisionController::class, 'chats'])->middleware(['modulo:CRM', $verSupervision, 'throttle:120,1,crmget-supervision-chats'])->whereIn('tipo', ['cola', 'sin-responder']);
+    Route::post('/vendedoras/{id}/estado', [SupervisionController::class, 'estadoVendedora'])->middleware(['modulo:CRM', 'permiso:crm.conversation.reassign|crm.channel.manage', 'throttle:60,1,crmpost-vendedoras-estado'])->whereUuid('id');
+
+    // CRM-17 Mis tareas: la vendedora las suyas; la supervisión también las del equipo.
+    Route::get('/tareas', [SupervisionController::class, 'tareas'])->middleware(['modulo:CRM', $verChats, 'throttle:120,1,crmget-tareas']);
+    Route::post('/tareas/{id}/hecha', [SupervisionController::class, 'completarTarea'])->middleware(['modulo:CRM', $verChats, 'throttle:60,1,crmpost-tareas-hecha'])->whereUuid('id');
+
+    // CRM-18 Consentimientos y avisos (Ley 29733): los registra crm.consent.manage, siempre con evidencia; solo se agregan.
+    $verConsent = 'permiso:crm.consent.manage|crm.conversation.view_all|crm.customer.view_full';
+    Route::get('/consentimientos', [SupervisionController::class, 'consentimientos'])->middleware(['modulo:CRM', $verConsent, 'throttle:60,1,crmget-consentimientos']);
+    Route::get('/consentimientos/clientes', [SupervisionController::class, 'clientesConsentimiento'])->middleware(['modulo:CRM', 'permiso:crm.consent.manage', 'throttle:60,1,crmget-consentimientos-clientes']);
+    Route::post('/consentimientos', [SupervisionController::class, 'registrarConsentimiento'])->middleware(['modulo:CRM', 'permiso:crm.consent.manage', 'throttle:30,1,crmpost-consentimientos']);
+    Route::get('/consentimientos/avisos', [SupervisionController::class, 'avisos'])->middleware(['modulo:CRM', $verConsent, 'throttle:60,1,crmget-consentimientos-avisos']);
 
     // El estado propio de quien atiende chats (para el reparto, RN-CRM-02).
     Route::get('/mi-estado', [CanalController::class, 'miEstado'])->middleware(['modulo:CRM', 'permiso:crm.conversation.view_own|crm.conversation.view_all']);
