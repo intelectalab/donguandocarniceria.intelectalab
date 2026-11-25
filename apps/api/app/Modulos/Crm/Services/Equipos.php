@@ -193,7 +193,7 @@ class Equipos
         if (! DB::table('channel_members')->where('user_id', $u->id)->where('active', true)->exists()) {
             RuleError::fail('RN-CRM-03', 'No eres miembro de ningún número: no atiendes chats.');
         }
-        DB::table('crm_agent_status')->insert(['user_id' => $u->id, 'status' => $estado, 'changed_at' => now(), 'created_at' => now()]);
+        DB::table('crm_agent_status')->insert(['user_id' => $u->id, 'status' => $estado, 'changed_at' => DB::raw('clock_timestamp()'), 'created_at' => now()]);
 
         return ['estado' => $estado, 'estado_name' => self::ESTADOS_AGENTE[$estado]];
     }

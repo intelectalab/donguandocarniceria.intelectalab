@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bot, Check, CheckCheck, Clock, FlaskConical, Lock, MessageSquareText, RotateCcw, Send, StickyNote, Tag, UserCog, X } from "lucide-react";
-import { Alert, Badge, Button, DetailList, Field, Modal, Select, Textarea, toast, type Tone } from "@/components/ui";
+import { BadgeCheck, Bot, Check, CheckCheck, Clock, FileText, FlaskConical, Lock, MessageSquareText, RotateCcw, Send, ShoppingBasket, StickyNote, Tag, UserCog, X } from "lucide-react";
+import { Alert, Badge, Button, Checkbox, DetailList, Field, Input, Modal, Select, Textarea, toast, type Tone } from "@/components/ui";
 import { api, mensajeDe } from "@/lib/api";
 import { fecha, fechaHora, numero, soles } from "@/lib/formato";
 
@@ -26,7 +26,8 @@ export type Ficha = Resumen & {
   ventana: { horas: number; abierta: boolean; vence: string | null; minutos: number | null; anuncio: boolean; anuncio_minutos: number | null; tiktok_seguidos: number | null; tiktok_max: number | null; plantillas: boolean };
   costo_proximo: { usadas: number; cuota: number; servicio: { amount: number; reason: string }; utilidad: { amount: number; reason: string }; marketing: { amount: number; reason: string } } | null;
   proveedor: { conectado: boolean; codigo: string | null; prueba: boolean; aviso: string | null };
-  puede: { responder: boolean; reasignar: boolean; cerrar: boolean; notas: boolean; simular: boolean };
+  puede: { responder: boolean; reasignar: boolean; cerrar: boolean; notas: boolean; simular: boolean; consentimiento: boolean };
+  marketing: boolean | null;
   miembros: Opcion[]; cierres: Opcion[]; etiquetas: string[]; respuestas: { id: string; shortcut: string; body: string }[];
   cliente: { id: string; nombre: string; celular: string | null; documento: string | null; pedidos: number; ultimos: { id: string; number: string; status: string; at: string; total: number }[]; marketing: boolean | null } | null;
   lead: { id: string; status: string; source: string; ad_code: string | null; first_contact_at: string; lost_reason: string | null; full_name: string } | null;
@@ -146,6 +147,8 @@ function CajaRespuesta({ c, onCambio }: { c: Ficha; onCambio: (x: Ficha) => void
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [nota, setNota] = useState(false);
+  const [plantilla, setPlantilla] = useState(false);
+  const [catalogo, setCatalogo] = useState(false);
   const libre = c.status !== "CLOSED" && c.ventana.abierta && !(c.kind === "TIKTOK" && (c.ventana.tiktok_seguidos ?? 0) >= (c.ventana.tiktok_max ?? 10));
 
   function escribir(v: string) {
@@ -173,7 +176,7 @@ function CajaRespuesta({ c, onCambio }: { c: Ficha; onCambio: (x: Ficha) => void
   const textoCosto = c.status === "CLOSED" ? "Conversación cerrada: reábrela para escribir."
     : c.kind === "TIKTOK" ? (c.ventana.abierta ? `TikTok: se responde dentro de 48 h y como máximo ${c.ventana.tiktok_max} mensajes seguidos sin respuesta del cliente. Sin plantillas.` : "TikTok: pasaron más de 48 h; solo el cliente puede reabrir la conversación.")
     : !k ? (c.ventana.abierta ? `${c.kind_name}: ventana de ${c.ventana.horas} h abierta; los mensajes no se cobran.` : `${c.kind_name}: la ventana de ${c.ventana.horas} h venció y no hay plantillas. Espera a que el cliente escriba.`)
-    : !c.ventana.abierta ? `Fuera de la ventana de 24 h: solo plantillas aprobadas (utilidad ${k.utilidad.amount ? tarifa(k.utilidad.amount) : "gratis"}, marketing ${k.marketing.amount ? tarifa(k.marketing.amount) : "gratis"}). Las plantillas llegan en la siguiente tanda.`
+    : !c.ventana.abierta ? `Fuera de la ventana de 24 h: solo plantillas aprobadas (utilidad ${k.utilidad.amount ? tarifa(k.utilidad.amount) : "gratis"}, marketing ${k.marketing.amount ? tarifa(k.marketing.amount) : "gratis"}). Usa «Plantilla».`
     : `Próxima respuesta: ${k.servicio.amount ? `${tarifa(k.servicio.amount)} (se agotaron las ${numero(k.cuota)} respuestas gratis del mes)` : k.servicio.reason.includes("anuncio") ? "gratis por la ventana de anuncio de 72 h" : `gratis (respuesta ${numero(k.usadas + 1)} de ${numero(k.cuota)} gratis del mes en este número)`} · utilidad ${k.utilidad.amount ? tarifa(k.utilidad.amount) : "gratis"} · marketing ${k.marketing.amount ? tarifa(k.marketing.amount) : "gratis"}.`;
 
   if (!c.puede.responder) {
@@ -198,11 +201,155 @@ function CajaRespuesta({ c, onCambio }: { c: Ficha; onCambio: (x: Ficha) => void
               options={c.respuestas.map((r) => ({ value: r.id, label: r.shortcut }))} aria-label="Respuestas rápidas" />
           </div>
         )}
+        {c.ventana.plantillas && <Button icon={FileText} onClick={() => setPlantilla(true)}>Plantilla</Button>}
+        <Button icon={ShoppingBasket} disabled={!libre} onClick={() => setCatalogo(true)}>Catálogo</Button>
         {c.puede.notas && <Button variant="ghost" icon={StickyNote} onClick={() => setNota(true)}>Nota interna</Button>}
       </div>
       <p className="text-[12px] text-muted">{textoCosto}</p>
       {nota && <NotaInterna c={c} onClose={() => setNota(false)} onCambio={(x) => { setNota(false); onCambio(x); }} />}
+      {plantilla && <EnviarPlantilla c={c} onClose={() => setPlantilla(false)} onCambio={(x) => { setPlantilla(false); onCambio(x); }} />}
+      {catalogo && <EnviarProducto c={c} onClose={() => setCatalogo(false)} onCambio={(x) => { setCatalogo(false); onCambio(x); }} />}
     </div>
+  );
+}
+
+type PlantillaUso = { id: string; name: string; category: string; category_name: string; purpose_name: string; status: string; status_name: string; body: string; costo: { amount: number; reason: string } };
+type PlantillasUso = { plantillas: PlantillaUso[]; pedidos: (Opcion & { usadas: number })[]; tope: number; marketing: boolean | null; puede: { marketing: boolean; extra: boolean }; vistas: Record<string, string> };
+
+/** RN-CRM-07 y 08: solo aprobadas; tope de utilidad por pedido; marketing con consentimiento y la opción de baja. */
+function EnviarPlantilla({ c, onClose, onCambio }: { c: Ficha; onClose: () => void; onCambio: (x: Ficha) => void }) {
+  const [d, setD] = useState<PlantillasUso | null>(null);
+  const [sel, setSel] = useState({ template_id: "", order_id: "", extra: false });
+  const [error, setError] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  useEffect(() => {
+    let vivo = true;
+    api<PlantillasUso>(`/v1/crm/conversaciones/${c.id}/plantillas`).then((r) => {
+      if (!vivo) return;
+      setD(r);
+      setSel((x) => ({ ...x, template_id: r.plantillas.find((p) => p.status === "APPROVED")?.id ?? "", order_id: r.pedidos[0]?.value ?? "" }));
+    }).catch((e) => vivo && setError(mensajeDe(e)));
+    return () => { vivo = false; };
+  }, [c.id]);
+  const t = d?.plantillas.find((p) => p.id === sel.template_id);
+  const pedido = d?.pedidos.find((p) => p.value === sel.order_id);
+  const tope = t?.category === "UTILITY" && pedido && pedido.usadas >= (d?.tope ?? 2);
+
+  async function enviar() {
+    setEnviando(true); setError("");
+    try {
+      const r = await api<{ mensaje: { aviso: string | null }; conversacion: Ficha }>(`/v1/crm/conversaciones/${c.id}/plantillas`, { method: "POST", body: { template_id: sel.template_id, order_id: sel.order_id || null, extra: sel.extra } });
+      toast.ok("Plantilla enviada");
+      if (r.mensaje.aviso) toast.info(r.mensaje.aviso);
+      onCambio(r.conversacion);
+    } catch (e) {
+      setError(mensajeDe(e));
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <Modal open onClose={onClose} size="lg" title="Enviar plantilla" description="Solo plantillas aprobadas por Meta, de la marca del número. Se pueden enviar fuera de la ventana de 24 h."
+      footer={<><Button variant="ghost" onClick={onClose}>Cancelar</Button><Button variant="primary" icon={Send} loading={enviando} disabled={!t || t.status !== "APPROVED"} onClick={enviar}>Enviar plantilla</Button></>}>
+      <div className="grid gap-3">
+        {error && <Alert tone="bad">{error}</Alert>}
+        {!d && !error && <p className="text-[13px] text-muted">Cargando…</p>}
+        {d && (
+          <>
+            <Field label="Plantilla">
+              <Select value={sel.template_id} onChange={(e) => setSel({ ...sel, template_id: e.target.value })}
+                options={d.plantillas.map((p) => ({ value: p.id, label: `${p.name} · ${p.category_name} · ${p.status_name}` }))} />
+            </Field>
+            <Field label="Pedido" hint={`Cuenta para el tope de ${d.tope} plantillas de utilidad por pedido y llena sus datos (productos, total, fecha).`}>
+              <Select value={sel.order_id} onChange={(e) => setSel({ ...sel, order_id: e.target.value })} placeholder="Sin pedido" options={d.pedidos} />
+            </Field>
+            {tope && d.puede.extra && <Checkbox checked={sel.extra} onChange={(v) => setSel({ ...sel, extra: v })} label="Enviar como plantilla adicional (el pedido ya llegó al tope)" />}
+            {tope && !d.puede.extra && <Alert tone="warn">El pedido ya recibió {pedido?.usadas} plantillas de utilidad (máximo {d.tope}). Una más la envía la supervisora.</Alert>}
+            {t?.status !== "APPROVED" && t && <Alert tone="warn">La plantilla está «{t.status_name}»: solo se envían las aprobadas por Meta.</Alert>}
+            {t?.category === "MARKETING" && (
+              d.marketing === true ? <Alert tone="ok">El cliente aceptó recibir promociones. La plantilla lleva la opción de baja.</Alert>
+                : <Alert tone="warn">El cliente {d.marketing === false ? "dio de baja las promociones" : "no tiene consentimiento de marketing registrado"}: no se le puede enviar. Registra su «sí» con evidencia en el panel del cliente.</Alert>
+            )}
+            {t?.category === "MARKETING" && !d.puede.marketing && <Alert tone="warn">Tu rol no envía plantillas de marketing.</Alert>}
+            {t && (
+              <div className="grid gap-1.5">
+                <p className="text-[12.5px] font-semibold text-ink">Vista previa</p>
+                <p className="whitespace-pre-wrap rounded-2xl rounded-br-md bg-primary px-3 py-2 text-[13px] text-primary-ink">{d.vistas[t.id]}</p>
+                <p className="text-[12px] text-muted">Costo de este envío: {t.costo.amount ? tarifa(t.costo.amount) : "gratis"} ({t.costo.reason}). Las variables del pedido se llenan al enviar.</p>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+/** Un producto del catálogo de WhatsApp (activo y con precio vigente), dentro de la ventana. */
+function EnviarProducto({ c, onClose, onCambio }: { c: Ficha; onClose: () => void; onCambio: (x: Ficha) => void }) {
+  const [lista, setLista] = useState<{ id: string; name: string; precio: number; base: string }[] | null>(null);
+  const [buscar, setBuscar] = useState("");
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let vivo = true;
+    api<{ data: { id: string; name: string; precio: number; base: string }[] }>(`/v1/crm/conversaciones/${c.id}/catalogo`).then((r) => vivo && setLista(r.data)).catch((e) => vivo && setError(mensajeDe(e)));
+    return () => { vivo = false; };
+  }, [c.id]);
+  const q = buscar.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const filas = (lista ?? []).filter((x) => !q || x.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(q));
+  async function enviar(id: string) {
+    try {
+      const r = await api<{ conversacion: Ficha }>(`/v1/crm/conversaciones/${c.id}/producto`, { method: "POST", body: { variant_id: id } });
+      toast.ok("Producto enviado");
+      onCambio(r.conversacion);
+    } catch (e) {
+      setError(mensajeDe(e));
+    }
+  }
+  return (
+    <Modal open onClose={onClose} size="lg" title="Enviar un producto del catálogo" description="Catálogo de WhatsApp sincronizado con el catálogo oficial: solo productos activos con precio vigente.">
+      <div className="grid gap-3">
+        {error && <Alert tone="bad">{error}</Alert>}
+        <Input value={buscar} onChange={(e) => setBuscar(e.target.value)} placeholder="Buscar producto…" aria-label="Buscar producto" />
+        <ul className="grid max-h-[50vh] gap-1 overflow-y-auto">
+          {!lista && !error && <li className="text-[13px] text-muted">Cargando…</li>}
+          {lista && filas.length === 0 && <li className="text-[13px] text-muted">Ningún producto coincide.</li>}
+          {filas.map((x) => (
+            <li key={x.id}>
+              <button type="button" onClick={() => enviar(x.id)} className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-lg border border-line px-3 py-2 text-left text-[13px] hover:bg-surface-2">
+                <span className="text-ink">{x.name}</span>
+                <span className="whitespace-nowrap tabular-nums text-muted">{soles(x.precio)} {x.base === "KG" ? "el kg" : "c/u"}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </Modal>
+  );
+}
+
+/** El «sí» o la baja de marketing, con su evidencia (nunca se presume). */
+function Consentimiento({ c, onClose, onCambio }: { c: Ficha; onClose: () => void; onCambio: (x: Ficha) => void }) {
+  const ultimoDelCliente = [...c.mensajes].reverse().find((m) => m.direction === "IN");
+  const [d, setD] = useState({ otorgado: "true", evidencia: ultimoDelCliente?.body ? `Escribió: «${ultimoDelCliente.body.slice(0, 120)}»` : "", conMensaje: Boolean(ultimoDelCliente) });
+  const [error, setError] = useState("");
+  return (
+    <Modal open onClose={onClose} title="Consentimiento de marketing" description="Nunca se presume: queda con la evidencia, la fecha y quién lo registró. Vale el último registro."
+      footer={<><Button variant="ghost" onClick={onClose}>Cancelar</Button><Button variant="primary" onClick={async () => {
+        setError("");
+        try {
+          onCambio(await api<Ficha>(`/v1/crm/conversaciones/${c.id}/consentimiento`, { method: "POST", body: { otorgado: d.otorgado === "true", evidencia: d.evidencia, message_id: d.conMensaje ? ultimoDelCliente?.id : null } }));
+          toast.ok(d.otorgado === "true" ? "Consentimiento registrado" : "Baja registrada");
+        } catch (e) { setError(mensajeDe(e)); }
+      }}>Registrar</Button></>}>
+      <div className="grid gap-3">
+        {error && <Alert tone="bad">{error}</Alert>}
+        <Field label="El cliente"><Select value={d.otorgado} onChange={(e) => setD({ ...d, otorgado: e.target.value })} options={[{ value: "true", label: "Acepta recibir promociones" }, { value: "false", label: "No quiere recibir promociones (baja)" }]} /></Field>
+        <Field label="Evidencia" hint="Qué dijo y por dónde. Al menos 5 caracteres."><Textarea rows={3} maxLength={500} value={d.evidencia} onChange={(e) => setD({ ...d, evidencia: e.target.value })} /></Field>
+        {ultimoDelCliente && <Checkbox checked={d.conMensaje} onChange={(v) => setD({ ...d, conMensaje: v })} label="Usar el último mensaje del cliente como evidencia" />}
+      </div>
+    </Modal>
   );
 }
 
@@ -348,7 +495,9 @@ export function Conversacion({ c, onCambio, enLista }: { c: Ficha; onCambio: (x:
 }
 
 /** Panel lateral: cliente o lead, pedido de este chat y tareas abiertas. */
-export function PanelCliente({ c }: { c: Ficha }) {
+export function PanelCliente({ c, onCambio }: { c: Ficha; onCambio?: (x: Ficha) => void }) {
+  const [consentir, setConsentir] = useState(false);
+  const marketing = c.marketing === true ? <Badge tone="ok">Consentimiento otorgado</Badge> : c.marketing === false ? <Badge tone="bad">Dio de baja</Badge> : <Badge tone="neutral">Sin consentimiento</Badge>;
   return (
     <div className="grid content-start gap-3">
       {c.cliente && (
@@ -357,7 +506,7 @@ export function PanelCliente({ c }: { c: Ficha }) {
           <DetailList items={[
             { label: "Nombre", value: c.cliente.nombre }, { label: "Celular", value: c.cliente.celular ?? "—" },
             { label: "Documento", value: c.cliente.documento ?? "Sin documento" }, { label: "Pedidos", value: numero(c.cliente.pedidos) },
-            { label: "Marketing", value: c.cliente.marketing === true ? <Badge tone="ok">Consentimiento otorgado</Badge> : c.cliente.marketing === false ? <Badge tone="bad">Dio de baja</Badge> : <Badge tone="neutral">Sin consentimiento</Badge> },
+            { label: "Marketing", value: marketing },
           ]} />
           {c.cliente.ultimos.length > 0 && (
             <div className="grid gap-1.5">
@@ -377,6 +526,14 @@ export function PanelCliente({ c }: { c: Ficha }) {
             { label: "Anuncio", value: c.lead.ad_code ?? "—" }, { label: "Primer contacto", value: fechaHora(c.lead.first_contact_at) },
           ]} />
           <p className="text-[12px] text-muted">Pasa a cliente con su primer pedido.</p>
+        </section>
+      )}
+      {c.puede.consentimiento && onCambio && (
+        <section className="grid gap-2 rounded-xl border border-line bg-surface p-4 shadow-card">
+          <h3 className="text-[14px] font-semibold text-ink">Promociones</h3>
+          <div className="flex flex-wrap items-center justify-between gap-2">{marketing}<Button size="sm" icon={BadgeCheck} onClick={() => setConsentir(true)}>Registrar</Button></div>
+          <p className="text-[12px] text-muted">Las plantillas de marketing solo se envían con el consentimiento vigente.</p>
+          {consentir && <Consentimiento c={c} onClose={() => setConsentir(false)} onCambio={(x) => { setConsentir(false); onCambio(x); }} />}
         </section>
       )}
       <section className="grid gap-2 rounded-xl border border-line bg-surface p-4 shadow-card">

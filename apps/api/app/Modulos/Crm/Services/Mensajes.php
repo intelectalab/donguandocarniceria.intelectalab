@@ -51,6 +51,12 @@ class Mensajes
     /** Respuesta libre de una persona (RN-CRM-03, 05, 06). Devuelve el mensaje creado. */
     public static function responder(string $conversacion, string $texto, User $u): array
     {
+        return self::responderComo($conversacion, $texto, 'TEXT', $u);
+    }
+
+    /** Un mensaje libre (texto o producto del catálogo) con las reglas de la ventana. */
+    public static function responderComo(string $conversacion, string $texto, string $tipo, User $u): array
+    {
         $cv = Conversaciones::fila($conversacion);
         if (! Conversaciones::puedeResponder($cv, $u)) {
             RuleError::fail('RN-CRM-03', $cv->assigned_user_id
@@ -79,7 +85,7 @@ class Mensajes
             RuleError::fail('RN-CRM-05', 'Fuera de la ventana de '.self::horasVentana($ch->kind).' h desde el último mensaje del cliente: solo se envía una plantilla aprobada.');
         }
 
-        return self::salir($cv, $ch, ['body' => mb_substr($texto, 0, 4096), 'msg_type' => 'TEXT', 'category' => 'SERVICE', 'user' => $u]);
+        return self::salir($cv, $ch, ['body' => mb_substr($texto, 0, 4096), 'msg_type' => $tipo, 'category' => 'SERVICE', 'user' => $u]);
     }
 
     /**
@@ -98,7 +104,7 @@ class Mensajes
             $id = DB::table('conversation_messages')->insertGetId([
                 'conversation_id' => $cv->id, 'channel_id' => $ch->id, 'brand_id' => $cv->brand_id, 'direction' => 'OUT', 'origin' => $origen,
                 'sender_user_id' => $u?->id, 'msg_type' => $o['msg_type'], 'body' => $o['body'], 'template_id' => $o['template_id'] ?? null,
-                'category' => $ch->kind === 'WHATSAPP' ? $o['category'] : null, 'order_id' => $o['order_id'] ?? null, 'sent_at' => $ahora, 'cost' => 0,
+                'category' => $ch->kind === 'WHATSAPP' ? $o['category'] : null, 'order_id' => $o['order_id'] ?? null, 'sent_at' => DB::raw('clock_timestamp()'), 'cost' => 0,
                 'external_id' => 'crm-'.bin2hex(random_bytes(10)), 'created_at' => $ahora,
             ], 'id');
             $c = $ch->connector_id ? DB::table('integration_connectors')->where('id', $ch->connector_id)->first() : null;
@@ -107,7 +113,7 @@ class Mensajes
                 'to' => DB::table('channel_contacts')->where('id', $cv->contact_id)->value('external_user_id'), 'channel' => $ch->number,
                 'type' => $o['msg_type'], 'text' => $o['body'], 'message_id' => $id,
             ], $id, "crm-msg-{$id}") : null;
-            DB::table('message_status_events')->insert(['message_id' => $id, 'status' => $cola ? 'QUEUED' : 'NOT_SENT', 'occurred_at' => $ahora, 'created_at' => $ahora]);
+            DB::table('message_status_events')->insert(['message_id' => $id, 'status' => $cola ? 'QUEUED' : 'NOT_SENT', 'occurred_at' => DB::raw('clock_timestamp()'), 'created_at' => $ahora]);
 
             $humano = $u !== null && $origen !== 'SYSTEM';
             $cambio = ['last_outbound_at' => $ahora, 'updated_at' => $ahora, 'outbound_since_inbound' => (int) $cv->outbound_since_inbound + ($origen === 'SYSTEM' ? 0 : 1)];
@@ -142,7 +148,7 @@ class Mensajes
             return;
         }
         $ahora = now();
-        DB::table('message_status_events')->insert(['message_id' => $id, 'status' => 'SENT', 'occurred_at' => $ahora, 'pricing_category' => $m->category, 'created_at' => $ahora]);
+        DB::table('message_status_events')->insert(['message_id' => $id, 'status' => 'SENT', 'occurred_at' => DB::raw('clock_timestamp()'), 'pricing_category' => $m->category, 'created_at' => $ahora]);
         $ch = DB::table('messaging_channels')->where('id', $m->channel_id)->first();
         if ($ch->kind !== 'WHATSAPP' || DB::table('message_charges')->where('message_id', $id)->exists()) {
             return;
@@ -152,7 +158,7 @@ class Mensajes
         DB::table('message_charges')->insert([
             'message_id' => $id, 'channel_id' => $ch->id, 'brand_id' => $m->brand_id, 'user_id' => $m->sender_user_id, 'conversation_id' => $cv->id, 'order_id' => $m->order_id,
             'period' => Carbon::parse($m->sent_at)->setTimezone('America/Lima')->startOfMonth()->toDateString(), 'category' => $m->category ?? 'SERVICE',
-            'billable' => $t['billable'], 'reason' => $t['reason'], 'rate' => $t['rate'], 'amount' => $t['amount'], 'charged_at' => $ahora, 'created_at' => $ahora,
+            'billable' => $t['billable'], 'reason' => $t['reason'], 'rate' => $t['rate'], 'amount' => $t['amount'], 'charged_at' => DB::raw('clock_timestamp()'), 'created_at' => $ahora,
         ]);
     }
 

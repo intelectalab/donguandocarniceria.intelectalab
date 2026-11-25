@@ -108,7 +108,7 @@ class Recepcion
                 'conversation_id' => $cv->id, 'channel_id' => $ch->id, 'brand_id' => $cv->brand_id, 'direction' => 'IN', 'origin' => 'API',
                 'msg_type' => $noDisponible ? 'UNSUPPORTED' : (in_array($tipo, self::TIPOS, true) ? $tipo : 'TEXT'), 'body' => $noDisponible ? null : $texto,
                 'media' => isset($o['media']) ? json_encode($o['media'], JSON_UNESCAPED_UNICODE) : null, 'referral' => $referral ? json_encode($referral, JSON_UNESCAPED_UNICODE) : null,
-                'unsupported_kind' => $noDisponible ? $tipo : null, 'sent_at' => $at, 'cost' => 0,
+                'unsupported_kind' => $noDisponible ? $tipo : null, 'sent_at' => isset($o['at']) ? $at : DB::raw('clock_timestamp()'), 'cost' => 0,
                 'external_id' => $o['external_id'] ?? 'crm-in-'.bin2hex(random_bytes(10)), 'created_at' => now(),
             ], 'id');
             if (! empty($o['transcript'])) {
@@ -127,14 +127,14 @@ class Recepcion
         if ($r['nuevo'] && $ch->recording_notice_text) {
             $aviso = Mensajes::salir($cv, $ch, ['body' => $ch->recording_notice_text, 'msg_type' => 'TEXT', 'category' => 'SERVICE', 'origin' => 'SYSTEM']);
             DB::table('contact_consents')->insert(['contact_id' => $r['contacto']->id, 'customer_id' => $r['contacto']->customer_id, 'purpose' => 'RECORDING_NOTICE', 'granted' => true,
-                'channel' => $ch->kind, 'evidence_message_id' => $aviso['id'], 'evidence_text' => 'Aviso automático al primer mensaje', 'recorded_at' => now(), 'brand_id' => $ch->brand_id,
+                'channel' => $ch->kind, 'evidence_message_id' => $aviso['id'], 'evidence_text' => 'Aviso automático al primer mensaje', 'recorded_at' => DB::raw('clock_timestamp()'), 'brand_id' => $ch->brand_id,
                 'recorded_by' => 'Sistema', 'source' => 'AUTO', 'created_at' => now()]);
         } elseif ($r['creada'] && $ch->auto_greeting) {
             Mensajes::salir($cv, $ch, ['body' => $ch->auto_greeting, 'msg_type' => 'TEXT', 'category' => 'SERVICE', 'origin' => 'SYSTEM']);
         }
         if ($texto !== null && preg_match('/^\s*baja\s*[.!]?\s*$/iu', $texto)) {
             DB::table('contact_consents')->insert(['contact_id' => $r['contacto']->id, 'customer_id' => $r['contacto']->customer_id, 'purpose' => 'MARKETING', 'granted' => false,
-                'channel' => $ch->kind, 'evidence_message_id' => $r['mid'], 'evidence_text' => 'Respondió BAJA', 'recorded_at' => now(), 'brand_id' => $ch->brand_id,
+                'channel' => $ch->kind, 'evidence_message_id' => $r['mid'], 'evidence_text' => 'Respondió BAJA', 'recorded_at' => DB::raw('clock_timestamp()'), 'brand_id' => $ch->brand_id,
                 'recorded_by' => 'Cliente', 'source' => 'MESSAGE', 'created_at' => now()]);
         }
         $asignada = Conversaciones::fila($r['cv'])->assigned_user_id;

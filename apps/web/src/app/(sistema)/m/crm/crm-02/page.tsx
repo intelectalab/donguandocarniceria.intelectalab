@@ -49,7 +49,7 @@ function VerConversacion() {
       {c && (
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
           <Conversacion c={c} onCambio={setC} />
-          <PanelCliente c={c} />
+          <PanelCliente c={c} onCambio={setC} />
         </div>
       )}
       {!c && !error && <p className="text-[13px] text-muted">Cargando…</p>}

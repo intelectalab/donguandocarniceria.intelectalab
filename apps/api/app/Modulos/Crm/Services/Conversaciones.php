@@ -209,7 +209,9 @@ class Conversaciones
                 'responder' => self::puedeResponder($v, $u), 'reasignar' => Access::can($u, 'crm.conversation.reassign') && self::visibles($u)->where('v.id', $id)->exists(),
                 'cerrar' => self::puedeResponder($v, $u), 'notas' => self::visibles($u)->where('v.id', $id)->exists() && Access::can($u, 'crm.conversation.reply'),
                 'simular' => Simulador::disponible() && Access::can($u, 'crm.conversation.reply'),
+                'consentimiento' => Access::can($u, 'crm.consent.manage'),
             ],
+            'marketing' => Consentimientos::marketing($v->customer_id, $v->contact_id),
             'miembros' => DB::table('channel_members as m')->join('users as x', 'x.id', '=', 'm.user_id')->where('m.channel_id', $v->channel_id)->where('m.active', true)
                 ->orderBy('x.name')->get(['x.id', 'x.name', 'm.member_role'])->map(fn ($x) => ['value' => $x->id, 'label' => $x->name.' · '.(Equipos::ROLES[$x->member_role] ?? '')])->all(),
             'cierres' => collect(self::CIERRES)->map(fn ($l, $k) => ['value' => $k, 'label' => $l])->values()->all(),
@@ -350,7 +352,7 @@ class Conversaciones
         }
         DB::transaction(function () use ($cv, $a, $motivo, $por, $nota) {
             DB::table('conversation_assignments')->insert(['conversation_id' => $cv->id, 'channel_id' => $cv->channel_id, 'from_user_id' => $cv->assigned_user_id, 'to_user_id' => $a,
-                'reason' => $motivo, 'assigned_by' => $por?->id, 'assigned_at' => now(), 'note' => $nota ? mb_substr(trim($nota), 0, 255) : null, 'created_at' => now()]);
+                'reason' => $motivo, 'assigned_by' => $por?->id, 'assigned_at' => DB::raw('clock_timestamp()'), 'note' => $nota ? mb_substr(trim($nota), 0, 255) : null, 'created_at' => now()]);
             DB::table('conversations')->where('id', $cv->id)->update(['assigned_user_id' => $a, 'queued_at' => $a ? null : now(), 'updated_at' => now()]);
             if ($a && $a !== $por?->id) {
                 $nombre = self::nombreContacto($cv);
