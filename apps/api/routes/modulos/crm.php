@@ -1,6 +1,7 @@
 <?php
 
 use App\Modulos\Crm\Http\Controllers\CanalController;
+use App\Modulos\Crm\Http\Controllers\ClienteController;
 use App\Modulos\Crm\Http\Controllers\ConversacionController;
 use App\Modulos\Crm\Http\Controllers\PlantillaController;
 use Illuminate\Support\Facades\Route;
@@ -68,6 +69,21 @@ Route::prefix('crm')->group(function () {
     // CRM-11 Costo de WhatsApp (RN-CRM-13).
     Route::get('/costos', [PlantillaController::class, 'costos'])->middleware(['modulo:CRM', 'permiso:crm.cost.view', 'throttle:60,1,crmget-costos']);
     Route::get('/costos/simular', [PlantillaController::class, 'simular'])->middleware(['modulo:CRM', 'permiso:crm.cost.view', 'throttle:60,1,crmget-costos-simular']);
+
+    // CRM-03 Crear pedido desde el chat (RN-CRM-09, 22): la vendedora asignada o la supervisora.
+    Route::get('/conversaciones/{id}/pedido', [ClienteController::class, 'prepararPedido'])->middleware(['modulo:CRM', 'permiso:crm.conversation.create_order'])->whereUuid('id');
+    Route::post('/conversaciones/{id}/pedido', [ClienteController::class, 'crearPedido'])->middleware(['modulo:CRM', 'modulo:PED', 'permiso:crm.conversation.create_order', 'throttle:20,1,crmpost-pedido'])->whereUuid('id');
+    Route::post('/conversaciones/{id}/resumen', [ClienteController::class, 'enviarResumen'])->middleware(['modulo:CRM', 'permiso:crm.conversation.create_order', 'throttle:30,1,crmpost-resumen'])->whereUuid('id');
+
+    // CRM-04 Ficha 360 del cliente.
+    Route::get('/clientes', [ClienteController::class, 'clientes'])->middleware(['modulo:CRM', 'permiso:crm.customer.view_full', 'throttle:60,1,crmget-clientes']);
+    Route::get('/clientes/{id}', [ClienteController::class, 'cliente'])->middleware(['modulo:CRM', 'permiso:crm.customer.view_full', 'throttle:120,1,crmget-cliente'])->whereUuid('id');
+
+    // CRM-05 Leads: se ven con la bandeja; los gestiona crm.lead.manage.
+    Route::get('/leads', [ClienteController::class, 'leads'])->middleware(['modulo:CRM', $verChats, 'throttle:60,1,crmget-leads']);
+    Route::get('/leads/{id}', [ClienteController::class, 'lead'])->middleware(['modulo:CRM', $verChats])->whereUuid('id');
+    Route::post('/leads', [ClienteController::class, 'crearLead'])->middleware(['modulo:CRM', 'permiso:crm.lead.manage', 'throttle:30,1,crmpost-leads']);
+    Route::post('/leads/{id}/estado', [ClienteController::class, 'estadoLead'])->middleware(['modulo:CRM', 'permiso:crm.lead.manage', 'throttle:60,1,crmpost-leads-estado'])->whereUuid('id');
 
     // El estado propio de quien atiende chats (para el reparto, RN-CRM-02).
     Route::get('/mi-estado', [CanalController::class, 'miEstado'])->middleware(['modulo:CRM', 'permiso:crm.conversation.view_own|crm.conversation.view_all']);

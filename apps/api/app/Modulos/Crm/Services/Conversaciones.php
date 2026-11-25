@@ -210,6 +210,7 @@ class Conversaciones
                 'cerrar' => self::puedeResponder($v, $u), 'notas' => self::visibles($u)->where('v.id', $id)->exists() && Access::can($u, 'crm.conversation.reply'),
                 'simular' => Simulador::disponible() && Access::can($u, 'crm.conversation.reply'),
                 'consentimiento' => Access::can($u, 'crm.consent.manage'),
+                'crear_pedido' => Access::can($u, 'crm.conversation.create_order') && self::puedeResponder($v, $u),
             ],
             'marketing' => Consentimientos::marketing($v->customer_id, $v->contact_id),
             'miembros' => DB::table('channel_members as m')->join('users as x', 'x.id', '=', 'm.user_id')->where('m.channel_id', $v->channel_id)->where('m.active', true)
@@ -430,9 +431,7 @@ class Conversaciones
             ];
         }
         $lead = $v->lead_id ? DB::table('leads')->where('id', $v->lead_id)->first(['id', 'status', 'source', 'ad_code', 'first_contact_at', 'lost_reason', 'full_name']) : null;
-        $vinculados = DB::table('conversation_orders as x')->join('sales_orders as o', 'o.id', '=', 'x.order_id')->where('x.conversation_id', $v->id)
-            ->get(['o.id', 'o.number', 'o.status', 'o.estimated_total', 'o.final_total', 'o.origin_ad_code'])->map(fn ($o) => ['id' => $o->id, 'number' => $o->number, 'status' => $o->status,
-                'total' => (float) ($o->final_total ?? $o->estimated_total), 'anuncio' => $o->origin_ad_code])->all();
+        $vinculados = PedidosChat::pedidosDelChat($v->id);
         $tareas = DB::table('crm_tasks')->where('status', 'OPEN')->where(fn ($q) => $q->where('conversation_id', $v->id)->when($v->customer_id, fn ($w) => $w->orWhere('customer_id', $v->customer_id)))
             ->orderBy('due_at')->limit(5)->get(['id', 'task_type', 'due_at', 'note'])->all();
 

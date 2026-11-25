@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { BadgeCheck, Bot, Check, CheckCheck, Clock, FileText, FlaskConical, Lock, MessageSquareText, RotateCcw, Send, ShoppingBasket, StickyNote, Tag, UserCog, X } from "lucide-react";
+import { BadgeCheck, Bot, ShoppingCart, UserRound, Check, CheckCheck, Clock, FileText, FlaskConical, Lock, MessageSquareText, RotateCcw, Send, ShoppingBasket, StickyNote, Tag, UserCog, X } from "lucide-react";
 import { Alert, Badge, Button, Checkbox, DetailList, Field, Input, Modal, Select, Textarea, toast, type Tone } from "@/components/ui";
 import { api, mensajeDe } from "@/lib/api";
 import { fecha, fechaHora, numero, soles } from "@/lib/formato";
@@ -26,12 +26,12 @@ export type Ficha = Resumen & {
   ventana: { horas: number; abierta: boolean; vence: string | null; minutos: number | null; anuncio: boolean; anuncio_minutos: number | null; tiktok_seguidos: number | null; tiktok_max: number | null; plantillas: boolean };
   costo_proximo: { usadas: number; cuota: number; servicio: { amount: number; reason: string }; utilidad: { amount: number; reason: string }; marketing: { amount: number; reason: string } } | null;
   proveedor: { conectado: boolean; codigo: string | null; prueba: boolean; aviso: string | null };
-  puede: { responder: boolean; reasignar: boolean; cerrar: boolean; notas: boolean; simular: boolean; consentimiento: boolean };
+  puede: { responder: boolean; reasignar: boolean; cerrar: boolean; notas: boolean; simular: boolean; consentimiento: boolean; crear_pedido: boolean };
   marketing: boolean | null;
   miembros: Opcion[]; cierres: Opcion[]; etiquetas: string[]; respuestas: { id: string; shortcut: string; body: string }[];
   cliente: { id: string; nombre: string; celular: string | null; documento: string | null; pedidos: number; ultimos: { id: string; number: string; status: string; at: string; total: number }[]; marketing: boolean | null } | null;
   lead: { id: string; status: string; source: string; ad_code: string | null; first_contact_at: string; lost_reason: string | null; full_name: string } | null;
-  pedidos_chat: { id: string; number: string; status: string; total: number; anuncio: string | null }[];
+  pedidos_chat: { id: string; number: string; status: string; total: number; anuncio: string | null; lineas: number; resumen_enviado: boolean }[];
   tareas: { id: string; task_type: string; due_at: string; note: string | null }[];
 };
 
@@ -538,9 +538,26 @@ export function PanelCliente({ c, onCambio }: { c: Ficha; onCambio?: (x: Ficha) 
       )}
       <section className="grid gap-2 rounded-xl border border-line bg-surface p-4 shadow-card">
         <h3 className="text-[14px] font-semibold text-ink">Pedido de este chat</h3>
-        {c.pedidos_chat.length ? c.pedidos_chat.map((o) => (
-          <p key={o.id} className="flex justify-between gap-2 text-[12.5px]"><span className="font-mono font-semibold">{o.number}</span><span className="tabular-nums">{soles(o.total)}</span></p>
-        )) : <p className="text-[12.5px] text-muted">Aún no hay pedido vinculado. «Crear pedido» llega en una próxima tanda.</p>}
+        {c.pedidos_chat.map((o) => (
+          <div key={o.id} className="grid gap-1.5 rounded-lg border border-line p-2.5 text-[12.5px]">
+            <p className="flex justify-between gap-2"><Link href={`/m/ped/ped-02?id=${o.id}`} className="font-mono font-semibold text-primary hover:underline">{o.number}</Link><span className="tabular-nums">{soles(o.total)}</span></p>
+            <p className="text-muted">{o.lineas ? `${o.lineas} producto(s)` : "Sin productos todavía"}{o.anuncio ? ` · anuncio ${o.anuncio}` : ""}{o.resumen_enviado ? " · resumen enviado" : ""}</p>
+            {onCambio && c.puede.crear_pedido && (
+              <div className="flex flex-wrap gap-1.5">
+                <Link href={`/m/ped/ped-02?id=${o.id}`} className="inline-flex items-center rounded-lg border border-line px-2.5 py-1 text-[12px] font-semibold text-ink hover:bg-surface-2">Completar en Pedidos</Link>
+                <Button size="sm" variant={o.resumen_enviado ? "ghost" : "primary"} disabled={!o.lineas} title={o.lineas ? "Resumen y cobro en un solo mensaje" : "Primero agrega los productos en Pedidos"}
+                  onClick={async () => {
+                    try { const r = await api<{ conversacion: Ficha }>(`/v1/crm/conversaciones/${c.id}/resumen`, { method: "POST", body: { order_id: o.id } }); toast.ok("Resumen enviado"); onCambio(r.conversacion); } catch (e) { toast.error(mensajeDe(e)); }
+                  }}>{o.resumen_enviado ? "Reenviar resumen" : "Enviar resumen"}</Button>
+              </div>
+            )}
+          </div>
+        ))}
+        {c.pedidos_chat.length === 0 && <p className="text-[12.5px] text-muted">Aún no hay pedido vinculado.</p>}
+        {c.puede.crear_pedido && c.status !== "CLOSED" && (
+          <Link href={`/m/crm/crm-03?id=${c.id}`} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-[13px] font-semibold text-primary-ink hover:brightness-110"><ShoppingCart className="size-4" />Crear pedido</Link>
+        )}
+        {c.customer_id && <Link href={`/m/crm/crm-04?id=${c.customer_id}`} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-primary hover:underline"><UserRound className="size-3.5" />Ver la ficha 360 del cliente</Link>}
       </section>
       {c.tareas.length > 0 && (
         <section className="grid gap-2 rounded-xl border border-line bg-surface p-4 shadow-card">
