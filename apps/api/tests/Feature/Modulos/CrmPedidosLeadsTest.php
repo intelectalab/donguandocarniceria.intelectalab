@@ -188,5 +188,14 @@ class CrmPedidosLeadsTest extends TestCase
         $this->como(self::A)->postJson('/api/v1/crm/leads', $base + ['phone' => '+51955000111'])->assertStatus(422);
         $this->assertContains($m->json('id'), array_column($this->como(self::A)->getJson('/api/v1/crm/leads?buscar=Buen%20Sabor')->json('data'), 'id'));
         $this->assertNotNull($l->json('conversion'));
+
+        // Tablero kanban: hasta 25 por columna, sin descartados, sin páginas; el estado de la URL no lo recorta.
+        $t = $this->como(self::GERENTE)->getJson('/api/v1/crm/leads?tablero=1&estado=LOST')->assertOk();
+        $porEstado = collect($t->json('data'))->countBy('status');
+        $this->assertSame(1, $t->json('last_page'));
+        $this->assertFalse($porEstado->has('DISCARDED'));
+        $this->assertTrue($porEstado->every(fn ($n) => $n <= 25));
+        $this->assertGreaterThan(1, $porEstado->count());
+        $this->assertArrayHasKey('conversacion', $t->json('data.0'));
     }
 }

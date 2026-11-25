@@ -17,6 +17,11 @@ use Illuminate\Support\Facades\DB;
  */
 class Leads
 {
+    /** Columnas del tablero kanban y cuántas tarjetas trae cada una (las más recientes). */
+    public const TABLERO = ['NEW', 'CONTACTED', 'QUALIFIED', 'WON', 'LOST'];
+
+    public const POR_COLUMNA = 25;
+
     public const ESTADOS = ['NEW' => 'Nuevo', 'CONTACTED' => 'Contactado', 'QUALIFIED' => 'Calificado', 'WON' => 'Ganado', 'LOST' => 'Perdido', 'DISCARDED' => 'Descartado'];
 
     public const MOTIVOS = ['PRICE' => 'Precio', 'NO_STOCK' => 'Sin stock', 'OUT_OF_ZONE' => 'Fuera de zona', 'NO_RESPONSE' => 'No respondió', 'DELIVERY_TIME' => 'Plazo de entrega',
@@ -65,7 +70,7 @@ class Leads
             $q->where(fn ($w) => $w->where('l.full_name', 'ilike', $p)->orWhere('l.phone', 'ilike', $p)->orWhere('l.ad_code', 'ilike', $p));
         }
         $embudo = (clone $q)->selectRaw('l.status, count(*) AS n')->groupBy('l.status')->pluck('n', 'status');
-        if (! empty($f['estado'])) {
+        if (! empty($f['estado']) && empty($f['tablero'])) {
             $q->where('l.status', $f['estado']);
         }
         $q->leftJoin('messaging_channels as c', 'c.id', '=', 'l.channel_id')->leftJoin('brands as b', 'b.id', '=', 'l.brand_id')
@@ -78,7 +83,16 @@ class Leads
         $creados = (clone $delMes)->count();
         $ganados = (clone $delMes)->where('l.status', 'WON')->count();
 
-        return Paginas::de($q, fn ($l) => self::presentar($l), $f) + [
+        if (! empty($f['tablero'])) {
+            // Kanban: las más recientes de cada columna; el total de cada una sale del embudo.
+            $filas = collect(self::TABLERO)->flatMap(fn ($e) => (clone $q)->where('l.status', $e)->limit(self::POR_COLUMNA)->get())->values();
+            $chats = $filas->isEmpty() ? collect() : Conversaciones::visibles($u)->whereIn('v.lead_id', $filas->pluck('id'))->orderByDesc('v.opened_at')
+                ->get(['v.id', 'v.lead_id'])->unique('lead_id')->pluck('id', 'lead_id');
+            $datos = $filas->map(fn ($l) => self::presentar($l) + ['conversacion' => $chats[$l->id] ?? null])->all();
+            $r = ['data' => $datos, 'current_page' => 1, 'last_page' => 1, 'per_page' => max(1, count($datos)), 'total' => count($datos), 'por_columna' => self::POR_COLUMNA];
+        }
+
+        return ($r ?? Paginas::de($q, fn ($l) => self::presentar($l), $f)) + [
             'embudo' => collect(self::ESTADOS)->map(fn ($n, $k) => ['estado' => $k, 'nombre' => $n, 'n' => (int) ($embudo[$k] ?? 0)])->values()->all(),
             'conversion' => ['creados' => $creados, 'ganados' => $ganados, 'pct' => $creados ? round($ganados / $creados * 100, 1) : null],
             'opciones' => self::opciones($u),
