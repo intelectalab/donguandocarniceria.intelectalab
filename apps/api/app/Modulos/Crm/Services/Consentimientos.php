@@ -80,7 +80,8 @@ class Consentimientos
     }
 
     /** Los clientes para los que se registra: la vendedora, los de sus chats; marketing y la supervisión, todos. */
-    private static function clientesBase(User $u)
+    /** Los clientes activos que la persona puede elegir (la vendedora, los de sus chats). También lo usa Mis tareas. */
+    public static function clientesBase(User $u)
     {
         $q = DB::table('customers as c')->where('c.status', '<>', 'INACTIVE')->whereNull('c.merged_into_id');
 

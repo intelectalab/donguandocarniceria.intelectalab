@@ -60,6 +60,10 @@ class Muestreo
             $lunes = $semanas->first(fn ($s) => self::muestra($s, $u) !== []) ?? $hoy;
         }
         $semana = $lunes->toDateString();
+        // Una semana más antigua, elegida por fecha, también aparece en la lista para que se vea cuál es.
+        if (! $semanas->contains(fn ($x) => $x->toDateString() === $semana)) {
+            $semanas = $semanas->push($lunes->copy())->sortByDesc(fn ($x) => $x->timestamp)->values();
+        }
         $grupos = self::muestra($lunes, $u);
         // Las ya revisadas esa semana también se listan (por ejemplo, las de una muestra anterior), si la persona ve el chat.
         $hechas = DB::table('conversation_reviews as r')->leftJoin('users as x', 'x.id', '=', 'r.reviewer_user_id')->where('r.sample_week', $semana)

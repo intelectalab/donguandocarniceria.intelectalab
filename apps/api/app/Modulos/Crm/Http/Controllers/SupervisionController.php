@@ -46,10 +46,32 @@ class SupervisionController extends Controller
         $f = $request->validate([
             'alcance' => ['nullable', Rule::in(['mias', 'equipo'])], 'estado' => ['nullable', Rule::in(['OPEN', 'DONE', 'ALL'])], 'tipo' => ['nullable', Rule::in(array_keys(Tareas::TIPOS))],
             'marca' => ['nullable', 'uuid'], 'responsable' => ['nullable', 'string', 'regex:/^(none|[0-9a-f-]{36})$/'], 'vence' => ['nullable', Rule::in(['vencidas', 'hoy'])],
-            'buscar' => ['nullable', 'string', 'max:100'],
+            'buscar' => ['nullable', 'string', 'max:100'], 'tablero' => ['nullable', Rule::in(['1'])],
         ]);
 
         return response()->json(Tareas::lista($f, $request->user()));
+    }
+
+    public function encargables(Request $request)
+    {
+        return response()->json(Tareas::encargables($request->user()));
+    }
+
+    public function clientesTarea(Request $request)
+    {
+        $f = $request->validate(['buscar' => ['required', 'string', 'min:2', 'max:100']]);
+
+        return response()->json(['data' => Tareas::clientes($f['buscar'], $request->user())]);
+    }
+
+    public function encargar(Request $request)
+    {
+        $d = $request->validate([
+            'task_type' => ['required', Rule::in(Tareas::A_MANO)], 'brand_id' => ['required', 'uuid'], 'assigned_user_id' => ['required', 'uuid'],
+            'customer_id' => ['nullable', 'uuid'], 'due_at' => ['required', 'date_format:Y-m-d\\TH:i'], 'note' => ['required', 'string', 'min:3', 'max:255'],
+        ], [], ['task_type' => 'tipo', 'brand_id' => 'marca', 'assigned_user_id' => 'responsable', 'customer_id' => 'cliente', 'due_at' => 'vencimiento', 'note' => 'indicación']);
+
+        return response()->json(Tareas::encargar($d, $request->user()), 201);
     }
 
     public function completarTarea(Request $request, string $id)

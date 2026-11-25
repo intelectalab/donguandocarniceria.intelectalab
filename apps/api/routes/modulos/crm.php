@@ -98,6 +98,11 @@ Route::prefix('crm')->group(function () {
     // CRM-17 Mis tareas: la vendedora las suyas; la supervisión también las del equipo.
     Route::get('/tareas', [SupervisionController::class, 'tareas'])->middleware(['modulo:CRM', $verChats, 'throttle:120,1,crmget-tareas']);
     Route::post('/tareas/{id}/hecha', [SupervisionController::class, 'completarTarea'])->middleware(['modulo:CRM', $verChats, 'throttle:60,1,crmpost-tareas-hecha'])->whereUuid('id');
+    // Encargar actividad: la vendedora para sí misma; la supervisión, a su equipo (se le avisa a la responsable).
+    $registrarTarea = 'permiso:crm.conversation.view_own|crm.conversation.reassign';
+    Route::get('/tareas/encargables', [SupervisionController::class, 'encargables'])->middleware(['modulo:CRM', $registrarTarea, 'throttle:60,1,crmget-tareas-encargables']);
+    Route::get('/tareas/clientes', [SupervisionController::class, 'clientesTarea'])->middleware(['modulo:CRM', $registrarTarea, 'throttle:60,1,crmget-tareas-clientes']);
+    Route::post('/tareas', [SupervisionController::class, 'encargar'])->middleware(['modulo:CRM', $registrarTarea, 'throttle:30,1,crmpost-tareas']);
 
     // CRM-18 Consentimientos y avisos (Ley 29733): los registra crm.consent.manage, siempre con evidencia; solo se agregan.
     $verConsent = 'permiso:crm.consent.manage|crm.conversation.view_all|crm.customer.view_full';

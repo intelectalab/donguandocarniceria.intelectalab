@@ -153,7 +153,7 @@ function Agregar({ g, onClose, onListo }: { g: Grupo; onClose: () => void; onLis
       footer={<><Button variant="ghost" onClick={onClose}>Cancelar</Button><Button variant="primary" loading={enviando} disabled={!usuario} onClick={guardar}>Agregar</Button></>}>
       {candidatos === null ? <p className="text-[13px] text-muted">Cargando…</p> : candidatos.length === 0
         ? <Alert tone="info">No hay más vendedoras de esta marca para agregar. Para sumar a otra, primero dale la marca en Usuarios.</Alert>
-        : <Field label="Persona" required><Select value={usuario} onChange={(e) => setUsuario(e.target.value)} placeholder="Elige" options={candidatos} /></Field>}
+        : <Field label="Persona" required><Select value={usuario} onChange={(e) => setUsuario(e.target.value)} placeholder="Elige" options={candidatos} searchable /></Field>}
     </Modal>
   );
 }

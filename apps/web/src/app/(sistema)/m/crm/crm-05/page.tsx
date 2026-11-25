@@ -64,7 +64,8 @@ function Leads() {
     { key: "ad_code", header: "Anuncio", render: (l) => (l.ad_code ? <Badge tone="info">{l.ad_code}</Badge> : <span className="text-muted">Orgánico</span>) },
     { key: "vendedora", sortable: true, header: "Vendedora", hideOnMobile: true, render: (l) => <span className="text-[12.5px]">{l.vendedora ?? "—"}</span> },
     { key: "primer_contacto", sortable: true, header: "Primer contacto", render: (l) => <span className="whitespace-nowrap">{fechaHora(l.first_contact_at)}</span> },
-    { key: "estado", sortable: true, header: "Estado", render: (l) => <div><StatusBadge status={l.status} labels={ESTADOS} />{l.lost_name && <p className="mt-0.5 text-[11.5px] text-muted">{l.lost_name}</p>}</div> },
+    { key: "estado", sortable: true, header: "Estado", render: (l) => <StatusBadge status={l.status} labels={ESTADOS} /> },
+    { key: "motivo", header: "Motivo", hideOnMobile: true, render: (l) => l.lost_name ? <span className="text-[12.5px]">{l.lost_name}</span> : <span className="text-muted">—</span> },
   ];
   const o = lista?.opciones;
   return (
