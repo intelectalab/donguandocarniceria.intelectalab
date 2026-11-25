@@ -224,7 +224,7 @@ class Llamadas
         $ids = DB::table('crm_tasks as t')->join('tel_calls as c', 'c.id', '=', 't.call_id')->where('t.task_type', 'CALLBACK')->where('t.status', 'OPEN')
             ->where('c.from_e164', $numero)->where('c.id', '<>', $llamada)->pluck('t.id')->all();
         if ($ids) {
-            DB::table('crm_tasks')->whereIn('id', $ids)->update(['status' => 'DONE', 'done_at' => DB::raw('clock_timestamp()'),
+            DB::table('crm_tasks')->whereIn('id', $ids)->update(['status' => 'DONE', 'done_at' => now(),
                 'result' => 'Se cerró sola: el cliente volvió a llamar y lo atendieron.', 'updated_at' => now()]);
         }
 
@@ -314,6 +314,12 @@ class Llamadas
                 'cost_usd' => self::costo($s, 'OUTBOUND', $c->to_e164, $segundos, $aviso), 'updated_at' => now()]);
             if ($atendida) {
                 self::grabar($c->id, $s, $inicio, $segundos, $aviso);
+                // Devolvió la llamada y el cliente contestó: sus tareas de devolver quedan hechas (RN-TEL-07).
+                if ($c->customer_id || $c->lead_id) {
+                    DB::table('crm_tasks')->where('task_type', 'CALLBACK')->where('status', 'OPEN')
+                        ->where(fn ($w) => $w->when($c->customer_id, fn ($x) => $x->where('customer_id', $c->customer_id))->when(! $c->customer_id && $c->lead_id, fn ($x) => $x->where('lead_id', $c->lead_id)))
+                        ->update(['status' => 'DONE', 'done_at' => now(), 'done_by' => $c->user_id, 'result' => 'Llamada devuelta: el cliente contestó.', 'updated_at' => now()]);
+                }
                 Events::emit('call.completed', 'tel_calls', $c->id, ['user' => $c->user_id]);
             }
         });
@@ -335,7 +341,13 @@ class Llamadas
             ->leftJoin('users as x', 'x.id', '=', 'c.user_id')->leftJoin('brands as b', 'b.id', '=', 'c.brand_id')->leftJoin('sales_orders as o', 'o.id', '=', 'c.order_id')
             ->first(['c.*', 'x.name as vendedora', 'b.name as marca', 'o.number as pedido', DB::raw('coalesce(cu.trade_name, cu.full_name) AS cliente'), 'l.full_name as lead']) ?? abort(404);
 
-        return self::presentar($c) + ['ficha' => self::ficha($c)];
+        $g = DB::table('tel_recordings')->where('call_id', $c->id)->first(['id', 'status', 'retention_until', 'legal_hold']);
+        $t = DB::table('crm_tasks as t')->leftJoin('users as x', 'x.id', '=', 't.assigned_user_id')->where('t.call_id', $c->id)->orderByDesc('t.created_at')
+            ->first(['t.id', 't.status', 't.due_at', 't.done_at', 't.result', 'x.name as responsable']);
+
+        return self::presentar($c) + ['ficha' => self::ficha($c), 'answered_at' => $c->answered_at, 'ended_at' => $c->ended_at, 'provider_call_id' => $c->provider_call_id,
+            'grabacion' => $g ? ['id' => $g->id, 'status' => $g->status, 'retention_until' => $g->retention_until, 'legal_hold' => (bool) $g->legal_hold] : null,
+            'tarea' => $t ? (array) $t : null];
     }
 
     private static function presentar(object $c): array

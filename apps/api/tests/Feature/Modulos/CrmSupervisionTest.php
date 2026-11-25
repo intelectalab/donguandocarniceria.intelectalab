@@ -284,4 +284,55 @@ class CrmSupervisionTest extends TestCase
         $falla(fn () => DB::table('contact_consents')->where('customer_id', $cli->id)->update(['granted' => true]));
         $falla(fn () => DB::table('contact_consents')->where('customer_id', $cli->id)->delete());
     }
+
+    public function test_encargar_actividad_la_supervisora_a_su_equipo_la_vendedora_para_si_y_el_tablero(): void
+    {
+        $this->travelTo(Carbon::parse('2026-11-24 10:00:00', 'America/Lima'));
+        [$a, $b, $sup] = [$this->id(self::A), $this->id(self::B), $this->id(self::SUPERVISORA)];
+        [$marca, $deA] = $this->enEmpresa(fn () => [DB::table('brands')->where('name', 'Don Guando')->value('id'),
+            DB::table('conversations as v')->join('customers as c', 'c.id', '=', 'v.customer_id')->where('v.assigned_user_id', DB::table('users')->where('email', self::A)->value('id'))->first(['c.id', 'c.full_name'])]);
+        $this->assertNotNull($deA);
+
+        // Lo que ofrece el formulario: la vendedora solo se ve a sí misma; la supervisora, al equipo activo.
+        $op = $this->como(self::A)->getJson('/api/v1/crm/tareas/encargables')->assertOk();
+        $this->assertSame([[$a], false], [array_column($op->json('personas'), 'value'), $op->json('a_otras')]);
+        $this->assertSame(['FOLLOW_UP', 'CALLBACK', 'REBUY'], array_column($op->json('tipos'), 'value'));
+        $ops = collect($this->como(self::SUPERVISORA)->getJson('/api/v1/crm/tareas/encargables')->json('personas'))->pluck('value');
+        $this->assertTrue($ops->contains($a) && $ops->contains($b));
+        $this->como(self::AUDITOR)->getJson('/api/v1/crm/tareas/encargables')->assertForbidden();
+        $this->como(self::MARKETING)->postJson('/api/v1/crm/tareas', [])->assertForbidden();
+        // El buscador de clientes de la vendedora solo trae los de sus chats.
+        $this->assertContains($deA->id, array_column($this->como(self::A)->getJson('/api/v1/crm/tareas/clientes?buscar='.urlencode(mb_substr($deA->full_name, 0, 6)))->json('data'), 'value'));
+
+        $base = ['task_type' => 'FOLLOW_UP', 'brand_id' => $marca, 'assigned_user_id' => $b, 'customer_id' => $deA->id, 'due_at' => '2026-11-24T17:00', 'note' => 'Enviar cotización del lechón'];
+        // La vendedora no le encarga a otra; sí para sí misma.
+        $this->como(self::A)->postJson('/api/v1/crm/tareas', $base)->assertStatus(422)->assertJsonPath('code', 'RN-CRM-03');
+        $mia = $this->como(self::A)->postJson('/api/v1/crm/tareas', ['assigned_user_id' => $a] + $base)->assertCreated();
+        $this->assertSame(['OPEN', 'Seguimiento', null], [$mia->json('status'), $mia->json('tipo'), $mia->json('encargada_por')]);
+        // Validaciones: en el pasado, sin indicación, recompra sin cliente, marca ajena o cliente inventado.
+        $this->como(self::SUPERVISORA)->postJson('/api/v1/crm/tareas', ['due_at' => '2026-11-23T17:00'] + $base)->assertStatus(422)->assertJsonPath('code', 'RN-CRM-19');
+        $this->como(self::SUPERVISORA)->postJson('/api/v1/crm/tareas', ['note' => ''] + $base)->assertStatus(422);
+        $this->como(self::SUPERVISORA)->postJson('/api/v1/crm/tareas', ['task_type' => 'REBUY', 'customer_id' => null] + $base)->assertStatus(422)->assertJsonPath('code', 'RN-CRM-19');
+        $this->como(self::SUPERVISORA)->postJson('/api/v1/crm/tareas', ['task_type' => 'ALERT_REVIEW'] + $base)->assertStatus(422);
+        $this->como(self::SUPERVISORA)->postJson('/api/v1/crm/tareas', ['customer_id' => '00000000-0000-4000-8000-000000000000'] + $base)->assertStatus(422)->assertJsonPath('code', 'RN-CRM-03');
+        $this->como(self::SUPERVISORA)->postJson('/api/v1/crm/tareas', ['brand_id' => '00000000-0000-4000-8000-000000000000'] + $base)->assertStatus(422)->assertJsonPath('code', 'RN-CRM-03');
+
+        // La supervisora le encarga a B: queda quién la encargó y B recibe el aviso.
+        $avisos = fn () => $this->enEmpresa(fn () => DB::table('notifications')->where('user_id', $b)->where('title', 'Nueva actividad encargada')->count());
+        $antes = $avisos();
+        $t = $this->como(self::SUPERVISORA)->postJson('/api/v1/crm/tareas', $base)->assertCreated();
+        $this->assertSame(['Patricia León Vera', $antes + 1], [$t->json('encargada_por'), $avisos()]);
+        $this->assertSame($sup, $this->enEmpresa(fn () => DB::table('crm_tasks')->where('id', $t->json('id'))->value('assigned_by')));
+        // Una sola recompra abierta por cliente y marca.
+        $this->enEmpresa(fn () => DB::table('crm_tasks')->where('task_type', 'REBUY')->where('customer_id', $deA->id)->where('brand_id', $marca)->where('status', 'OPEN')
+            ->update(['status' => 'DONE', 'done_at' => now(), 'result' => 'Cierre de prueba']));
+        $this->como(self::SUPERVISORA)->postJson('/api/v1/crm/tareas', ['task_type' => 'REBUY'] + $base)->assertCreated();
+        $this->como(self::SUPERVISORA)->postJson('/api/v1/crm/tareas', ['task_type' => 'REBUY', 'assigned_user_id' => $a] + $base)->assertStatus(422)->assertJsonPath('code', 'RN-CRM-19');
+
+        // El tablero trae abiertas y hechas juntas, sin páginas; B ve la que le encargaron.
+        $tab = $this->como(self::B)->getJson('/api/v1/crm/tareas?tablero=1&buscar=lechón')->assertOk();
+        $this->assertSame(1, $tab->json('last_page'));
+        $this->assertContains($t->json('id'), array_column($tab->json('data'), 'id'));
+        $this->assertSame(['puede' => true, 'a_otras' => false], $tab->json('encargar'));
+    }
 }

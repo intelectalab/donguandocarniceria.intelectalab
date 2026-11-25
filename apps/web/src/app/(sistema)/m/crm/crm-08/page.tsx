@@ -227,7 +227,7 @@ function AgregarMiembro({ canal, datos, onClose, onListo }: { canal: Canal; dato
       {(errores) => (
         <>
           <Field label="Persona" required error={errores.user_id} className="sm:col-span-2">
-            <Select value={d.user_id} onChange={(e) => setD({ ...d, user_id: e.target.value })} placeholder="Elige la persona" options={opciones} />
+            <Select value={d.user_id} onChange={(e) => setD({ ...d, user_id: e.target.value })} placeholder="Elige la persona" options={opciones} searchable />
           </Field>
           <Field label="Tope de chats abiertos" error={errores.max_open_conversations} hint="Solo cuenta para las vendedoras.">
             <Input type="number" min={1} max={100} value={d.tope} onChange={(e) => setD({ ...d, tope: e.target.value })} />

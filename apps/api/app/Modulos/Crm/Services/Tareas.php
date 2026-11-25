@@ -27,6 +27,14 @@ class Tareas
 
     public const ESTADOS = ['OPEN' => 'Abierta', 'DONE' => 'Hecha'];
 
+    /** Lo que se registra a mano (la vendedora para sí, la supervisión para su equipo); lo demás lo crea el sistema. */
+    public const A_MANO = ['FOLLOW_UP', 'CALLBACK', 'REBUY'];
+
+    /** En el tablero (kanban y agenda): las abiertas hasta este tope y las últimas hechas. */
+    public const TABLERO_ABIERTAS = 300;
+
+    public const TABLERO_HECHAS = 20;
+
     private static function equipo(User $u): bool
     {
         return Access::can($u, 'crm.conversation.view_all');
@@ -56,7 +64,8 @@ class Tareas
             ->leftJoin('customers as cu', 'cu.id', '=', 't.customer_id')->leftJoin('conversations as v', 'v.id', '=', 't.conversation_id')
             ->leftJoin('channel_contacts as k', 'k.id', '=', 'v.contact_id')->leftJoin('leads as l', 'l.id', '=', 't.lead_id')
             ->leftJoin('brands as b', 'b.id', '=', 't.brand_id')->leftJoin('users as x', 'x.id', '=', 't.assigned_user_id')
-            ->leftJoin('users as hz', 'hz.id', '=', 't.done_by')->leftJoin('sales_orders as o', 'o.id', '=', 't.order_id');
+            ->leftJoin('users as hz', 'hz.id', '=', 't.done_by')->leftJoin('sales_orders as o', 'o.id', '=', 't.order_id')
+            ->leftJoin('users as ab', 'ab.id', '=', 't.assigned_by');
         foreach (['tipo' => 't.task_type', 'marca' => 't.brand_id'] as $k => $col) {
             if (! empty($f[$k])) {
                 $q->where($col, $f[$k]);
@@ -73,6 +82,16 @@ class Tareas
         }
         $c = (clone $q)->selectRaw("count(*) FILTER (WHERE t.status = 'OPEN') AS abiertas, count(*) FILTER (WHERE t.status = 'OPEN' AND t.due_at < ?) AS vencidas,
             count(*) FILTER (WHERE t.status = 'OPEN' AND t.due_at >= ? AND t.due_at <= ?) AS hoy, count(*) FILTER (WHERE t.status = 'DONE') AS hechas", [$ahora, $ahora, $hoyFin])->first();
+        $columnas = ['t.*', 'b.name as marca', 'x.name as responsable', 'hz.name as hecha_por', 'o.number as pedido', 'cu.phone as celular', 'ab.name as encargada_por',
+            DB::raw('coalesce(cu.trade_name, cu.full_name, l.full_name, k.display_name, k.external_user_id) AS cliente')];
+        if (! empty($f['tablero'])) {
+            // Kanban y agenda: todas las abiertas (hasta el tope) y las últimas hechas, sin páginas.
+            $abiertas = (clone $q)->where('t.status', 'OPEN')->orderBy('t.due_at')->orderBy('t.id')->limit(self::TABLERO_ABIERTAS)->get($columnas);
+            $hechas = (clone $q)->where('t.status', 'DONE')->orderByDesc('t.done_at')->orderBy('t.id')->limit(self::TABLERO_HECHAS)->get($columnas);
+            $filas = $abiertas->concat($hechas)->map(fn ($t) => self::presentar($t, $u, $ahora))->all();
+            $r = ['data' => $filas, 'current_page' => 1, 'last_page' => 1, 'per_page' => max(1, count($filas)), 'total' => count($filas),
+                'recortada' => $abiertas->count() >= self::TABLERO_ABIERTAS];
+        }
         match ($f['estado'] ?? 'OPEN') {
             'ALL' => null,
             'DONE' => $q->where('t.status', 'DONE'),
@@ -86,9 +105,8 @@ class Tareas
         $q->orderByRaw("CASE t.status WHEN 'OPEN' THEN 0 ELSE 1 END")->orderBy('t.due_at')->orderBy('t.id');
         Paginas::ordenar($q, ['tipo' => 't.task_type', 'cliente' => 'coalesce(cu.full_name, l.full_name, k.display_name, k.external_user_id)', 'marca' => 'b.name',
             'responsable' => 'x.name', 'vence' => 't.due_at', 'estado' => 't.status'], 't.id', $f);
-        $q->select(['t.*', 'b.name as marca', 'x.name as responsable', 'hz.name as hecha_por', 'o.number as pedido', 'cu.phone as celular',
-            DB::raw('coalesce(cu.trade_name, cu.full_name, l.full_name, k.display_name, k.external_user_id) AS cliente')]);
-        $r = Paginas::de($q, fn ($t) => self::presentar($t, $u, $ahora), $f);
+        $q->select($columnas);
+        $r ??= Paginas::de($q, fn ($t) => self::presentar($t, $u, $ahora), $f);
         // Solo se enlaza el chat si la persona lo puede abrir.
         $ids = array_filter(array_column($r['data'], 'conversation_id'));
         $abribles = $ids ? Conversaciones::visibles($u)->whereIn('v.id', $ids)->pluck('v.id')->all() : [];
@@ -100,7 +118,8 @@ class Tareas
 
         return $r + [
             'cifras' => ['abiertas' => (int) $c->abiertas, 'vencidas' => (int) $c->vencidas, 'hoy' => (int) $c->hoy, 'hechas' => (int) $c->hechas],
-            'alcance' => $alcance, 'equipo' => self::equipo($u),
+            'alcance' => $alcance, 'equipo' => self::equipo($u), 'recortada' => $r['recortada'] ?? false,
+            'encargar' => ['puede' => self::puedeRegistrar($u), 'a_otras' => self::puedeEncargar($u)],
             'telefonia' => DB::table('tenant_modules')->where('module_code', 'TEL')->where('enabled', true)->exists(),
             'ficha' => Access::can($u, 'crm.customer.view_full'),
             'opciones' => [
@@ -123,6 +142,7 @@ class Tareas
             'responsable' => $t->responsable, 'assigned_user_id' => $t->assigned_user_id, 'due_at' => $t->due_at, 'note' => $t->note,
             'status' => $t->status, 'vencida' => $abierta && Carbon::parse($t->due_at)->lt($ahora),
             'done_at' => $t->done_at, 'result' => $t->result, 'hecha_por' => $t->hecha_por,
+            'encargada_por' => ($t->assigned_by ?? null) && $t->assigned_by !== $t->assigned_user_id ? ($t->encargada_por ?? null) : null,
             'puede_completar' => $abierta && self::puedeCompletar($t, $u),
         ];
     }
@@ -154,7 +174,114 @@ class Tareas
         Events::emit('crm.task_done', 'crm_tasks', $id, ['type' => $t->task_type, 'by' => $u->id]);
         $fila = self::base($u, 'equipo')->where('t.id', $id)->leftJoin('brands as b', 'b.id', '=', 't.brand_id')->leftJoin('users as x', 'x.id', '=', 't.assigned_user_id')
             ->leftJoin('users as hz', 'hz.id', '=', 't.done_by')->leftJoin('sales_orders as o', 'o.id', '=', 't.order_id')->leftJoin('customers as cu', 'cu.id', '=', 't.customer_id')
-            ->first(['t.*', 'b.name as marca', 'x.name as responsable', 'hz.name as hecha_por', 'o.number as pedido', 'cu.phone as celular', DB::raw('coalesce(cu.trade_name, cu.full_name) AS cliente')]);
+            ->leftJoin('users as ab', 'ab.id', '=', 't.assigned_by')
+            ->first(['t.*', 'b.name as marca', 'x.name as responsable', 'hz.name as hecha_por', 'o.number as pedido', 'cu.phone as celular', 'ab.name as encargada_por',
+                DB::raw('coalesce(cu.trade_name, cu.full_name) AS cliente')]);
+
+        return self::presentar($fila, $u, now());
+    }
+
+    /* ------------------------------------------------------------------ Encargar actividad */
+
+    /** Registrar una actividad: la vendedora para sí misma; la supervisión, para cualquiera de su equipo. */
+    private static function puedeRegistrar(User $u): bool
+    {
+        return Access::can($u, 'crm.conversation.view_own') || self::puedeEncargar($u);
+    }
+
+    private static function puedeEncargar(User $u): bool
+    {
+        return Access::can($u, 'crm.conversation.reassign');
+    }
+
+    /**
+     * A quién se le puede encargar: las vendedoras activas (y la supervisora) con alguna marca de quien encarga, cada una
+     * con sus marcas (null: todas). La vendedora solo se encarga a sí misma.
+     */
+    public static function encargables(User $u): array
+    {
+        $mias = Access::for($u)['brands'];
+        $marcas = DB::table('brands')->when($mias, fn ($w) => $w->whereIn('id', $mias))->where('status', 'ACTIVE')->orderBy('name')->get(['id', 'name'])
+            ->map(fn ($b) => ['value' => $b->id, 'label' => $b->name])->all();
+        $q = DB::table('users as x')->join('user_roles as ur', 'ur.user_id', '=', 'x.id')->join('roles as r', 'r.id', '=', 'ur.role_id')
+            ->whereIn('r.code', ['VENDEDORA', 'SUPERVISORA_VENTAS'])->where('x.status', 'ACTIVE');
+        if (! self::puedeEncargar($u)) {
+            $q->where('x.id', $u->id);
+        }
+        $gente = $q->orderBy('x.name')->get(['x.id', 'x.name', 'r.code'])->unique('id');
+        $scopes = DB::table('user_scopes')->whereIn('user_id', $gente->pluck('id'))->whereNotNull('brand_id')->get(['user_id', 'brand_id'])->groupBy('user_id');
+        $ids = array_column($marcas, 'value');
+        $personas = $gente->map(function ($x) use ($scopes, $ids) {
+            $suyas = isset($scopes[$x->id]) ? $scopes[$x->id]->pluck('brand_id')->intersect($ids)->values()->all() : null;
+
+            return ['value' => $x->id, 'label' => $x->name.($x->code === 'SUPERVISORA_VENTAS' ? ' (supervisora)' : ''), 'marcas' => $suyas];
+        })->filter(fn ($p) => $p['marcas'] === null || $p['marcas'])->values()->all();
+
+        return ['tipos' => collect(self::A_MANO)->map(fn ($k) => ['value' => $k, 'label' => self::TIPOS[$k]])->all(), 'marcas' => $marcas, 'personas' => $personas,
+            'a_otras' => self::puedeEncargar($u), 'yo' => $u->id];
+    }
+
+    /** Los clientes que puede elegir para la actividad (la vendedora, los de sus chats). */
+    public static function clientes(string $buscar, User $u): array
+    {
+        return array_map(fn ($c) => ['value' => $c['value'], 'label' => $c['label']], Consentimientos::clientes($buscar, $u));
+    }
+
+    /** Registra la actividad con quien la encargó y avisa a la responsable si se la encargó otra persona. */
+    public static function encargar(array $d, User $u): array
+    {
+        if (! self::puedeRegistrar($u)) {
+            RuleError::fail('RN-CRM-03', 'Tu rol no registra actividades de ventas.');
+        }
+        $op = self::encargables($u);
+        if (! in_array($d['brand_id'], array_column($op['marcas'], 'value'), true)) {
+            RuleError::fail('RN-CRM-03', 'Esa marca no está entre las tuyas.');
+        }
+        $persona = collect($op['personas'])->firstWhere('value', $d['assigned_user_id']);
+        if (! $persona) {
+            RuleError::fail('RN-CRM-03', self::puedeEncargar($u) ? 'Elige una vendedora activa de tu equipo.' : 'Solo registras actividades para ti.');
+        }
+        if ($persona['marcas'] !== null && ! in_array($d['brand_id'], $persona['marcas'], true)) {
+            RuleError::fail('RN-CRM-03', 'Esa vendedora no atiende esa marca.');
+        }
+        $cliente = null;
+        if (! empty($d['customer_id'])) {
+            $cliente = Consentimientos::clientesBase($u)->where('c.id', $d['customer_id'])->first(['c.id', 'c.full_name', 'c.trade_name']);
+            if (! $cliente) {
+                RuleError::fail('RN-CRM-03', 'No encontramos ese cliente entre los tuyos.');
+            }
+        }
+        if ($d['task_type'] === 'REBUY' && ! $cliente) {
+            RuleError::fail('RN-CRM-19', 'La recompra es con un cliente: elígelo.');
+        }
+        $vence = Carbon::parse($d['due_at'], 'America/Lima');
+        if ($vence->lt(now()->subMinutes(5))) {
+            RuleError::fail('RN-CRM-19', 'La actividad no puede vencer en el pasado.');
+        }
+        if ($vence->gt(now()->addYear())) {
+            RuleError::fail('RN-CRM-19', 'La actividad vence a más de un año: elige una fecha más cercana.');
+        }
+        $id = (string) \Illuminate\Support\Str::uuid();
+        try {
+            DB::transaction(fn () => DB::table('crm_tasks')->insert(['id' => $id, 'task_type' => $d['task_type'], 'status' => 'OPEN', 'customer_id' => $cliente?->id, 'brand_id' => $d['brand_id'],
+                'assigned_user_id' => $d['assigned_user_id'], 'assigned_by' => $u->id, 'due_at' => $vence->copy()->utc(), 'note' => trim($d['note']), 'created_at' => now(), 'updated_at' => now()]));
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (($e->errorInfo[0] ?? '') === '23505') {
+                RuleError::fail('RN-CRM-19', 'Ese cliente ya tiene una recompra abierta en esa marca.');
+            }
+            throw $e;
+        }
+        Events::emit('crm.task_created', 'crm_tasks', $id, ['type' => $d['task_type'], 'to' => $d['assigned_user_id'], 'by' => $u->id]);
+        if ($d['assigned_user_id'] !== $u->id) {
+            DB::table('notifications')->insert(['user_id' => $d['assigned_user_id'], 'module' => 'CRM', 'tone' => 'info', 'severity' => 'INFO', 'type' => 'ORDERS', 'at' => now(),
+                'title' => 'Nueva actividad encargada', 'body' => mb_substr(self::TIPOS[$d['task_type']].': '.trim($d['note']), 0, 250).' · por '.$u->name,
+                'ref' => json_encode(['href' => '/m/crm/crm-17', 'brand_id' => $d['brand_id']])]);
+        }
+        $fila = self::base($u, 'equipo')->where('t.id', $id)->leftJoin('brands as b', 'b.id', '=', 't.brand_id')->leftJoin('users as x', 'x.id', '=', 't.assigned_user_id')
+            ->leftJoin('users as hz', 'hz.id', '=', 't.done_by')->leftJoin('sales_orders as o', 'o.id', '=', 't.order_id')->leftJoin('customers as cu', 'cu.id', '=', 't.customer_id')
+            ->leftJoin('users as ab', 'ab.id', '=', 't.assigned_by')
+            ->first(['t.*', 'b.name as marca', 'x.name as responsable', 'hz.name as hecha_por', 'o.number as pedido', 'cu.phone as celular', 'ab.name as encargada_por',
+                DB::raw('coalesce(cu.trade_name, cu.full_name) AS cliente')]);
 
         return self::presentar($fila, $u, now());
     }

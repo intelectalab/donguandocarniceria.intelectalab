@@ -130,6 +130,8 @@ function FichaPlantilla({ id, puede, onClose, onEditar, onCambio }: { id: string
       {t && (
         <div className="grid gap-4">
           <DetailList items={[
+            { label: "Marca", value: t.brand_name }, { label: "Categoría", value: <Badge tone={t.category === "MARKETING" ? "info" : "neutral"}>{t.category_name}</Badge> },
+            { label: "Propósito", value: t.purpose_name },
             { label: "Estado en Meta", value: <StatusBadge status={t.status} labels={ESTADOS} /> }, { label: "Id en Meta", value: t.provider_template_id ?? "—" },
             { label: "Variables", value: t.variables.length ? t.variables.map((v) => `{{${v}}}`).join(", ") : "Sin variables" },
             { label: "Costo", value: `${tarifa(t.costo_fuera)} fuera de la ventana · ${t.costo_dentro ? tarifa(t.costo_dentro) : "gratis"} dentro` },

@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ClipboardCheck, ListChecks, Users } from "lucide-react";
-import { Alert, Badge, Button, Cifra, DataTable, Field, FiltroSelect, Modal, PageHeader, Select, Textarea, toast, type Column, type Tone } from "@/components/ui";
+import { AlertTriangle, ClipboardCheck, ListChecks, Search, Users } from "lucide-react";
+import { Alert, Badge, Button, Cifra, DataTable, Field, FiltroFecha, FiltroSelect, Modal, PageHeader, Select, Textarea, toast, type Column, type Tone } from "@/components/ui";
 import { api, mensajeDe } from "@/lib/api";
 import { fechaHora, numero } from "@/lib/formato";
 import { usePagina, type Pagina } from "@/lib/paginas";
@@ -37,6 +37,11 @@ export default function Muestreo() {
   const [error, setError] = useState("");
   const [abierta, setAbierta] = useState<Fila | null>(null);
   const pag = usePagina(JSON.stringify(f));
+  const [buscarVendedora, setBuscarVendedora] = useState("");
+  const tarjetas = useMemo(() => {
+    const t = buscarVendedora.trim().toLowerCase();
+    return (s?.por_vendedora ?? []).filter((v) => t.length < 2 || v.nombre.toLowerCase().includes(t));
+  }, [s, buscarVendedora]);
 
   useEffect(() => {
     const t = setTimeout(() => setF((x) => (x.buscar === buscar.trim() ? x : { ...x, buscar: buscar.trim() })), 400);
@@ -62,7 +67,11 @@ export default function Muestreo() {
   return (
     <div className="grid gap-5">
       <PageHeader description={`Cada lunes se revisa el ${s?.reglas.pct ?? 10} % (mínimo ${s?.reglas.min ?? 3}) de las conversaciones que cada vendedora cerró sin pedido en la semana anterior. La muestra sale siempre igual para la misma semana; cada conversación se revisa una vez.`} />
-      <div className="w-full sm:w-[420px]"><FiltroSelect etiqueta="Semana" ancho={420} vacio={s ? s.semanas.find((x) => x.value === s.semana)?.label ?? s.semana : "Semana"} value={f.semana} onChange={(v) => setF({ ...f, semana: v })} options={s?.semanas ?? []} /></div>
+      {/* Las 10 últimas semanas en la lista; una más antigua se busca por fecha (se toma el lunes de esa semana). */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="w-full sm:w-[420px]"><FiltroSelect etiqueta="Semana" ancho={420} vacio={s ? s.semanas.find((x) => x.value === s.semana)?.label ?? s.semana : "Semana"} value={f.semana || (s?.semana ?? "")} onChange={(v) => setF({ ...f, semana: v })} options={s?.semanas ?? []} /></div>
+        <FiltroFecha etiqueta="Otra semana" visible value="" max={new Date().toISOString().slice(0, 10)} onChange={(v) => v && setF({ ...f, semana: v })} />
+      </div>
       {error && <Alert tone="bad">{error}</Alert>}
       {c && s && (
         <>
@@ -73,13 +82,25 @@ export default function Muestreo() {
             <Cifra titulo="Observadas o incidentes" valor={numero(c.observadas)} icono={AlertTriangle} tono={c.incidentes ? "bad" : c.observadas ? "warn" : undefined} detalle={`${c.incidentes} incidentes`} />
           </div>
           {s.por_vendedora.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {s.por_vendedora.map((v) => (
+            <div className="grid gap-2">
+              {s.por_vendedora.length > 6 && (
+                <label className="relative w-full sm:w-[280px]">
+                  <span className="sr-only">Buscar vendedora</span>
+                  <Search size={15} aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
+                  <input type="search" value={buscarVendedora} onChange={(e) => setBuscarVendedora(e.target.value)} placeholder={`Buscar entre ${s.por_vendedora.length} vendedoras…`}
+                    className="h-9 w-full rounded-[9px] border border-line bg-bg pr-3 pl-9 text-[13.5px] text-ink outline-none focus:border-primary focus:shadow-[0_0_0_3px_var(--primary-soft)]" />
+                </label>
+              )}
+              {/* Una sola fila que se desplaza de lado cuando hay muchas vendedoras. */}
+              <div className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-2">
+              {tarjetas.length === 0 && <p className="py-2 text-[13px] text-muted">Ninguna vendedora coincide.</p>}
+              {tarjetas.map((v) => (
                 <button key={v.id} type="button" onClick={() => setF({ ...f, vendedora: f.vendedora === v.id ? "" : v.id })}
-                  className={`cursor-pointer rounded-lg border px-3 py-2 text-left text-[12.5px] shadow-card ${f.vendedora === v.id ? "border-primary bg-surface" : "border-line bg-surface hover:bg-surface-2"}`}>
+                  className={`shrink-0 cursor-pointer snap-start whitespace-nowrap rounded-lg border px-3 py-2 text-left text-[12.5px] shadow-card ${f.vendedora === v.id ? "border-primary bg-surface" : "border-line bg-surface hover:bg-surface-2"}`}>
                   <b className="text-ink">{v.nombre}</b><span className="block text-muted">{v.muestra} de {v.universo} cerradas · {v.revisadas} revisadas</span>
                 </button>
               ))}
+              </div>
             </div>
           )}
         </>

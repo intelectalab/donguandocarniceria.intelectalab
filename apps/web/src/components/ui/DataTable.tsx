@@ -65,6 +65,8 @@ type Props<T> = {
   toolbar?: ReactNode;
   /** Casillas para marcar varias filas y actuar sobre ellas. */
   selection?: SelectionProps<T>;
+  /** Solo la barra de búsqueda y filtros (cuando la pantalla muestra los datos de otra forma, como un tablero). */
+  soloBarra?: boolean;
 };
 
 const ALIGN = { left: "text-left", right: "text-right", center: "text-center" };
@@ -76,7 +78,7 @@ const ALIGN = { left: "text-left", right: "text-right", center: "text-center" };
  */
 export function DataTable<T>({
   columns, rows, rowKey = (r) => String((r as { id?: string }).id), loading, error, onRetry, empty = "No hay registros.",
-  onRowClick, search, sort, onSortChange, pagination, toolbar, selection,
+  onRowClick, search, sort, onSortChange, pagination, toolbar, selection, soloBarra,
 }: Props<T>) {
   const campoOrden = sort?.replace(/^-/, "");
   const descendente = sort?.startsWith("-");
@@ -120,7 +122,7 @@ export function DataTable<T>({
   };
 
   return (
-    <div className="min-w-0 rounded-xl border border-line bg-surface shadow-card">
+    <div className={`min-w-0 rounded-xl border border-line bg-surface shadow-card ${soloBarra ? "[&>*:first-child]:border-b-0 [&>*:not(:first-child)]:hidden" : ""}`}>
       {(search || toolbar) && (
         <div className="flex flex-wrap items-center gap-2 border-b border-line p-3">
           {search && (
@@ -132,7 +134,8 @@ export function DataTable<T>({
                 className="h-9 w-full rounded-[9px] border border-line bg-bg pr-3 pl-9 text-[13.5px] text-ink outline-none focus:border-primary focus:shadow-[0_0_0_3px_var(--primary-soft)]" />
             </label>
           )}
-          {toolbar && <div className="grid w-full grid-cols-2 gap-2 sm:ml-auto sm:flex sm:w-auto sm:flex-wrap sm:items-center">{toolbar}</div>}
+          {/* En pantallas anchas los filtros siguen al buscador en la misma fila y, si no caben, bajan alineados a la izquierda. Los botones (agregar, sincronizar) se quedan a la derecha. */}
+          {toolbar && <div className="grid w-full grid-cols-2 gap-2 sm:contents sm:[&>button]:ml-auto">{toolbar}</div>}
           {onSortChange && ordenables.length > 0 && (
             <label className="flex w-full items-center gap-2 text-[12.5px] text-muted sm:hidden">
               Ordenar por

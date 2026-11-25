@@ -3,6 +3,7 @@
 use App\Modulos\Tel\Http\Controllers\AjustesController;
 use App\Modulos\Tel\Http\Controllers\CentralController;
 use App\Modulos\Tel\Http\Controllers\LlamadaController;
+use App\Modulos\Tel\Http\Controllers\SeguimientoController;
 use Illuminate\Support\Facades\Route;
 
 // TEL · Telefonía con grabación (incluida y apagada). Con el módulo apagado, «modulo:TEL» responde 403 con RN-PLT-07
@@ -52,4 +53,9 @@ Route::prefix('tel')->group(function () {
     Route::get('/llamadas/{id}', [LlamadaController::class, 'ver'])->middleware(['modulo:TEL', $verLlamadas, 'throttle:120,1,telget-llamada'])->whereUuid('id');
     Route::get('/salientes', [LlamadaController::class, 'salientes'])->middleware(['modulo:TEL', $verLlamadas, 'throttle:60,1,telget-salientes']);
     Route::get('/pedidos', [LlamadaController::class, 'pedidos'])->middleware(['modulo:TEL', $llama, 'throttle:60,1,telget-pedidos']);
+
+    // TEL-08 Historial, TEL-09 Llamadas perdidas (cada quien lo suyo; la supervisión todo) y TEL-11 Panel de supervisión.
+    Route::get('/historial', [SeguimientoController::class, 'historial'])->middleware(['modulo:TEL', $verLlamadas, 'throttle:60,1,telget-historial']);
+    Route::get('/perdidas', [SeguimientoController::class, 'perdidas'])->middleware(['modulo:TEL', $verLlamadas, 'throttle:60,1,telget-perdidas']);
+    Route::get('/panel', [SeguimientoController::class, 'panel'])->middleware(['modulo:TEL', 'permiso:tel.call.view_all', 'throttle:120,1,telget-panel']);
 });
