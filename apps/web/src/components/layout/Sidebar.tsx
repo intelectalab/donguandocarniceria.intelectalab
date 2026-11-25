@@ -447,7 +447,7 @@ export default function Sidebar({
             <div className="space-y-1.5">
               <h3 className="text-lg font-semibold">Módulo apagado</h3>
               <p className="text-[13px] leading-relaxed text-muted">
-                <strong className="text-ink">{apagado}</strong> está incluido, pero apagado para tu empresa (RN-PLT-07).
+                <strong className="text-ink">{apagado}</strong> está incluido, pero apagado para tu empresa.
                 El administrador del sistema puede encenderlo en Plataforma → Módulos.
               </p>
             </div>
@@ -459,7 +459,7 @@ export default function Sidebar({
               {modulesHref && (
                 <Link href={modulesHref} onClick={() => { setApagado(null); onNavigate(); }}
                   className="flex-1 rounded-[9px] bg-primary py-2.5 text-center text-[13px] font-semibold text-primary-ink hover:brightness-110">
-                  Ir a Plataforma
+                  Ir a Módulos
                 </Link>
               )}
             </div>
