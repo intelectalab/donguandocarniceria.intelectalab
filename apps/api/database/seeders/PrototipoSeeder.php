@@ -137,6 +137,21 @@ class PrototipoSeeder extends Seeder
             }
         } while ($omitidas > 0);
 
+        // RN-CRM-19: una sola tarea de recompra abierta por cliente y marca. El prototipo trae una repetida: se cierra la
+        // que vence antes, igual que la migración 2026_11_27_000700 en las bases ya cargadas.
+        $recompras = [];
+        foreach ($convertidas['crm_tasks'] ?? [] as $i => $t) {
+            if (($t['task_type'] ?? null) === 'REBUY' && ($t['status'] ?? null) === 'OPEN') {
+                $recompras[($t['tenant_id'] ?? '').'|'.$t['customer_id'].'|'.$t['brand_id']][] = $i;
+            }
+        }
+        foreach ($recompras as $idx) {
+            usort($idx, fn ($a, $b) => strcmp((string) $convertidas['crm_tasks'][$b]['due_at'], (string) $convertidas['crm_tasks'][$a]['due_at']));
+            foreach (array_slice($idx, 1) as $i) {
+                $convertidas['crm_tasks'][$i] = ['status' => 'DONE', 'done_at' => now()->toDateTimeString(), 'result' => 'Tarea duplicada: se mantiene la recompra abierta más reciente.'] + $convertidas['crm_tasks'][$i];
+            }
+        }
+
         // Sin triggers ni FK mientras se inserta (las referencias ya se validaron arriba): así el
         // orden entre tablas no importa y la bitácora no se llena con la carga de demo.
         DB::statement("SET session_replication_role = 'replica'");
