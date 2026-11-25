@@ -49,7 +49,7 @@ class ClienteController extends Controller
         $f = $request->validate([
             'estado' => ['nullable', Rule::in(array_keys(Leads::ESTADOS))], 'marca' => ['nullable', 'uuid'], 'red' => ['nullable', Rule::in(array_keys(Leads::ORIGENES))],
             'canal' => ['nullable', 'uuid'], 'anuncio' => ['nullable', Rule::in(['0', '1'])], 'vendedora' => ['nullable', 'uuid'], 'buscar' => ['nullable', 'string', 'max:100'],
-            'desde' => ['nullable', 'date_format:Y-m-d'], 'hasta' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:desde'],
+            'desde' => ['nullable', 'date_format:Y-m-d'], 'hasta' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:desde'], 'tablero' => ['nullable', Rule::in(['1'])],
         ]);
 
         return response()->json(Leads::lista($f, $request->user()));

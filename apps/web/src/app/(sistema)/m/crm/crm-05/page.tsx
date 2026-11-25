@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
@@ -15,6 +15,8 @@ type Opcion = { value: string; label: string };
 type Lead = {
   id: string; full_name: string; phone: string | null; source: string; source_name: string; canal: string | null; marca: string | null; brand_id: string; ad_code: string | null;
   vendedora: string | null; first_contact_at: string; status: string; status_name: string; lost_reason: string | null; lost_name: string | null;
+  /** Solo en el tablero: el chat del lead, si la persona lo puede abrir. */
+  conversacion?: string | null;
 };
 type Ficha = Lead & { notes: string | null; first_response_at: string | null; converted_at: string | null; pedido: string | null; conversacion: string | null };
 type Lista = Pagina<Lead> & {
@@ -23,6 +25,10 @@ type Lista = Pagina<Lead> & {
 };
 
 const ESTADOS: Record<string, [string, Tone]> = { NEW: ["Nuevo", "info"], CONTACTED: ["Contactado", "info"], QUALIFIED: ["Calificado", "warn"], WON: ["Ganado", "ok"], LOST: ["Perdido", "bad"], DISCARDED: ["Descartado", "neutral"] };
+const COLUMNAS = ["NEW", "CONTACTED", "QUALIFIED", "WON", "LOST"] as const;
+type VistaLeads = "kanban" | "lista";
+const suscribirVista = (aviso: () => void) => { window.addEventListener("vista-crm-05", aviso); return () => window.removeEventListener("vista-crm-05", aviso); };
+const leerVista = (): VistaLeads => { try { return localStorage.getItem("vista.crm-05") === "lista" ? "lista" : "kanban"; } catch { return "kanban"; } };
 const TONO_EMBUDO: Record<string, string> = { WON: "border-ok/50", LOST: "border-bad/50", DISCARDED: "border-line" };
 
 /**
@@ -39,8 +45,12 @@ function Leads() {
   const [error, setError] = useState("");
   const [abierto, setAbierto] = useState<string | null>(params.get("id"));
   const [nuevo, setNuevo] = useState(false);
+  const [perderAl, setPerderAl] = useState(false);
+  const vista = useSyncExternalStore(suscribirVista, leerVista, () => "kanban" as VistaLeads);
+  const setVista = (v: VistaLeads) => { try { localStorage.setItem("vista.crm-05", v); } catch { /* sin almacenamiento */ } window.dispatchEvent(new Event("vista-crm-05")); };
+  const tablero = vista === "kanban";
   const filtroMarca = f.marca || (marca !== "ALL" ? marca : "");
-  const pag = usePagina(JSON.stringify({ ...f, filtroMarca }));
+  const pag = usePagina(JSON.stringify({ ...f, filtroMarca, tablero }));
 
   useEffect(() => {
     const t = setTimeout(() => setF((x) => (x.buscar === buscar.trim() ? x : { ...x, buscar: buscar.trim() })), 400);
@@ -48,14 +58,26 @@ function Leads() {
   }, [buscar]);
   const cargar = useCallback(() => {
     if (!permitido) return;
-    const q = new URLSearchParams(Object.entries({ ...f, marca: filtroMarca }).filter(([, v]) => v)).toString();
-    api<Lista>(`/v1/crm/leads?${q}${q ? "&" : ""}${pag.qs}`).then((r) => { setLista(r); setError(""); }).catch((e) => setError(mensajeDe(e)));
-  }, [f, filtroMarca, pag.qs, permitido]);
+    const q = new URLSearchParams(Object.entries({ ...f, marca: filtroMarca, estado: tablero ? "" : f.estado, tablero: tablero ? "1" : "" }).filter(([, v]) => v)).toString();
+    api<Lista>(`/v1/crm/leads?${q}${tablero ? "" : `${q ? "&" : ""}${pag.qs}`}`).then((r) => { setLista(r); setError(""); }).catch((e) => setError(mensajeDe(e)));
+  }, [f, filtroMarca, pag.qs, permitido, tablero]);
   useEffect(() => cargar(), [cargar]);
 
   if (!permitido) return <Alert tone="warn">Tu rol no consulta los leads.</Alert>;
 
   const total = lista?.embudo.reduce((s, e) => s + e.n, 0) ?? 0;
+  async function mover(l: Lead, a: string) {
+    if (l.status === a) return;
+    if (a === "WON") { toast.info("Un lead se gana solo cuando se crea su pedido desde el chat."); return; }
+    if (a === "LOST") { setPerderAl(true); setAbierto(l.id); return; }
+    try {
+      await api(`/v1/crm/leads/${l.id}/estado`, { method: "POST", body: { estado: a } });
+      toast.ok(`${l.full_name}: ${ESTADOS[a]?.[0] ?? a}`);
+      cargar();
+    } catch (e) {
+      toast.error(mensajeDe(e));
+    }
+  }
   const columnas: Column<Lead>[] = [
     { key: "nombre", sortable: true, header: "Lead", cardTitle: true, render: (l) => <div><p className="font-semibold text-ink">{l.full_name}</p><p className="font-mono text-[12px] text-muted">{l.phone ?? "—"}</p></div> },
     { key: "source", header: "Red", render: (l) => <span className="text-[12.5px]">{l.source_name}</span> },
@@ -84,12 +106,22 @@ function Leads() {
           ))}
         </div>
       )}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div role="group" aria-label="Ver como" className="inline-flex rounded-full bg-surface-2 p-1">
+          {([["kanban", "Kanban"], ["lista", "Lista"]] as const).map(([v, nombre]) => (
+            <button key={v} type="button" aria-pressed={vista === v} onClick={() => setVista(v)}
+              className={`cursor-pointer rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${vista === v ? "bg-surface text-ink shadow-card" : "text-muted hover:text-ink"}`}>{nombre}</button>
+          ))}
+        </div>
+        {tablero && lista?.puede && <span className="text-[12.5px] text-muted">Arrastra una tarjeta a otra columna o usa sus botones. «Ganado» solo con un pedido desde el chat.</span>}
+      </div>
       {lista && <Alert tone="info">Conversión del mes: {lista.conversion.pct === null ? "sin leads nuevos este mes" : `${porcentaje(lista.conversion.pct, 1)} (${lista.conversion.ganados} ganados de ${lista.conversion.creados} leads)`}.</Alert>}
-      <DataTable {...pag.orden} rowKey={(l) => l.id} columns={columnas} rows={lista?.data ?? []} pagination={pag.props(lista)} loading={!lista && !error} error={error} onRetry={cargar}
+      <DataTable {...pag.orden} rowKey={(l) => l.id} columns={columnas} rows={tablero ? [] : lista?.data ?? []} pagination={tablero ? undefined : pag.props(lista)} loading={!tablero && !lista && !error} error={tablero ? undefined : error} onRetry={cargar}
+        soloBarra={tablero}
         onRowClick={(l) => setAbierto(l.id)} empty="Ningún lead con estos filtros."
         search={{ value: buscar, onChange: setBuscar, placeholder: "Buscar nombre, celular o anuncio…" }}
         toolbar={<>
-          <FiltroSelect etiqueta="Estado" ancho={160} value={f.estado} onChange={(v) => setF({ ...f, estado: v })} options={o?.estados ?? []} />
+          {!tablero && <FiltroSelect etiqueta="Estado" ancho={160} value={f.estado} onChange={(v) => setF({ ...f, estado: v })} options={o?.estados ?? []} />}
           <FiltroSelect etiqueta="Marca" todos="todas" ancho={170} value={f.marca} onChange={(v) => setF({ ...f, marca: v })} options={o?.marcas ?? []} />
           <FiltroSelect etiqueta="Red" todos="todas" ancho={160} value={f.red} onChange={(v) => setF({ ...f, red: v })} options={o?.redes ?? []} />
           <FiltroSelect etiqueta="Número" ancho={180} value={f.canal} onChange={(v) => setF({ ...f, canal: v })} options={o?.canales ?? []} />
@@ -98,16 +130,17 @@ function Leads() {
           <FiltroFecha etiqueta="Desde" visible value={f.desde} max={f.hasta || undefined} onChange={(v) => setF({ ...f, desde: v })} />
           <FiltroFecha etiqueta="Hasta" visible value={f.hasta} min={f.desde || undefined} onChange={(v) => setF({ ...f, hasta: v })} />
         </>} />
-      {abierto && lista && <FichaLead id={abierto} lista={lista} onClose={() => setAbierto(null)} onCambio={cargar} />}
+      {tablero && (error ? <Alert tone="bad">{error}</Alert> : lista ? <Tablero lista={lista} onVer={(l) => setAbierto(l.id)} onMover={mover} /> : <p className="text-[13px] text-muted">Cargando…</p>)}
+      {abierto && lista && <FichaLead id={abierto} lista={lista} perder={perderAl} onClose={() => { setAbierto(null); setPerderAl(false); }} onCambio={cargar} />}
       {nuevo && lista && <NuevoLead lista={lista} onClose={() => setNuevo(false)} onListo={(id) => { setNuevo(false); cargar(); setAbierto(id); }} />}
     </div>
   );
 }
 
-function FichaLead({ id, lista, onClose, onCambio }: { id: string; lista: Lista; onClose: () => void; onCambio: () => void }) {
+function FichaLead({ id, lista, perder: alPerder, onClose, onCambio }: { id: string; lista: Lista; perder?: boolean; onClose: () => void; onCambio: () => void }) {
   const [l, setL] = useState<Ficha | null>(null);
   const [error, setError] = useState("");
-  const [perder, setPerder] = useState({ abierto: false, motivo: "", nota: "" });
+  const [perder, setPerder] = useState({ abierto: Boolean(alPerder), motivo: "", nota: "" });
   useEffect(() => {
     let vivo = true;
     api<Ficha>(`/v1/crm/leads/${id}`).then((r) => vivo && setL(r)).catch((e) => vivo && setError(mensajeDe(e)));
@@ -156,6 +189,54 @@ function FichaLead({ id, lista, onClose, onCambio }: { id: string; lista: Lista;
         </div>
       )}
     </Modal>
+  );
+}
+
+/** Kanban de leads: nuevo, contactado, calificado, ganado y perdido. Se arrastra entre columnas o con los botones. */
+function Tablero({ lista, onVer, onMover }: { lista: Lista; onVer: (l: Lead) => void; onMover: (l: Lead, a: string) => void }) {
+  const [arrastrando, setArrastrando] = useState<string | null>(null);
+  const [sobre, setSobre] = useState<string | null>(null);
+  const totales: Record<string, number> = Object.fromEntries(lista.embudo.map((e) => [e.estado, e.n]));
+  const porId: Record<string, Lead> = Object.fromEntries(lista.data.map((l) => [l.id, l]));
+  const movible = (l: Lead) => lista.puede && !["WON", "LOST"].includes(l.status);
+  return (
+    <div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2 xl:grid xl:grid-cols-5 xl:overflow-visible">
+      {COLUMNAS.map((col) => {
+        const items = lista.data.filter((l) => l.status === col);
+        const n = totales[col] ?? 0;
+        return (
+          <section key={col} onDragOver={(e) => { if (arrastrando) { e.preventDefault(); setSobre(col); } }} onDragLeave={() => setSobre((x) => (x === col ? null : x))}
+            onDrop={(e) => { e.preventDefault(); setSobre(null); const l = porId[e.dataTransfer.getData("text/plain")]; if (l) onMover(l, col); setArrastrando(null); }}
+            className={`grid w-[260px] shrink-0 snap-start content-start gap-2 rounded-xl bg-surface-2 p-2.5 xl:w-auto ${sobre === col ? "ring-2 ring-primary" : ""}`}>
+            <header className="flex items-center justify-between px-1">
+              <h2 className="text-[13.5px] font-semibold text-ink">{ESTADOS[col][0]}</h2>
+              <Badge tone={col === "WON" ? "ok" : col === "LOST" ? "bad" : "neutral"}>{numero(n)}</Badge>
+            </header>
+            {items.length === 0 && <p className="px-1 py-3 text-[12.5px] text-muted">Sin leads.</p>}
+            {items.map((l) => (
+              <article key={l.id} role="button" tabIndex={0} draggable={movible(l)} onClick={() => onVer(l)} onKeyDown={(e) => { if (e.key === "Enter") onVer(l); }}
+                onDragStart={(e) => { e.dataTransfer.setData("text/plain", l.id); setArrastrando(l.id); }} onDragEnd={() => { setArrastrando(null); setSobre(null); }}
+                className={`grid cursor-pointer gap-1 rounded-lg border border-line bg-surface p-2.5 text-[12.5px] shadow-card hover:border-primary/50 ${arrastrando === l.id ? "opacity-50" : ""}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <b className="text-[13px] text-ink">{l.full_name || l.phone || "Contacto"}</b>
+                  <Badge tone="info">{l.source_name}</Badge>
+                </div>
+                <span className="text-muted">{l.marca}{l.ad_code ? ` · ${l.ad_code}` : ""}</span>
+                <span>{l.vendedora ?? "Sin vendedora"} · {fechaHora(l.first_contact_at)}</span>
+                {l.lost_name && <span className="text-muted">{l.lost_name}</span>}
+                {lista.puede && ["NEW", "CONTACTED", "QUALIFIED"].includes(l.status) && (
+                  <div className="mt-1 flex flex-wrap gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    {l.conversacion && <Link href={`/m/crm/crm-02?id=${l.conversacion}`} className="inline-flex h-8 items-center rounded-lg border border-line px-2.5 text-[12.5px] font-semibold text-primary hover:bg-surface-2">Chat</Link>}
+                    {l.status !== "QUALIFIED" && <Button size="sm" variant="primary" onClick={() => onMover(l, l.status === "NEW" ? "CONTACTED" : "QUALIFIED")}>{l.status === "NEW" ? "Contactado" : "Calificado"}</Button>}
+                  </div>
+                )}
+              </article>
+            ))}
+            {n > items.length && <p className="px-1 text-[11.5px] text-muted">y {numero(n - items.length)} más en la lista</p>}
+          </section>
+        );
+      })}
+    </div>
   );
 }
 

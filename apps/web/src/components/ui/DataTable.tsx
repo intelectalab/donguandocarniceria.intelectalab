@@ -124,9 +124,11 @@ export function DataTable<T>({
   return (
     <div className={`min-w-0 rounded-xl border border-line bg-surface shadow-card ${soloBarra ? "[&>*:first-child]:border-b-0 [&>*:not(:first-child)]:hidden" : ""}`}>
       {(search || toolbar) && (
-        <div className="flex flex-wrap items-center gap-2 border-b border-line p-3">
+        // Con filtros, en pantallas anchas la barra es una cuadrícula pareja: el buscador ocupa dos celdas y cada filtro una,
+        // todos del mismo ancho y alineados en columnas aunque bajen a otra fila.
+        <div className={`flex flex-wrap items-center gap-2 border-b border-line p-3 ${toolbar ? "sm:grid sm:grid-cols-[repeat(auto-fill,minmax(190px,1fr))] sm:[&>div>*]:!w-full" : ""}`}>
           {search && (
-            <label className="relative min-w-[200px] flex-1 sm:max-w-[320px]">
+            <label className={`relative min-w-[200px] flex-1 ${toolbar ? "sm:col-span-2" : "sm:max-w-[320px]"}`}>
               <span className="sr-only">Buscar</span>
               <Search size={15} aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
               <input type="search" value={search.value} onChange={(e) => search.onChange(e.target.value)}
@@ -135,9 +137,9 @@ export function DataTable<T>({
             </label>
           )}
           {/* En pantallas anchas los filtros siguen al buscador en la misma fila y, si no caben, bajan alineados a la izquierda. Los botones (agregar, sincronizar) se quedan a la derecha. */}
-          {toolbar && <div className="grid w-full grid-cols-2 gap-2 sm:contents sm:[&>button]:ml-auto">{toolbar}</div>}
+          {toolbar && <div className="grid w-full grid-cols-2 gap-2 sm:contents sm:[&>button]:!w-auto sm:[&>button]:justify-self-end sm:[&>span]:justify-self-end">{toolbar}</div>}
           {onSortChange && ordenables.length > 0 && (
-            <label className="flex w-full items-center gap-2 text-[12.5px] text-muted sm:hidden">
+            <label className="col-span-full flex w-full items-center gap-2 text-[12.5px] text-muted sm:hidden">
               Ordenar por
               <select value={sort ?? ""} onChange={(e) => onSortChange(e.target.value)}
                 className="h-9 min-w-0 flex-1 rounded-[9px] border border-line bg-surface px-2 text-[13px] text-ink outline-none focus:border-primary">
