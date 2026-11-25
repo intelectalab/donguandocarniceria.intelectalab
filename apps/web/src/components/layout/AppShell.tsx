@@ -199,7 +199,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
   ];
 
   const user = sesion ? { name: sesion.me.user.name, email: sesion.me.user.email, role: sesion.me.soporte ? "Soporte GestionCarnica" : sesion.me.roles.join(", ") } : null;
-  const modulesHref = sesion?.puede("PLT", "E") ? "/m/plt" : null;
+  // La pantalla de Módulos (con la lista de activación de Telefonía), no la portada de Plataforma.
+  const modulesHref = sesion?.puede("PLT", "E") ? "/m/plt/plt-12" : null;
 
   // Marca y local van bajo la empresa, en la barra lateral desplegada (en la cabecera quitaban
   // espacio al título y a las migas).
@@ -242,9 +243,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
           ) : denegado ? (
             <Aviso titulo={MODULOS.find((m) => m.code === codigoRuta)?.name ?? codigoRuta!}
               texto={denegado === "apagado"
-                ? "RN-PLT-07: este módulo está apagado en tu empresa. El administrador del sistema puede encenderlo en Plataforma → Módulos."
+                ? "Este módulo está incluido, pero apagado en tu empresa. El administrador del sistema puede encenderlo en Plataforma → Módulos."
                 : "Tu rol no tiene permiso para abrir esta pantalla. Si la necesitas, pídeselo al administrador de tu empresa."}>
               <Link href="/inicio" className="rounded-[9px] border border-line bg-surface px-4 py-2 text-[13px] font-medium hover:bg-surface-2">Ir al inicio</Link>
+              {denegado === "apagado" && modulesHref && <Link href={modulesHref} className="rounded-[9px] bg-primary px-4 py-2 text-[13px] font-semibold text-primary-ink hover:brightness-110">Ir a Módulos</Link>}
             </Aviso>
           ) : <><FranjaAnuncios />{children}</>}
         </main>
