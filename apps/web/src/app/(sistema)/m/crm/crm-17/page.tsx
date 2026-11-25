@@ -8,10 +8,11 @@ import { api, mensajeDe } from "@/lib/api";
 import { fechaHora, numero } from "@/lib/formato";
 import { usePagina, type Pagina } from "@/lib/paginas";
 import { useSesion } from "@/lib/sesion";
+import { BotonLlamar } from "@/modulos/tel/BotonLlamar";
 
 type Opcion = { value: string; label: string };
 type Tarea = {
-  id: string; task_type: string; tipo: string; cliente: string | null; celular: string | null; customer_id: string | null; conversation_id: string | null; pedido: string | null;
+  id: string; task_type: string; tipo: string; cliente: string | null; celular: string | null; customer_id: string | null; lead_id: string | null; conversation_id: string | null; pedido: string | null;
   marca: string | null; responsable: string | null; due_at: string; note: string | null; status: string; vencida: boolean; done_at: string | null; result: string | null;
   hecha_por: string | null; puede_completar: boolean;
 };
@@ -66,8 +67,8 @@ export default function MisTareas() {
     { key: "acciones", header: "", align: "right", render: (t) => (
       <div className="flex justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
         {t.conversation_id && <Link href={`/m/crm/crm-02?id=${t.conversation_id}`} className="inline-flex h-8 items-center whitespace-nowrap rounded-lg border border-line px-2.5 text-[12.5px] font-semibold text-primary hover:bg-surface-2">Abrir chat</Link>}
-        {t.status === "OPEN" && t.task_type === "CALLBACK" && (lista?.telefonia && t.celular
-          ? <a href={`tel:${t.celular}`} className="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-lg border border-line px-2.5 text-[12.5px] font-semibold text-primary hover:bg-surface-2"><Phone size={14} />Llamar</a>
+        {t.status === "OPEN" && t.task_type === "CALLBACK" && (lista?.telefonia && (t.customer_id || t.lead_id)
+          ? <BotonLlamar ref_={{ customer_id: t.customer_id, lead_id: t.customer_id ? null : t.lead_id }} />
           : <span title="Las llamadas desde el sistema llegan con Telefonía. Mientras tanto, llama desde tu celular."><Button size="sm" variant="ghost" icon={Phone} disabled>Llamar</Button></span>)}
         {t.puede_completar && <Button size="sm" variant="primary" onClick={() => setCompletar(t)}>Hecha</Button>}
       </div>) },

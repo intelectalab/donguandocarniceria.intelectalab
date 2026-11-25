@@ -10,6 +10,7 @@ import { fecha, fechaHora, numero, soles } from "@/lib/formato";
 import { useOrdenLocal, usePagina, usePaginaLocal, type Pagina } from "@/lib/paginas";
 import { useSesion } from "@/lib/sesion";
 import { sinTildes } from "@/modulos/mae/tipos";
+import { BotonLlamar, segundos } from "@/modulos/tel/BotonLlamar";
 
 type Fila = { id: string; nombre: string; full_name: string; phone: string | null; tipo: string; pedidos: number; ultimo: string | null; chats: number };
 type Pedido = { id: string; number: string; status: string; canal: string; marca: string; at: string; total: number; pagado: number; vendedora: string | null };
@@ -23,7 +24,7 @@ type Ficha = {
   encuestas: { id: string; number: string | null; sent_at: string; answered_at: string | null; rating_service: number | null; rating_product: number | null; received_as_ordered: boolean | null; bought_outside_catalog: boolean | null; comments: string | null }[];
   consentimientos: { id: string; purpose_name: string; granted: boolean; channel: string; evidence_text: string; recorded_at: string; recorded_by: string | null }[];
   recompra: { id: string; marca: string; orders_count: number; median_interval_days: number | null; last_order_at: string | null; next_expected_at: string | null; status: string; status_name: string }[];
-  llamadas: unknown[] | null;
+  llamadas: { id: string; direccion: string; status: string; estado: string; at: string; duracion: number; espera: number; vendedora: string | null; pedido: string | null }[] | null;
 };
 
 const PEDIDO: Record<string, [string, Tone]> = { DRAFT: ["Borrador", "neutral"], CONFIRMED: ["Confirmado", "info"], IN_PREPARATION: ["En preparación", "info"], WEIGHED: ["Pesado", "info"],
@@ -91,7 +92,7 @@ function Detalle({ id }: { id: string }) {
   return (
     <div className="grid gap-5">
       <PageHeader description={`${c.tipo}${c.documento ? ` · ${c.documento}` : ""}${c.phone ? ` · ${c.phone}` : ""}. Cliente desde el ${fecha(c.creado)}.`}
-        actions={<Link href="/m/crm/crm-04" className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-[13px] font-semibold text-ink hover:bg-surface-2"><ArrowLeft className="size-4" />Clientes</Link>} />
+        actions={<div className="flex flex-wrap gap-2"><BotonLlamar ref_={{ customer_id: c.id }} size="md" /><Link href="/m/crm/crm-04" className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-[13px] font-semibold text-ink hover:bg-surface-2"><ArrowLeft className="size-4" />Clientes</Link></div>} />
       <h2 className="-mt-2 text-[20px] font-semibold text-ink">{c.nombre}</h2>
       {c.bloqueado && <Alert tone="bad">Cliente bloqueado: {c.bloqueado}</Alert>}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
@@ -103,7 +104,7 @@ function Detalle({ id }: { id: string }) {
       </div>
       <Tabs value={tab} onChange={setTab} tabs={[
         { key: "datos" as const, label: "Datos y direcciones" }, { key: "pedidos" as const, label: "Pedidos", count: c.pedidos.length }, { key: "chats" as const, label: "Chats", count: c.chats.length },
-        { key: "llamadas" as const, label: "Llamadas" }, { key: "encuestas" as const, label: "Encuestas", count: c.encuestas.length },
+        { key: "llamadas" as const, label: "Llamadas", count: c.llamadas?.length }, { key: "encuestas" as const, label: "Encuestas", count: c.encuestas.length },
         { key: "consentimientos" as const, label: "Consentimientos", count: c.consentimientos.length }, { key: "recompra" as const, label: "Recompra", count: c.recompra.length },
       ]} />
       {tab === "datos" && (
@@ -144,7 +145,17 @@ function Detalle({ id }: { id: string }) {
           { key: "atendio", header: "Atendió", render: (x) => <span className="text-[12.5px]">{x.atendio ?? "En cola"}</span> },
           { key: "entrada", header: "Entrada", hideOnMobile: true, render: (x) => <span className="text-[12.5px]">{x.entrada}</span> },
         ]} orden={{ opened_at: (x) => x.opened_at }} />}
-      {tab === "llamadas" && <Alert tone="info">{c.llamadas === null ? "La telefonía está apagada en esta empresa. Cuando se active, aquí aparecen las llamadas con su grabación y transcripción." : "Sin llamadas registradas."}</Alert>}
+      {tab === "llamadas" && (c.llamadas === null
+        ? <Alert tone="info">La telefonía está apagada en esta empresa. Cuando se active, aquí aparecen las llamadas con su grabación y transcripción.</Alert>
+        : <TablaLocal filas={c.llamadas} texto={(x) => `${x.direccion} ${x.estado} ${x.vendedora ?? ""} ${x.pedido ?? ""}`} placeholder="Buscar estado, vendedora o pedido…" vacio="Sin llamadas registradas."
+          columnas={[
+            { key: "at", sortable: true, header: "Fecha", cardTitle: true, render: (x) => <span className="whitespace-nowrap">{fechaHora(x.at)}</span> },
+            { key: "direccion", header: "Dirección", render: (x) => <span className="text-[12.5px]">{x.direccion}</span> },
+            { key: "status", header: "Estado", render: (x) => <Badge tone={x.status === "COMPLETED" ? "ok" : ["MISSED", "NO_ANSWER", "VOICEMAIL", "FAILED"].includes(x.status) ? "bad" : "info"}>{x.estado}</Badge> },
+            { key: "vendedora", header: "Vendedora", render: (x) => <span className="text-[12.5px]">{x.vendedora ?? "—"}</span> },
+            { key: "duracion", sortable: true, header: "Duración", align: "right", render: (x) => segundos(x.duracion) },
+            { key: "pedido", header: "Pedido", hideOnMobile: true, render: (x) => <span className="font-mono text-[12.5px]">{x.pedido ?? "—"}</span> },
+          ]} orden={{ at: (x) => x.at, duracion: (x) => x.duracion }} />)}
       {tab === "encuestas" && <TablaLocal filas={c.encuestas} texto={(s) => `${s.number ?? ""} ${s.comments ?? ""}`} placeholder="Buscar pedido o comentario…" vacio="Sin encuestas."
         columnas={[
           { key: "number", header: "Pedido", cardTitle: true, render: (s) => <span className="font-mono">{s.number ?? "—"}</span> },

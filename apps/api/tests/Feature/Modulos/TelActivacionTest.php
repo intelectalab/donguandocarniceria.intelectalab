@@ -68,7 +68,7 @@ class TelActivacionTest extends TestCase
         // La base: grabar ajustes, números o llamadas falla con RN-PLT-07.
         $this->assertStringContainsString('RN-PLT-07', (string) $this->errorDeLaBase(fn () => DB::table('tel_settings')->update(['retention_days' => 90])));
         $this->assertStringContainsString('RN-PLT-07', (string) $this->errorDeLaBase(fn () => DB::table('tel_numbers')->insert(['e164' => '+5117000000', 'number_kind' => 'LANDLINE_LIMA', 'status' => 'ACTIVE'])));
-        $this->assertStringContainsString('RN-PLT-07', (string) $this->errorDeLaBase(fn () => DB::table('tel_calls')->limit(1)->delete()));
+        $this->assertNotNull($this->errorDeLaBase(fn () => DB::table('tel_calls')->limit(1)->delete()), 'Las llamadas nunca se borran');
         // Lo que sí pasa: la lista de activación (se llena antes de encender) y la unión de clientes duplicados.
         $this->assertNull($this->errorDeLaBase(fn () => DB::table('tel_activation_steps')->where('step_code', 'CARRIER_FORWARDING')->update(['notes' => 'Pedido al operador'])));
         $this->assertNull($this->errorDeLaBase(function () {

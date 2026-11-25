@@ -59,6 +59,8 @@ PLT, SEG, MAE, INT y AUD son de cada empresa, pero algunas pantallas tocan datos
 - **Borrado en el celular** (CRM-12): la alerta ya existe (`Recepcion::borradoEnApp`), pero falta que el adaptador del proveedor oficial de WhatsApp (D-CRM-01) avise cuando se borra un mensaje desde la app del celular.
 - **Notas de voz y llamadas en las alertas** (RN-CRM-16): se revisarán cuando haya transcripción de las notas de voz salientes y de las llamadas (TEL).
 - **Respuestas de la encuesta posentrega** (CRM-16): hoy las registra la supervisión desde la pantalla, con lo que el cliente contestó en el chat. Leerlas solas del mensaje del cliente (botones de la plantilla) queda para cuando esté el proveedor oficial de WhatsApp.
+- **Teléfono real y avisos del proveedor** (TEL-06 y TEL-07, D-TEL-01): sonar en la app, la llamada real y sus avisos (contestada, perdida, terminada) llegan con el proveedor de telefonía contratado. Hoy se prueba con el simulador.
+- **Botón «Llamar» en Pedidos** (TEL-07): agregarlo en las pantallas de Pedidos, que son de Jhan, cuando se coordine con él. Mientras tanto se llama por el pedido desde TEL-07.
 - **Grabaciones de llamadas** (TEL): la política de 12 meses ya está en AUD-06 y la depuración respeta las retenidas por caso legal. Falta que TEL guarde grabaciones, y validar el plazo con un abogado de datos personales (D-AUD-02).
 
 ## 4. Consola: lo que falta del prototipo 2.5

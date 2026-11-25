@@ -3,6 +3,7 @@
 namespace App\Modulos\Crm\Services;
 
 use App\Models\User;
+use App\Modulos\Tel\Services\Llamadas;
 use App\Modulos\Cli\Services\Clientes;
 use App\Support\Access;
 use App\Support\Paginas;
@@ -61,6 +62,20 @@ class Ficha360
         return $r;
     }
 
+    /** Las llamadas del cliente (con Telefonía encendida): la vendedora solo las suyas, la supervisión todas. */
+    private static function llamadas(string $cliente, User $u): array
+    {
+        $q = DB::table('tel_calls as c')->leftJoin('users as x', 'x.id', '=', 'c.user_id')->leftJoin('sales_orders as o', 'o.id', '=', 'c.order_id')->where('c.customer_id', $cliente);
+        if (! Access::can($u, 'tel.call.view_all')) {
+            $q->where('c.user_id', $u->id);
+        }
+
+        return $q->orderByDesc('c.started_at')->limit(100)->get(['c.id', 'c.direction', 'c.status', 'c.started_at', 'c.duration_seconds', 'c.wait_seconds', 'x.name as vendedora', 'o.number as pedido'])
+            ->map(fn ($c) => ['id' => $c->id, 'direccion' => $c->direction === 'INBOUND' ? 'Entrante' : 'Saliente', 'status' => $c->status,
+                'estado' => Llamadas::ESTADOS[$c->status] ?? $c->status, 'at' => $c->started_at, 'duracion' => (int) $c->duration_seconds,
+                'espera' => (int) $c->wait_seconds, 'vendedora' => $c->vendedora, 'pedido' => $c->pedido])->all();
+    }
+
     public static function ver(string $id, User $u): array
     {
         $c = self::base($u)->where('c.id', $id)->first(['c.*']) ?? abort(404);
@@ -100,7 +115,7 @@ class Ficha360
             'pedidos' => $pedidos->map(fn ($o) => ['id' => $o->id, 'number' => $o->number, 'status' => $o->status, 'canal' => $o->channel, 'marca' => $o->marca, 'at' => $o->created_at,
                 'total' => (float) ($o->final_total ?? $o->estimated_total), 'pagado' => (float) $o->paid_amount, 'vendedora' => $o->vendedora])->all(),
             'chats' => $chats, 'encuestas' => $encuestas, 'consentimientos' => $consent, 'recompra' => $recompra,
-            'llamadas' => $tel ? [] : null,
+            'llamadas' => $tel ? self::llamadas($id, $u) : null,
         ];
     }
 }
