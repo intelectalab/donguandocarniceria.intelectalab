@@ -47,3 +47,6 @@ Schedule::command('crm:barrido')->everyMinute()->withoutOverlapping();
 // CRM · RN-CRM-20: encuestas de los pedidos entregados hace más de 2 h; RN-CRM-19: recompra recalculada cada mañana.
 Schedule::command('crm:posventa encuestas')->everyTenMinutes()->withoutOverlapping();
 Schedule::command('crm:posventa recompra')->dailyAt('06:00')->timezone('America/Lima')->withoutOverlapping();
+
+// TEL · purga nocturna de grabaciones vencidas (RN-TEL-10), en las empresas con Telefonía encendida.
+Schedule::command('tel:purga')->dailyAt('03:00')->timezone('America/Lima')->withoutOverlapping();

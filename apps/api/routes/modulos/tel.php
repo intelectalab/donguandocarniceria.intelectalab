@@ -2,11 +2,12 @@
 
 use App\Modulos\Tel\Http\Controllers\AjustesController;
 use App\Modulos\Tel\Http\Controllers\CentralController;
+use App\Modulos\Tel\Http\Controllers\GrabacionController;
 use App\Modulos\Tel\Http\Controllers\LlamadaController;
 use App\Modulos\Tel\Http\Controllers\SeguimientoController;
 use Illuminate\Support\Facades\Route;
 
-// TEL · Telefonía con grabación (incluida y apagada). Con el módulo apagado, «modulo:TEL» responde 403 con RN-PLT-07
+// TEL · Telefonía con grabación (llega apagada). Con el módulo apagado, «modulo:TEL» responde 403 con RN-PLT-07
 // en todas las rutas, y la base rechaza escribir en las tablas tel_* (guardia tel_guard). Cada límite por minuto lleva
 // su propia cuenta (tercer parámetro).
 Route::prefix('tel')->group(function () {
@@ -58,4 +59,17 @@ Route::prefix('tel')->group(function () {
     Route::get('/historial', [SeguimientoController::class, 'historial'])->middleware(['modulo:TEL', $verLlamadas, 'throttle:60,1,telget-historial']);
     Route::get('/perdidas', [SeguimientoController::class, 'perdidas'])->middleware(['modulo:TEL', $verLlamadas, 'throttle:60,1,telget-perdidas']);
     Route::get('/panel', [SeguimientoController::class, 'panel'])->middleware(['modulo:TEL', 'permiso:tel.call.view_all', 'throttle:120,1,telget-panel']);
+
+    // TEL-10 Grabación y transcripción (RN-TEL-09, 10, 11): escuchar las suyas o, la supervisión, todas; descargar con
+    // motivo (gerencia); cada acceso queda en la bitácora. Transcribir y la retención legal, la supervisión.
+    $escuchar = 'permiso:tel.recording.listen_own|tel.recording.listen_all';
+    $supervisar = 'permiso:tel.recording.listen_all';
+    Route::get('/grabaciones', [GrabacionController::class, 'lista'])->middleware(['modulo:TEL', $escuchar, 'throttle:120,1,telget-grabaciones']);
+    // TEL-12 Escuchas y retención.
+    Route::get('/grabaciones/retencion', [GrabacionController::class, 'panel'])->middleware(['modulo:TEL', $supervisar, 'throttle:120,1,telget-grabaciones-retencion']);
+    Route::post('/grabaciones/purga', [GrabacionController::class, 'purgar'])->middleware(['modulo:TEL', 'permiso:tel.settings.manage|tel.recording.listen_all', 'throttle:5,1,telpost-grabaciones-purga']);
+    Route::get('/grabaciones/{id}', [GrabacionController::class, 'ver'])->middleware(['modulo:TEL', $escuchar, 'throttle:120,1,telget-grabacion'])->whereUuid('id');
+    Route::post('/grabaciones/{id}/acceso', [GrabacionController::class, 'acceder'])->middleware(['modulo:TEL', $escuchar, 'throttle:30,1,telpost-grabacion-acceso'])->whereUuid('id');
+    Route::post('/grabaciones/{id}/transcribir', [GrabacionController::class, 'transcribir'])->middleware(['modulo:TEL', $supervisar, 'throttle:20,1,telpost-grabacion-transcribir'])->whereUuid('id');
+    Route::post('/grabaciones/{id}/retencion', [GrabacionController::class, 'retencion'])->middleware(['modulo:TEL', $supervisar, 'throttle:20,1,telpost-grabacion-retencion'])->whereUuid('id');
 });

@@ -292,8 +292,8 @@ class Retencion
         return (bool) DB::selectOne('SELECT to_regclass(?) IS NOT NULL AS e', [str_contains($tabla, '.') ? $tabla : "public.{$tabla}"])->e;
     }
 
-    /** DEP-0011: el siguiente de la empresa, con bloqueo hasta el fin de la transacción. */
-    private static function siguienteNumero(): string
+    /** DEP-0011: el siguiente de la empresa, con bloqueo hasta el fin de la transacción. También lo usa la purga de grabaciones de TEL. */
+    public static function siguienteNumero(): string
     {
         DB::select("SELECT pg_advisory_xact_lock(hashtext('audit_purge_runs:' || coalesce(app_tenant_id()::text, '')))");
         $ultimo = DB::table('audit_purge_runs')->where('number', '~', '^DEP-[0-9]+$')->orderByRaw('length(number) DESC, number DESC')->value('number');
