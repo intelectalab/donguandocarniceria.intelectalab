@@ -44,3 +44,6 @@ Schedule::command('aud:revision-trimestral')->dailyAt('07:10')->timezone('Americ
 Schedule::command('ops:cerrar-tickets')->dailyAt('05:30')->timezone('America/Lima')->withoutOverlapping();
 // CRM · RN-CRM-02 y RN-CRM-14: tarea y aviso por chat sin responder (15 min en horario) y aviso por chat en cola (5 min).
 Schedule::command('crm:barrido')->everyMinute()->withoutOverlapping();
+// CRM · RN-CRM-20: encuestas de los pedidos entregados hace más de 2 h; RN-CRM-19: recompra recalculada cada mañana.
+Schedule::command('crm:posventa encuestas')->everyTenMinutes()->withoutOverlapping();
+Schedule::command('crm:posventa recompra')->dailyAt('06:00')->timezone('America/Lima')->withoutOverlapping();

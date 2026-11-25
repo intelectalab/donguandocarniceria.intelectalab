@@ -58,6 +58,7 @@ PLT, SEG, MAE, INT y AUD son de cada empresa, pero algunas pantallas tocan datos
 - **«Llamar» en Mis tareas** (CRM-17): espera a Telefonía (TEL). Hoy el botón queda apagado y la tarea se completa con el resultado de la llamada hecha desde el celular.
 - **Borrado en el celular** (CRM-12): la alerta ya existe (`Recepcion::borradoEnApp`), pero falta que el adaptador del proveedor oficial de WhatsApp (D-CRM-01) avise cuando se borra un mensaje desde la app del celular.
 - **Notas de voz y llamadas en las alertas** (RN-CRM-16): se revisarán cuando haya transcripción de las notas de voz salientes y de las llamadas (TEL).
+- **Respuestas de la encuesta posentrega** (CRM-16): hoy las registra la supervisión desde la pantalla, con lo que el cliente contestó en el chat. Leerlas solas del mensaje del cliente (botones de la plantilla) queda para cuando esté el proveedor oficial de WhatsApp.
 - **Grabaciones de llamadas** (TEL): la política de 12 meses ya está en AUD-06 y la depuración respeta las retenidas por caso legal. Falta que TEL guarde grabaciones, y validar el plazo con un abogado de datos personales (D-AUD-02).
 
 ## 4. Consola: lo que falta del prototipo 2.5

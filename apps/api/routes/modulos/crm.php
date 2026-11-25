@@ -5,6 +5,7 @@ use App\Modulos\Crm\Http\Controllers\ClienteController;
 use App\Modulos\Crm\Http\Controllers\ControlController;
 use App\Modulos\Crm\Http\Controllers\ConversacionController;
 use App\Modulos\Crm\Http\Controllers\PlantillaController;
+use App\Modulos\Crm\Http\Controllers\PosventaController;
 use App\Modulos\Crm\Http\Controllers\SupervisionController;
 use Illuminate\Support\Facades\Route;
 
@@ -123,6 +124,15 @@ Route::prefix('crm')->group(function () {
     // CRM-14 Revisión por muestreo (RN-CRM-18): la hace la supervisora; la gerencia la consulta.
     Route::get('/muestreo', [ControlController::class, 'muestreo'])->middleware(['modulo:CRM', 'permiso:crm.review.perform|crm.alert.review', 'throttle:60,1,crmget-muestreo']);
     Route::post('/muestreo/{id}', [ControlController::class, 'revisarMuestra'])->middleware(['modulo:CRM', 'permiso:crm.review.perform', 'throttle:60,1,crmpost-muestreo'])->whereUuid('id');
+
+    // CRM-15 Recompra (RN-CRM-19): se ve con la bandeja; recalcula la supervisión; la plantilla exige consentimiento de marketing.
+    Route::get('/recompra', [PosventaController::class, 'recompra'])->middleware(['modulo:CRM', $verChats, 'throttle:60,1,crmget-recompra']);
+    Route::post('/recompra/recalcular', [PosventaController::class, 'recalcular'])->middleware(['modulo:CRM', 'permiso:crm.conversation.reassign|crm.channel.manage', 'throttle:5,1,crmpost-recompra-recalcular']);
+    Route::post('/recompra/{id}/plantilla', [PosventaController::class, 'plantillaRecompra'])->middleware(['modulo:CRM', 'permiso:crm.template.send_marketing', 'throttle:30,1,crmpost-recompra-plantilla'])->whereUuid('id');
+
+    // CRM-16 Encuesta posentrega (RN-CRM-20).
+    Route::get('/encuestas', [PosventaController::class, 'encuestas'])->middleware(['modulo:CRM', 'permiso:crm.survey.view', 'throttle:60,1,crmget-encuestas']);
+    Route::post('/encuestas/{id}/respuesta', [PosventaController::class, 'responderEncuesta'])->middleware(['modulo:CRM', 'permiso:crm.survey.view', 'throttle:30,1,crmpost-encuestas-respuesta'])->whereUuid('id');
 
     // El estado propio de quien atiende chats (para el reparto, RN-CRM-02).
     Route::get('/mi-estado', [CanalController::class, 'miEstado'])->middleware(['modulo:CRM', 'permiso:crm.conversation.view_own|crm.conversation.view_all']);

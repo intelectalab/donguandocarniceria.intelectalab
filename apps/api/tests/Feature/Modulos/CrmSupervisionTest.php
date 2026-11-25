@@ -167,8 +167,8 @@ class CrmSupervisionTest extends TestCase
             'customer_id' => $cliente, 'brand_id' => $marca, 'assigned_user_id' => $quien, 'due_at' => Carbon::parse($vence, 'America/Lima'), 'note' => $nota], 'id'));
         $deA = $nueva('CALLBACK', $this->id(self::A), '2026-11-24 09:00', 'Llamar por pedido grande');
         $hoyA = $nueva('FOLLOW_UP', $this->id(self::A), '2026-11-24 18:00', 'Enviar resumen de prueba');
-        $deB = $nueva('REBUY', $this->id(self::B), '2026-11-25 09:00', 'Recompra de prueba');
-        $sinNadie = $nueva('REBUY', null, '2026-11-26 09:00', 'Recompra sin vendedora');
+        $deB = $nueva('FOLLOW_UP', $this->id(self::B), '2026-11-25 09:00', 'Recompra de prueba');
+        $sinNadie = $nueva('CALLBACK', null, '2026-11-26 09:00', 'Llamada sin vendedora');
 
         $a = $this->como(self::A)->getJson('/api/v1/crm/tareas?buscar=prueba')->assertOk();
         $this->assertSame([1, false], [$a->json('total'), $a->json('equipo')]);
@@ -186,7 +186,7 @@ class CrmSupervisionTest extends TestCase
         $this->assertTrue($s->contains($sinNadie) && ! $s->contains($deA));
         $e = $this->como(self::SUPERVISORA)->getJson('/api/v1/crm/tareas?alcance=equipo&responsable='.$this->id(self::B).'&buscar=prueba')->assertOk();
         $this->assertSame([1, $deB], [$e->json('total'), $e->json('data.0.id')]);
-        $this->assertSame(1, $this->como(self::SUPERVISORA)->getJson('/api/v1/crm/tareas?alcance=equipo&responsable=none&buscar=sin vendedora')->json('total'));
+        $this->assertSame(1, $this->como(self::SUPERVISORA)->getJson('/api/v1/crm/tareas?alcance=equipo&responsable=none&buscar=llamada sin vendedora')->json('total'));
 
         // Completar: con resultado; B no completa la de A (no la ve); la supervisora sí completa la sin responsable.
         $this->como(self::A)->postJson("/api/v1/crm/tareas/{$deA}/hecha", ['resultado' => ''])->assertStatus(422);
