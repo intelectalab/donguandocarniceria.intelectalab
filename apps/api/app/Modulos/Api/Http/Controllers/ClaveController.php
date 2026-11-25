@@ -5,6 +5,7 @@ namespace App\Modulos\Api\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modulos\Api\Services\Catalogo;
 use App\Modulos\Api\Services\Claves;
+use App\Modulos\Api\Services\Uso;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -73,5 +74,16 @@ class ClaveController extends Controller
             'alcance' => ['nullable', 'string', 'max:40'], 'buscar' => ['nullable', 'string', 'max:100']]);
 
         return response()->json(Catalogo::ver($f));
+    }
+
+    public function uso(Request $request)
+    {
+        $f = $request->validate(['entorno' => ['nullable', Rule::in(array_keys(Claves::ENTORNOS))], 'clave' => ['nullable', 'uuid'], 'buscar' => ['nullable', 'string', 'max:100'],
+            'desde' => ['nullable', 'date_format:Y-m-d'], 'hasta' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:desde', 'before_or_equal:today']]);
+        if (! empty($f['desde']) && ! empty($f['hasta']) && (strtotime($f['hasta']) - strtotime($f['desde'])) / 86400 > 92) {
+            return response()->json(['message' => 'Elige un período de hasta 3 meses.', 'code' => 'RN-API-09'], 422);
+        }
+
+        return response()->json(Uso::panel($f, $request->user()));
     }
 }

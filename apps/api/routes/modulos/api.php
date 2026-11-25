@@ -18,6 +18,9 @@ Route::prefix('api')->group(function () {
     Route::put('/claves/{id}', [ClaveController::class, 'editar'])->middleware(['modulo:API', $gestionar, 'throttle:30,1,apiput-clave'])->whereUuid('id');
     Route::post('/claves/{id}/revocar', [ClaveController::class, 'revocar'])->middleware(['modulo:API', $gestionar, 'throttle:20,1,apipost-clave-revocar'])->whereUuid('id');
 
+    // API-10 Uso de la API (RN-API-09): llamadas por día y por clave contra el límite, errores y rechazos.
+    Route::get('/uso', [ClaveController::class, 'uso'])->middleware(['modulo:API', $verClaves, 'throttle:60,1,apiget-uso']);
+
     // API-11 Eventos y alcances (RN-API-17).
     Route::get('/catalogo', [ClaveController::class, 'catalogo'])->middleware(['modulo:API', 'permiso:api.docs.view|api.key.view|api.key.manage', 'throttle:120,1,apiget-catalogo']);
 });

@@ -3,16 +3,17 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Ban, CalendarClock, KeyRound, Plus, ShieldOff } from "lucide-react";
+import { Ban, CalendarClock, Gauge, KeyRound, Plus, ShieldOff, TrendingDown } from "lucide-react";
 import { Alert, Badge, Button, Cifra, DataTable, FiltroSelect, PageHeader, confirmAction, toast, type Column } from "@/components/ui";
 import { api, mensajeDe } from "@/lib/api";
-import { fecha, fechaHora, numero } from "@/lib/formato";
+import { fecha, fechaHora, numero, porcentaje } from "@/lib/formato";
 import { usePagina, type Pagina } from "@/lib/paginas";
 import { Alcances, Entorno, TONO_ESTADO, type Clave } from "@/modulos/api/comun";
 
 type Lista = Pagina<Clave> & {
   cifras: { total: number; activas: number; produccion: number; pruebas: number; por_vencer: number; por_vencer_nombres: string[]; revocadas: number; vencidas: number };
   puede: boolean; opciones: { alcances: { value: string; label: string }[] };
+  uso: { hoy: number; limite: number | null; rechazadas_30: number; llamadas_30: number; rechazadas_pct: number | null };
 };
 
 /** API-01 Claves de API: con alcances, marcas, IP y vencimiento. Solo se guarda el prefijo y una huella del secreto. */
@@ -65,14 +66,16 @@ export default function ClavesDeApi() {
       <PageHeader description="Claves para que otros sistemas (el ERP de un restaurante, una tienda online, el BI del contador) usen la API de tu empresa. Cada clave tiene alcances, marcas, IP permitidas y vencimiento. Solo se guarda el prefijo y una huella del secreto."
         actions={lista?.puede ? <Link href="/m/api/api-02"><Button variant="primary" icon={Plus}>Crear clave</Button></Link> : undefined} />
       {c && (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
           <Cifra titulo="Claves activas" valor={`${numero(c.activas)} de ${numero(c.total)}`} icono={KeyRound} destacada detalle={`${numero(c.produccion)} producción · ${numero(c.pruebas)} pruebas`} />
           <button type="button" className="text-left" onClick={() => setF({ ...f, estado: "ACTIVE" })}><Cifra titulo="Vencen en 15 días" valor={numero(c.por_vencer)} icono={CalendarClock} tono={c.por_vencer ? "warn" : undefined} detalle={c.por_vencer_nombres.join(", ") || "Ninguna"} /></button>
           <button type="button" className="text-left" onClick={() => setF({ ...f, estado: "REVOKED" })}><Cifra titulo="Revocadas" valor={numero(c.revocadas)} icono={Ban} detalle="Clic para verlas" /></button>
           <button type="button" className="text-left" onClick={() => setF({ ...f, estado: "EXPIRED" })}><Cifra titulo="Vencidas" valor={numero(c.vencidas)} icono={ShieldOff} tono={c.vencidas ? "bad" : undefined} detalle="Responden 401" /></button>
+          {lista && <Link href="/m/api/api-10" className="text-left"><Cifra titulo="Llamadas de hoy" valor={numero(lista.uso.hoy)} icono={Gauge} tono={lista.uso.limite && lista.uso.hoy / lista.uso.limite > 0.8 ? "warn" : undefined} detalle={lista.uso.limite ? `de ${numero(lista.uso.limite)} del día` : "sin límite diario"} /></Link>}
+          {lista && <Link href="/m/api/api-10" className="text-left"><Cifra titulo="Rechazadas por límite (30 días)" valor={lista.uso.rechazadas_pct === null ? "—" : porcentaje(lista.uso.rechazadas_pct, 2)} icono={TrendingDown} tono={lista.uso.rechazadas_30 ? "warn" : undefined} detalle={`${numero(lista.uso.rechazadas_30)} de ${numero(lista.uso.llamadas_30)}`} /></Link>}
         </div>
       )}
-      <Alert tone="info">Solo claves de API (sin inicio de sesión de terceros) y documentación con ejemplos, sin bibliotecas cliente. Las llamadas de cada clave y el límite del plan se verán en Uso de la API.</Alert>
+      <Alert tone="info">Solo claves de API (sin inicio de sesión de terceros) y documentación con ejemplos, sin bibliotecas cliente. Los sistemas llaman a <span className="font-mono">/api/publica/v1</span> con <span className="font-mono">Authorization: Bearer</span> y la clave.</Alert>
       <DataTable {...pag.orden} columns={columnas} rows={lista?.data ?? []} pagination={pag.props(lista)} loading={!lista && !error} error={error} onRetry={cargar}
         onRowClick={(k) => router.push(`/m/api/api-03?id=${k.id}`)} empty={lista?.puede ? "Todavía no hay claves. Crea la primera con «Crear clave»." : "Todavía no hay claves."}
         search={{ value: buscar, onChange: setBuscar, placeholder: "Buscar nombre, prefijo, cliente o descripción…" }}

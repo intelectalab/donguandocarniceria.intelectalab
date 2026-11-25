@@ -166,7 +166,7 @@ final class Claves
         return Paginas::de($q, fn ($k) => self::presentar($k, $marcas, $alcances), $f) + [
             'cifras' => ['total' => (int) $c->total, 'activas' => (int) $c->activas, 'produccion' => (int) $c->produccion, 'pruebas' => (int) $c->pruebas,
                 'por_vencer' => (int) $c->por_vencer, 'por_vencer_nombres' => $porVencer, 'revocadas' => (int) $c->revocadas, 'vencidas' => (int) $c->vencidas],
-            'puede' => Access::can($u, 'api.key.manage'),
+            'puede' => Access::can($u, 'api.key.manage'), 'uso' => Uso::resumen(),
             'opciones' => ['alcances' => collect($alcances)->map(fn ($s, $code) => ['value' => $code, 'label' => "{$s['name']} ({$code})"])->values()->all()],
         ];
     }
@@ -281,7 +281,7 @@ final class Claves
         $k = self::base()->where('k.id', $id)->first(self::columnas()) ?? abort(404);
 
         return self::presentar($k, self::marcas(), self::alcancesPorCodigo()) + [
-            'catalogo' => Catalogo::alcances(), 'puede' => Access::can($u, 'api.key.manage'),
+            'catalogo' => Catalogo::alcances(), 'puede' => Access::can($u, 'api.key.manage'), 'uso' => Uso::deClave($k->id),
         ];
     }
 

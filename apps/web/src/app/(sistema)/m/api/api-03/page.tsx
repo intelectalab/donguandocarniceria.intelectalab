@@ -1,15 +1,20 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeft, Ban, Pencil } from "lucide-react";
-import { Alert, Badge, Button, DetailList, Field, Input, Modal, PageHeader, Textarea, confirmAction, toast } from "@/components/ui";
+import { Activity, AlertOctagon, ArrowLeft, Ban, Pencil, ShoppingBag, TrendingDown } from "lucide-react";
+import { Alert, Badge, Button, Cifra, DataTable, DetailList, Field, Input, Modal, PageHeader, Textarea, confirmAction, toast, type Column, type Tone } from "@/components/ui";
 import { api, erroresDe, mensajeDe } from "@/lib/api";
-import { fecha, fechaHora, numero } from "@/lib/formato";
+import { fecha, fechaHora, numero, porcentaje } from "@/lib/formato";
+import { BarrasApiladas } from "@/modulos/int/graficos";
 import { Entorno, TONO_ESTADO, type Alcance, type Clave } from "@/modulos/api/comun";
 
-type Detalle = Clave & { catalogo: Alcance[]; puede: boolean };
+type Llamada = { at: string; method: string; path: string; status: number; ms: number; ip: string; code: string | null; replayed: boolean; request_id: string };
+type Uso = { dias: { dia: string; ok: number; err_4xx: number; rechazadas: number; err_5xx: number }[]; totales: { llamadas: number; rechazadas: number; err_4xx: number; err_5xx: number; dias_con_uso: number; pedidos: number }; ultimas: Llamada[] };
+type Detalle = Clave & { catalogo: Alcance[]; puede: boolean; uso: Uso };
+
+const tonoHttp = (s: number): Tone => (s < 300 ? "ok" : s === 429 ? "warn" : s < 500 ? "warn" : "bad");
 
 /** API-03 Detalle de clave: datos, alcances, uso y revocación con motivo. Secreto, prefijo, entorno, alcances y marcas no cambian. */
 function DetalleClave() {
@@ -77,11 +82,52 @@ function DetalleClave() {
               })}
             </section>
           </div>
-          <Alert tone="info">El uso de los últimos 30 días, las últimas llamadas y la consola para probar la clave llegan con la API misma (siguiente tanda).</Alert>
+          <UsoDeLaClave u={k.uso} />
         </>
       )}
       {editar && k && <Editar k={k} onClose={() => setEditar(false)} onListo={(r) => { setK(r); setEditar(false); toast.ok("Clave actualizada"); }} />}
     </div>
+  );
+}
+
+function UsoDeLaClave({ u }: { u: Uso }) {
+  const [buscar, setBuscar] = useState("");
+  const filas = useMemo(() => {
+    const t = buscar.trim().toLowerCase();
+    return u.ultimas.filter((x) => t.length < 2 || [x.path, x.method, String(x.status), x.code ?? "", x.ip].some((v) => v.toLowerCase().includes(t)));
+  }, [u, buscar]);
+  const t = u.totales;
+  const columnas: Column<Llamada>[] = [
+    { key: "at", header: "Fecha y hora", render: (x) => <span className="whitespace-nowrap">{fechaHora(x.at)}</span> },
+    { key: "ruta", header: "Llamada", cardTitle: true, render: (x) => <span className="font-mono text-[12px] break-all text-ink"><b>{x.method}</b> {x.path}</span> },
+    { key: "status", header: "HTTP", render: (x) => <Badge tone={tonoHttp(x.status)}>{String(x.status)}</Badge> },
+    { key: "code", header: "Código", hideOnMobile: true, render: (x) => x.code ? <span className="font-mono text-[12px]">{x.code}</span> : x.replayed ? <Badge tone="info">Repetida</Badge> : <span className="text-muted">—</span> },
+    { key: "ms", header: "Tiempo", align: "right", hideOnMobile: true, render: (x) => `${numero(x.ms)} ms` },
+    { key: "ip", header: "IP", hideOnMobile: true, render: (x) => <span className="font-mono text-[12px]">{x.ip}</span> },
+  ];
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Cifra titulo="Llamadas (30 días)" valor={numero(t.llamadas)} icono={Activity} destacada detalle={`${numero(t.dias_con_uso ? Math.round(t.llamadas / t.dias_con_uso) : 0)} por día con uso`} />
+        <Cifra titulo="Rechazadas por límite" valor={numero(t.rechazadas)} icono={TrendingDown} tono={t.rechazadas ? "warn" : undefined} detalle={t.llamadas ? porcentaje((t.rechazadas / t.llamadas) * 100, 2) : "—"} />
+        <Cifra titulo="Errores 4xx · 5xx" valor={`${numero(t.err_4xx)} · ${numero(t.err_5xx)}`} icono={AlertOctagon} tono={t.err_5xx ? "bad" : undefined} />
+        <Cifra titulo="Pedidos creados" valor={numero(t.pedidos)} icono={ShoppingBag} detalle="Con esta clave" />
+      </div>
+      <section className="grid gap-3 rounded-xl border border-line bg-surface p-4 shadow-card">
+        <h3 className="text-[14px] font-semibold text-ink">Uso de los últimos 30 días</h3>
+        <BarrasApiladas titulo="Uso de la clave por día" dias={u.dias.map((d) => d.dia)} series={[
+          { nombre: "Correctas (2xx)", clase: "bg-ok", valores: u.dias.map((d) => d.ok) },
+          { nombre: "Errores 4xx", clase: "bg-warn", valores: u.dias.map((d) => d.err_4xx) },
+          { nombre: "Rechazadas por límite (429)", clase: "bg-bad", valores: u.dias.map((d) => d.rechazadas) },
+          { nombre: "Errores 5xx", clase: "bg-muted", valores: u.dias.map((d) => d.err_5xx) },
+        ]} />
+      </section>
+      <section className="grid gap-2">
+        <h3 className="text-[14px] font-semibold text-ink">Últimas llamadas</h3>
+        <DataTable rowKey={(x) => x.request_id} columns={columnas} rows={filas} empty="Esta clave todavía no hizo llamadas."
+          search={{ value: buscar, onChange: setBuscar, placeholder: "Buscar ruta, estado, código o IP…" }} />
+      </section>
+    </>
   );
 }
 
