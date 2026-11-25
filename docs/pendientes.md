@@ -51,6 +51,8 @@ PLT, SEG, MAE, INT y AUD son de cada empresa, pero algunas pantallas tocan datos
 - ~~**Fecha límite de cierre guardada al cerrar**~~ (PLT-09). *Hecho el 07/11/2026 con PLT-10:* `accounting_periods.close_due_date` se llena al cerrar y los meses ya cerrados se completaron con el día vigente (5).
 - ~~**Colores de la marca en todo el sistema**~~ (PLT-01 y PLT-06). *Hecho el 07/11/2026:* ver `docs/cambios/2026-11-07_colores-de-la-marca-en-el-sistema.md`.
 - **Bitácora de accesos** (`access_log`, AUD-03) y **despacho del outbox** de eventos (INT-06).
+- **Archivo de la depuración fuera del servidor** (D-AUD-03). Hoy los archivos cifrados de la depuración (AUD-07) quedan en el disco privado del mismo servidor. La decisión es guardarlos en un almacenamiento aparte que no permita sobrescribir. Falta elegir el proveedor.
+- **Grabaciones de llamadas** (TEL): la política de 12 meses ya está en AUD-06 y la depuración respeta las retenidas por caso legal. Falta que TEL guarde grabaciones, y validar el plazo con un abogado de datos personales (D-AUD-02).
 
 ## 4. Consola: lo que falta del prototipo 2.5
 *Anotado el 24/11/2026.* Ella pidió conservar el diseño actual y agregar lo que el prototipo muestra. Ya hechas: Bitácora, Salud, Incidentes, Mora, Cobros y conciliación, Facturación, Catálogo de planes, Suscripciones, Empresas, Ficha de empresa, Registros y demos, Métricas, Tickets, Anuncios, Accesos, Complementos, Usuarios y Parámetros (24/11). Todas las listas se ordenan por columna. Lo que queda abajo necesita datos que el sistema todavía no guarda.

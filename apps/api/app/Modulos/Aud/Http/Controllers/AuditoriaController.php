@@ -6,10 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Modulos\Aud\Services\Accesos;
 use App\Modulos\Aud\Services\Cambios;
 use App\Modulos\Aud\Services\Exportaciones;
+use App\Modulos\Aud\Services\Retencion;
+use App\Modulos\Aud\Services\Revision;
+use App\Support\Access;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
-/** AUD-01 Consulta de cambios, AUD-02 Historia, AUD-03 Bitácora de accesos, AUD-04 Datos sensibles y AUD-05 Exportaciones. */
+/**
+ * AUD-01 Consulta de cambios, AUD-02 Historia, AUD-03 Bitácora de accesos, AUD-04 Datos sensibles, AUD-05 Exportaciones,
+ * AUD-06 Políticas de retención, AUD-07 Corridas de depuración y AUD-08 Revisión de accesos.
+ */
 class AuditoriaController extends Controller
 {
     public function cambios(Request $request)
@@ -106,6 +112,78 @@ class AuditoriaController extends Controller
     public function enlaceExportacion(Request $request, string $id)
     {
         return response()->json(Exportaciones::enlace($id, $request->user()));
+    }
+
+    /** AUD-06: políticas, cuánto hay para depurar y el ejemplo de enmascarado. */
+    public function retencion(Request $request)
+    {
+        return response()->json(['data' => Retencion::politicas(), 'anios' => Retencion::anios(), 'enmascarado' => Retencion::muestraDeEnmascarado(),
+            'puede' => Access::can($request->user(), 'aud.retention.manage')]);
+    }
+
+    public function actualizarRetencion(Request $request, string $categoria)
+    {
+        abort_unless(isset(Retencion::CATEGORIAS[$categoria]), 404);
+        $d = $request->validate(['months' => ['required', 'integer', 'min:1', 'max:3650'], 'archive' => ['required', 'boolean'], 'reason' => ['required', 'string', 'min:10', 'max:300']],
+            [], ['months' => 'plazo', 'archive' => 'archivar', 'reason' => 'motivo']);
+
+        return response()->json(Retencion::actualizar($categoria, (int) $d['months'], (bool) $d['archive'], $d['reason'], $request->user()));
+    }
+
+    public function depurarCategoria(Request $request, string $categoria)
+    {
+        abort_unless(isset(Retencion::CATEGORIAS[$categoria]), 404);
+
+        return response()->json(Retencion::depurar($categoria, $request->user()->name));
+    }
+
+    /** AUD-07: corridas de depuración. */
+    public function depuraciones(Request $request)
+    {
+        $f = $request->validate([
+            'categoria' => ['nullable', Rule::in(array_keys(Retencion::CATEGORIAS))], 'estado' => ['nullable', Rule::in(array_keys(Retencion::ESTADOS))],
+            'desde' => ['nullable', 'date_format:Y-m-d'], 'hasta' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:desde'], 'buscar' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        return response()->json(Retencion::corridas($f) + ['puede' => Access::can($request->user(), 'aud.retention.manage')]);
+    }
+
+    public function depurarVencidas(Request $request)
+    {
+        return response()->json(['data' => Retencion::depurarVencidas($request->user()->name)]);
+    }
+
+    /** AUD-08: revisión de accesos del trimestre. */
+    public function revision(Request $request)
+    {
+        return response()->json(Revision::panel($request->user()) + ['puede' => Access::can($request->user(), 'aud.access_review.run')]);
+    }
+
+    public function iniciarRevision(Request $request)
+    {
+        Revision::iniciar($request->user());
+
+        return response()->json(Revision::panel($request->user()) + ['puede' => true], 201);
+    }
+
+    public function verRevision(string $id)
+    {
+        return response()->json(Revision::ver($id));
+    }
+
+    public function decidirRevision(Request $request, string $id)
+    {
+        $d = $request->validate(['user_id' => ['required', 'uuid'], 'decision' => ['required', Rule::in(array_keys(Revision::DECISIONES))], 'note' => ['nullable', 'string', 'max:300']],
+            [], ['user_id' => 'usuario', 'decision' => 'decisión', 'note' => 'nota']);
+
+        return response()->json(Revision::decidir($id, $d['user_id'], $d['decision'], $d['note'] ?? null));
+    }
+
+    public function cerrarRevision(Request $request, string $id)
+    {
+        $d = $request->validate(['findings' => ['required', 'string', 'min:10', 'max:2000']], [], ['findings' => 'hallazgos']);
+
+        return response()->json(Revision::cerrar($id, $d['findings'], $request->user()));
     }
 
     /** Descarga desde el enlace firmado (sin sesión: la firma lleva la exportación, la empresa, quién y el vencimiento). */

@@ -7,7 +7,7 @@ Rama `feature/aud-auditoria`, creada desde `feature/int-integraciones` (que toda
 1. **Segundo factor:** activarlo con QR y códigos de recuperación (SEG-03), pedir el código al ingresar (SEG-02) y su parte en Mi cuenta (SEG-06). *Hecha.*
 2. Consulta de cambios (AUD-01), Historia del registro (AUD-02) y Bitácora de accesos (AUD-03). *Hecha.*
 3. Accesos a datos sensibles (AUD-04) y Exportaciones con aprobación (AUD-05). *Hecha.*
-4. Políticas de retención (AUD-06), Corridas de depuración (AUD-07) y Revisión de accesos (AUD-08).
+4. Políticas de retención (AUD-06), Corridas de depuración (AUD-07) y Revisión de accesos (AUD-08). *Hecha.*
 
 Decisión de ella (24/11/2026): el segundo factor es **opcional por ahora**. La obligación para los roles que lo exigen queda lista, pero apagada.
 
@@ -252,7 +252,7 @@ En `AudTest` hay 2 casos nuevos, 5 en total:
   - con el umbral en 1, aun la gerencia necesita aprobación y no puede aprobar la suya;
   - el rechazo pide motivo y queda en la bitácora.
 
-En total el sistema tiene 385 pruebas, todas correctas. Revisado en el navegador contra `aycha_test`: se solicitó una exportación desde la pantalla, se descargó a través de la web y el Excel trae los 945 cobros de septiembre con la marca de agua.
+En total el sistema tiene 385 pruebas, todas correctas. Revisado en el navegador contra `aycha_test`: se solicitó una exportación desde la pantalla, se descargó a través de la web y el Excel trae los 945 cobros de septiembre con la marca de agua.
 
 ## Ajuste: cifras de datos sensibles y buscadores
 
@@ -264,3 +264,111 @@ En total el sistema tiene 385 pruebas, todas correctas. Revisado en el navegador
 - **Las cuatro cifras** van en el orden y con los nombres del prototipo: descargas de archivos sensibles, grabaciones reproducidas, exportaciones con datos personales y vistas de datos sensibles.
 - **Buscadores.** AUD-03 busca por persona, detalle o IP (antes solo por IP); AUD-04 busca por persona, archivo o IP; AUD-05 busca por número, reporte, persona o motivo. Todos se hacen en el servidor, desde 2 letras.
 - Pruebas: AUD y roles en verde (14 pruebas, 246 comprobaciones).
+
+---
+
+# Tanda 4: retención, depuración y revisión de accesos (AUD-06 a AUD-08)
+
+## Base de datos (migración `2026_11_26_000400_aud_retencion_y_revision`)
+
+- **La depuración la hace la base.** La aplicación sigue sin poder borrar la bitácora de accesos (sin permiso de borrar) ni la de cambios (trigger que lo impide). Solo borran estas funciones del dueño de la base:
+  - `audit.retention_cutoff`: calcula la fecha de corte desde la política de la empresa de la sesión.
+  - `audit.purge_count`: dice cuántas filas se depurarían hoy.
+  - `audit.purge_rows`: borra lo vencido y devuelve cada fila borrada para archivarla.
+- **Lo que cuidan esas funciones:**
+  - trabajan solo en la empresa de la sesión, y sin empresa no corren;
+  - aceptan una lista cerrada de categorías y tablas; la fecha de corte no la elige la aplicación;
+  - aunque la política se alterara a mano, cambios y accesos no se depuran con menos de un año (la aplicación exige 5).
+- **Qué se conserva siempre:**
+  - las exportaciones por aprobar;
+  - las notificaciones sin leer;
+  - los webhooks fallidos;
+  - los mensajes salientes pendientes o en cola muerta;
+  - las grabaciones retenidas por un caso legal;
+  - los adjuntos que otro registro todavía usa.
+- **El trigger de la bitácora de cambios** deja borrar solo durante esa corrida. La aplicación no tiene permiso de borrar en esa tabla, así que no puede aprovecharlo.
+- **Reglas de cada tabla:**
+  - una política por categoría y empresa, con plazo mayor que cero en días o meses;
+  - corridas con número único y estado «Completada» o «Falló», más el motivo del fallo;
+  - una revisión por trimestre.
+- Los cambios de las políticas quedan en la Consulta de cambios.
+
+## Reglas
+
+- **`Aud\Services\Retencion`, políticas:**
+  - una empresa nueva empieza con las 9 políticas de la puesta en marcha;
+  - cambiar una exige motivo de al menos 10 caracteres;
+  - cambios y accesos no bajan de `aud_retention_years` (5 años) y siempre se archivan.
+- **`Aud\Services\Retencion`, depuración:** todo ocurre en una sola transacción:
+  1. Se borra lo vencido.
+  2. Si la política lo pide, las filas se archivan en un `.jsonl.gz.enc`, comprimido y cifrado con la clave de la aplicación, en el disco privado. Se guarda su huella SHA-256.
+  3. Si el archivo no se puede guardar, no se borra nada y queda una corrida «Falló» con el motivo.
+  4. Confirmada la corrida, se borran del almacenamiento los archivos de las exportaciones y adjuntos depurados.
+- **`Aud\Services\Revision`, la revisión de accesos:**
+  - **Qué muestra:** cada usuario vigente con su rol, alcance, último ingreso y hallazgos. Los hallazgos posibles:
+    - rol sensible sin segundo factor;
+    - soporte permanente;
+    - vendedora sin restricción de marca;
+    - cuenta bloqueada;
+    - sin trabajador vinculado;
+    - trabajador cesado.
+  - **Propuesta:** «Desactivar» a quien no ingresa hace `seg_inactive_user_days` (60) días, o desde que se creó si nunca ingresó, y a quien tiene su trabajador cesado. «Cambiar» si tiene hallazgos y «Mantener» si no.
+  - **Mientras está abierta:** las decisiones y notas se guardan al elegirlas.
+  - **Al cerrarla:** pide hallazgos y desactiva a los marcados con el mismo procedimiento de Usuarios (motivo, sesiones cerradas, celulares revocados). No desactiva a quien cierra ni al único administrador. Queda una foto de lo revisado con el resultado de cada persona.
+  - **Cifra «Revisiones a tiempo»** (KPI-AUD-02): revisiones cerradas dentro de su trimestre sobre los trimestres que debían revisarse.
+- **Tareas programadas (`routes/console.php`):**
+  - `aud:depurar` corre el día 1 de cada mes a las 03:30 y depura lo vencido de cada empresa como «Mantenimiento programado»;
+  - `aud:revision-trimestral` corre cada día a las 07:10; abre la revisión del trimestre y avisa a quienes la hacen, una sola vez.
+- **Permisos:**
+  - la auditoría consulta las tres pantallas;
+  - cambiar políticas y depurar es de `aud.retention.manage`;
+  - decidir y cerrar la revisión es de `aud.access_review.run`.
+
+## Pantallas
+
+- **AUD-06 Políticas de retención:**
+  - cifras: categorías, mínimo de cambios y accesos, filas para depurar y próxima corrida;
+  - aviso de las decisiones pendientes: 5 años por confirmar con la contadora y grabaciones;
+  - tabla con buscador y filtro «Archiva antes»;
+  - cada fila muestra la conservación con su archivado, la fecha de corte con la última corrida, las filas actuales, las filas para depurar y el motivo;
+  - un clic en la fila abre la edición, y el botón «Depurar» aparece cuando hay filas vencidas;
+  - tarjeta «Enmascarado de datos sensibles» con un registro de ejemplo pasado por la máscara real de la base;
+  - los motivos de la demostración se muestran sin códigos internos.
+- **AUD-07 Corridas de depuración:**
+  - cifras: corridas, filas depuradas, filas archivadas y pendiente de depurar;
+  - botón «Ejecutar todas las vencidas»;
+  - tabla con buscador y filtros por categoría, resultado y fechas;
+  - un clic en una corrida abre su ficha con el archivo, la huella, la duración y el motivo si falló.
+- **AUD-08 Revisión de accesos:**
+  - cifras: revisión en curso, revisiones a tiempo, usuarios inactivos y por desactivar;
+  - usuarios de la revisión abierta con buscador y filtros por propuesta, decisión y hallazgos;
+  - la decisión se elige en la fila; un clic en la fila deja una nota;
+  - campo de hallazgos y botón «Cerrar la revisión», que confirma a quiénes desactiva;
+  - revisiones cerradas con buscador y su detalle;
+  - si la revisión del trimestre no está abierta, la gerencia puede iniciarla.
+
+## Pruebas (`AudRetencionTest`, 5 pruebas)
+
+- **Políticas:**
+  - la auditoría las ve y no las cambia, y administración no las ve;
+  - cambios y accesos no bajan de 60 meses, siempre se archivan y piden motivo;
+  - el cambio queda en la Consulta de cambios;
+  - el ejemplo de enmascarado deja `***` y el celular enmascarado.
+- **Depuración:**
+  - borra la notificación vieja ya leída y conserva la que nadie leyó;
+  - no toca la otra empresa;
+  - el archivo está cifrado, su huella coincide y adentro está la fila depurada;
+  - la corrida aparece en AUD-07 con su buscador, y la auditoría no puede depurar.
+- **Seguridad:**
+  - la aplicación no puede borrar la bitácora de accesos ni la de cambios;
+  - la base rechaza una política de 2 meses para accesos;
+  - sin empresa no hay depuración.
+- **Revisión:**
+  - abre la de 2026-T4 con 100 % a tiempo (T2 y T3 cerradas en plazo);
+  - quien no ingresa hace más de 60 días se propone desactivar;
+  - las decisiones y notas se guardan;
+  - al cerrar, la persona inactiva queda desactivada con el motivo y quien cierra no;
+  - no se cierra dos veces, y la auditoría ve el detalle sin poder decidir.
+- **Tarea:** en enero de 2027 abre RA-2027-T1 con vence el 31/03 y avisa a la gerencia una sola vez.
+
+En total el sistema tiene 390 pruebas, todas correctas. Revisado en el navegador contra `aycha_test` (1440 y 375 px): las tres pantallas, la edición de una política, la ficha de una corrida y la nota de una decisión, sin errores en la consola.

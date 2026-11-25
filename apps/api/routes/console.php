@@ -38,4 +38,7 @@ Schedule::command('ops:metricas cierre')->monthlyOn(1, '03:00')->timezone('Ameri
 Schedule::command('ops:metricas uso')->dailyAt('05:10')->timezone('America/Lima')->withoutOverlapping();
 // OPS · OPS-07: lectura de salud de los componentes con sonda propia (D-OPS-01).
 Schedule::command('ops:leer-salud')->everyMinute()->withoutOverlapping();
+// AUD: depuración mensual según las políticas de retención (RN-AUD-08) y la revisión de accesos de cada trimestre (RN-AUD-10).
+Schedule::command('aud:depurar')->monthlyOn(1, '03:30')->timezone('America/Lima')->withoutOverlapping();
+Schedule::command('aud:revision-trimestral')->dailyAt('07:10')->timezone('America/Lima')->withoutOverlapping();
 Schedule::command('ops:cerrar-tickets')->dailyAt('05:30')->timezone('America/Lima')->withoutOverlapping();

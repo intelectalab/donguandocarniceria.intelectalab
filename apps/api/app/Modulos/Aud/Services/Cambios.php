@@ -38,6 +38,7 @@ final class Cambios
         'units_of_measure' => 'Unidades', 'unit_conversions' => 'Conversiones', 'mfa_recovery_codes' => 'Códigos de recuperación',
         'password_reset_tokens' => 'Recuperación de contraseña', 'file_attachments' => 'Archivos adjuntos', 'document_series' => 'Series',
         'cost_centers' => 'Centros de costo', 'warehouses' => 'Almacenes', 'lots' => 'Lotes', 'delivery_zones' => 'Zonas de reparto',
+        'audit_retention_policies' => 'Políticas de retención', 'tel_recordings' => 'Grabaciones de llamadas',
     ];
 
     /** Tablas de seguridad: su historia solo con la consulta completa (RN-AUD-09). */
@@ -60,6 +61,12 @@ final class Cambios
     /** Datos personales => cómo se enmascaran. */
     private const PERSONALES = ['phone' => 'tel', 'contact_phone' => 'tel', 'mobile' => 'tel', 'whatsapp' => 'tel', 'doc_number' => 'doc', 'customer_doc_number' => 'doc',
         'email' => 'correo', 'email_attempted' => 'correo', 'address_line' => 'dir', 'address' => 'dir', 'reference' => 'dir'];
+
+    /** Cómo se ve un valor de la auditoría para quien no revela datos personales (AUD-06 lo usa de ejemplo). */
+    public static function enmascarar(string $campo, mixed $v): ?string
+    {
+        return $v === null ? '(no se guarda)' : self::mostrar($campo, $v, false);
+    }
 
     public static function nombreTabla(string $t): string
     {
