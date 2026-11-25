@@ -2,6 +2,7 @@
 
 use App\Modulos\Tel\Http\Controllers\AjustesController;
 use App\Modulos\Tel\Http\Controllers\CentralController;
+use App\Modulos\Tel\Http\Controllers\LlamadaController;
 use Illuminate\Support\Facades\Route;
 
 // TEL · Telefonía con grabación (incluida y apagada). Con el módulo apagado, «modulo:TEL» responde 403 con RN-PLT-07
@@ -39,4 +40,16 @@ Route::prefix('tel')->group(function () {
     Route::get('/grupos/{id}/candidatos', [CentralController::class, 'candidatos'])->middleware(['modulo:TEL', $gestionar, 'throttle:60,1,telget-grupos-candidatos'])->whereUuid('id');
     Route::post('/grupos/{id}/miembros', [CentralController::class, 'agregarMiembro'])->middleware(['modulo:TEL', $gestionar, 'throttle:30,1,telpost-grupos-miembros'])->whereUuid('id');
     Route::put('/miembros/{id}', [CentralController::class, 'cambiarMiembro'])->middleware(['modulo:TEL', $gestionar, 'throttle:60,1,telput-miembros'])->whereUuid('id');
+
+    // TEL-06 Teléfono en la app y TEL-07 Llamar desde la ficha o el pedido (RN-TEL-04 a 08). El simulador, solo fuera de producción.
+    $llama = 'permiso:tel.call.make';
+    $verLlamadas = 'permiso:tel.call.view_own|tel.call.view_all';
+    Route::get('/telefono', [LlamadaController::class, 'telefono'])->middleware(['modulo:TEL', 'permiso:tel.call.make|tel.call.view_all', 'throttle:120,1,telget-telefono']);
+    Route::post('/telefono/simular', [LlamadaController::class, 'simular'])->middleware(['modulo:TEL', $llama, 'throttle:30,1,telpost-telefono-simular']);
+    Route::get('/llamar/destino', [LlamadaController::class, 'destino'])->middleware(['modulo:TEL', $llama, 'throttle:120,1,telget-llamar-destino']);
+    Route::post('/llamadas', [LlamadaController::class, 'llamar'])->middleware(['modulo:TEL', $llama, 'throttle:20,1,telpost-llamadas']);
+    Route::post('/llamadas/{id}/resultado', [LlamadaController::class, 'resultado'])->middleware(['modulo:TEL', 'permiso:tel.call.make|tel.call.view_all', 'throttle:30,1,telpost-llamadas-resultado'])->whereUuid('id');
+    Route::get('/llamadas/{id}', [LlamadaController::class, 'ver'])->middleware(['modulo:TEL', $verLlamadas, 'throttle:120,1,telget-llamada'])->whereUuid('id');
+    Route::get('/salientes', [LlamadaController::class, 'salientes'])->middleware(['modulo:TEL', $verLlamadas, 'throttle:60,1,telget-salientes']);
+    Route::get('/pedidos', [LlamadaController::class, 'pedidos'])->middleware(['modulo:TEL', $llama, 'throttle:60,1,telget-pedidos']);
 });

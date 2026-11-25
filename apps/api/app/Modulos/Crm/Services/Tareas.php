@@ -119,7 +119,7 @@ class Tareas
 
         return [
             'id' => $t->id, 'task_type' => $t->task_type, 'tipo' => self::TIPOS[$t->task_type] ?? $t->task_type, 'cliente' => $t->cliente, 'celular' => $t->celular,
-            'customer_id' => $t->customer_id, 'conversation_id' => $t->conversation_id, 'pedido' => $t->pedido, 'marca' => $t->marca,
+            'customer_id' => $t->customer_id, 'lead_id' => $t->lead_id, 'conversation_id' => $t->conversation_id, 'pedido' => $t->pedido, 'marca' => $t->marca,
             'responsable' => $t->responsable, 'assigned_user_id' => $t->assigned_user_id, 'due_at' => $t->due_at, 'note' => $t->note,
             'status' => $t->status, 'vencida' => $abierta && Carbon::parse($t->due_at)->lt($ahora),
             'done_at' => $t->done_at, 'result' => $t->result, 'hecha_por' => $t->hecha_por,
