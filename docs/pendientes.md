@@ -54,6 +54,8 @@ PLT, SEG, MAE, INT y AUD son de cada empresa, pero algunas pantallas tocan datos
 - **Archivo de la depuración fuera del servidor** (D-AUD-03). Hoy los archivos cifrados de la depuración (AUD-07) quedan en el disco privado del mismo servidor. La decisión es guardarlos en un almacenamiento aparte que no permita sobrescribir. Falta elegir el proveedor.
 - **Enlace de pago en el resumen del pedido** (RN-CRM-22): hoy el resumen lleva el Yape oficial de la empresa; el enlace de pago lo pondrá Caja (CAJ) cuando esté.
 - **WhatsApp real** (D-CRM-01): falta elegir el proveedor oficial y su adaptador. Hasta entonces, los mensajes que se responden desde la bandeja en los números de producción quedan registrados como «no enviado». En el entorno de prueba salen por el conector falso.
+- **Textos del aviso de registro** (D-CRM-06): los de cada número son provisionales; falta validarlos con el abogado de datos personales. Se ven en CRM-18 y se editan en Números y cuentas.
+- **«Llamar» en Mis tareas** (CRM-17): espera a Telefonía (TEL). Hoy el botón queda apagado y la tarea se completa con el resultado de la llamada hecha desde el celular.
 - **Grabaciones de llamadas** (TEL): la política de 12 meses ya está en AUD-06 y la depuración respeta las retenidas por caso legal. Falta que TEL guarde grabaciones, y validar el plazo con un abogado de datos personales (D-AUD-02).
 
 ## 4. Consola: lo que falta del prototipo 2.5

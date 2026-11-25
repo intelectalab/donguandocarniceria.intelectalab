@@ -42,3 +42,5 @@ Schedule::command('ops:leer-salud')->everyMinute()->withoutOverlapping();
 Schedule::command('aud:depurar')->monthlyOn(1, '03:30')->timezone('America/Lima')->withoutOverlapping();
 Schedule::command('aud:revision-trimestral')->dailyAt('07:10')->timezone('America/Lima')->withoutOverlapping();
 Schedule::command('ops:cerrar-tickets')->dailyAt('05:30')->timezone('America/Lima')->withoutOverlapping();
+// CRM · RN-CRM-02 y RN-CRM-14: tarea y aviso por chat sin responder (15 min en horario) y aviso por chat en cola (5 min).
+Schedule::command('crm:barrido')->everyMinute()->withoutOverlapping();

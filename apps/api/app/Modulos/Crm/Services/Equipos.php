@@ -308,7 +308,7 @@ class Equipos
     }
 
     /** El último estado de cada persona (sin registro: desconectada). */
-    private static function estados(array $usuarios): array
+    public static function estados(array $usuarios): array
     {
         if (! $usuarios) {
             return [];
@@ -318,7 +318,7 @@ class Equipos
             ->orderBy('user_id')->orderByDesc('changed_at')->orderByDesc('created_at')->pluck('status', 'user_id')->all();
     }
 
-    private static function abiertos(array $usuarios): array
+    public static function abiertos(array $usuarios): array
     {
         return DB::table('conversations')->whereIn('assigned_user_id', $usuarios)->where('status', '<>', 'CLOSED')
             ->selectRaw('assigned_user_id, count(*) AS n')->groupBy('assigned_user_id')->pluck('n', 'assigned_user_id')->all();
