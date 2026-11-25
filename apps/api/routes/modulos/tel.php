@@ -1,6 +1,7 @@
 <?php
 
 use App\Modulos\Tel\Http\Controllers\AjustesController;
+use App\Modulos\Tel\Http\Controllers\CentralController;
 use Illuminate\Support\Facades\Route;
 
 // TEL · Telefonía con grabación (incluida y apagada). Con el módulo apagado, «modulo:TEL» responde 403 con RN-PLT-07
@@ -21,4 +22,21 @@ Route::prefix('tel')->group(function () {
     Route::put('/ajustes', [AjustesController::class, 'guardar'])->middleware(['modulo:TEL', $gestionar, 'throttle:20,1,telput-ajustes']);
     Route::post('/ajustes/audio', [AjustesController::class, 'subirAudio'])->middleware(['modulo:TEL', $gestionar, 'throttle:10,1,telpost-ajustes-audio']);
     Route::get('/ajustes/audio', [AjustesController::class, 'enlaceAudio'])->middleware(['modulo:TEL', $ver, 'throttle:30,1,telget-ajustes-audio']);
+
+    // TEL-03 Números y desvíos.
+    Route::get('/numeros', [CentralController::class, 'numeros'])->middleware(['modulo:TEL', $ver, 'throttle:60,1,telget-numeros']);
+    Route::post('/numeros', [CentralController::class, 'guardarNumero'])->middleware(['modulo:TEL', $gestionar, 'throttle:30,1,telpost-numeros']);
+    Route::put('/numeros/{id}', [CentralController::class, 'guardarNumero'])->middleware(['modulo:TEL', $gestionar, 'throttle:30,1,telput-numeros'])->whereUuid('id');
+
+    // TEL-04 Menú de voz y horario.
+    Route::get('/menu', [CentralController::class, 'menu'])->middleware(['modulo:TEL', $ver, 'throttle:60,1,telget-menu']);
+    Route::put('/menu', [CentralController::class, 'guardarMenu'])->middleware(['modulo:TEL', $gestionar, 'throttle:20,1,telput-menu']);
+
+    // TEL-05 Grupos de llamada (RN-TEL-06).
+    Route::get('/grupos', [CentralController::class, 'grupos'])->middleware(['modulo:TEL', $ver, 'throttle:60,1,telget-grupos']);
+    Route::post('/grupos', [CentralController::class, 'guardarGrupo'])->middleware(['modulo:TEL', $gestionar, 'throttle:20,1,telpost-grupos']);
+    Route::put('/grupos/{id}', [CentralController::class, 'guardarGrupo'])->middleware(['modulo:TEL', $gestionar, 'throttle:30,1,telput-grupos'])->whereUuid('id');
+    Route::get('/grupos/{id}/candidatos', [CentralController::class, 'candidatos'])->middleware(['modulo:TEL', $gestionar, 'throttle:60,1,telget-grupos-candidatos'])->whereUuid('id');
+    Route::post('/grupos/{id}/miembros', [CentralController::class, 'agregarMiembro'])->middleware(['modulo:TEL', $gestionar, 'throttle:30,1,telpost-grupos-miembros'])->whereUuid('id');
+    Route::put('/miembros/{id}', [CentralController::class, 'cambiarMiembro'])->middleware(['modulo:TEL', $gestionar, 'throttle:60,1,telput-miembros'])->whereUuid('id');
 });

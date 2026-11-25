@@ -145,6 +145,25 @@ class PrototipoSeeder extends Seeder
                 $recompras[($t['tenant_id'] ?? '').'|'.$t['customer_id'].'|'.$t['brand_id']][] = $i;
             }
         }
+        // TEL-04: las opciones del menú de voz traen códigos del prototipo («br-DG», «trg-DG», «us-pleon»); van con sus
+        // identificadores reales (igual que la migración 2026_11_28_000200 en las bases ya cargadas).
+        $empresas = [];
+        foreach (array_keys(self::DOMINIOS_LOCALES) as $c) {
+            $empresas[$this->uid('', $c)] = $c;
+        }
+        foreach ($convertidas['tel_menus'] ?? [] as $i => $m) {
+            $c = $empresas[$m['tenant_id'] ?? ''] ?? null;
+            $ops = is_string($m['options'] ?? null) ? (json_decode($m['options'], true) ?: []) : ($m['options'] ?? []);
+            foreach ($ops as &$o) {
+                foreach (['brand_id', 'ring_group_id', 'direct_user_id'] as $k) {
+                    if (! empty($o[$k]) && ! preg_match('/^[0-9a-f-]{36}$/', $o[$k])) {
+                        $o[$k] = $c ? $this->uid($c, $o[$k]) : null;
+                    }
+                }
+            }
+            unset($o);
+            $convertidas['tel_menus'][$i]['options'] = json_encode($ops, JSON_UNESCAPED_UNICODE);
+        }
         foreach ($recompras as $idx) {
             usort($idx, fn ($a, $b) => strcmp((string) $convertidas['crm_tasks'][$b]['due_at'], (string) $convertidas['crm_tasks'][$a]['due_at']));
             foreach (array_slice($idx, 1) as $i) {
