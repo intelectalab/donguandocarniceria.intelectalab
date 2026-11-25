@@ -53,6 +53,12 @@ final class Adaptadores
      *
      * @return array{ok: bool, ref: ?string, error: ?string, del_proveedor: bool} del_proveedor = la falla es del proveedor (cuenta para RN-INT-19)
      */
+    /** ¿El conector puede enviar de verdad? (falso o de prueba, o con su adaptador instalado). */
+    public static function puedeEnviar(object $c): bool
+    {
+        return $c->environment === 'SANDBOX' || $c->adapter === 'FAKE' || (isset(self::INSTALADOS[$c->adapter]) && method_exists(self::INSTALADOS[$c->adapter], 'enviar'));
+    }
+
     public static function enviar(object $c, object $m): array
     {
         if ($c->environment === 'SANDBOX' || $c->adapter === 'FAKE') {

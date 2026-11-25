@@ -52,6 +52,7 @@ PLT, SEG, MAE, INT y AUD son de cada empresa, pero algunas pantallas tocan datos
 - ~~**Colores de la marca en todo el sistema**~~ (PLT-01 y PLT-06). *Hecho el 07/11/2026:* ver `docs/cambios/2026-11-07_colores-de-la-marca-en-el-sistema.md`.
 - **Bitácora de accesos** (`access_log`, AUD-03) y **despacho del outbox** de eventos (INT-06).
 - **Archivo de la depuración fuera del servidor** (D-AUD-03). Hoy los archivos cifrados de la depuración (AUD-07) quedan en el disco privado del mismo servidor. La decisión es guardarlos en un almacenamiento aparte que no permita sobrescribir. Falta elegir el proveedor.
+- **WhatsApp real** (D-CRM-01): falta elegir el proveedor oficial y su adaptador. Hasta entonces, los mensajes que se responden desde la bandeja en los números de producción quedan registrados como «no enviado». En el entorno de prueba salen por el conector falso.
 - **Grabaciones de llamadas** (TEL): la política de 12 meses ya está en AUD-06 y la depuración respeta las retenidas por caso legal. Falta que TEL guarde grabaciones, y validar el plazo con un abogado de datos personales (D-AUD-02).
 
 ## 4. Consola: lo que falta del prototipo 2.5
