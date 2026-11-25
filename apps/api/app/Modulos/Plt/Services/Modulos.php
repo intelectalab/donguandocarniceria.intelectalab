@@ -3,6 +3,7 @@
 namespace App\Modulos\Plt\Services;
 
 use App\Models\User;
+use App\Modulos\Tel\Services\Ajustes;
 use App\Modulos\Sus\Services\ModulosDelPlan;
 use App\Support\Access;
 use App\Support\Events;
@@ -105,6 +106,9 @@ final class Modulos
                 }
             }
 
+            if ($code === 'TEL' && ! $encender) {
+                Ajustes::alApagar($motivo);   // con el módulo todavía encendido (guardia tel_guard)
+            }
             $ahora = now();
             // RN-SUS-08: apagado a mano queda MANUAL (el plan no lo vuelve a encender); encendido, toma su origen en el plan.
             $datos = ['enabled' => $encender, 'changed_at' => $ahora, 'changed_by' => mb_substr($quien->name, 0, 255),
@@ -117,6 +121,7 @@ final class Modulos
             }
             if ($code === 'TEL' && $encender) {
                 self::marcarPaso('SWITCH_ON', $quien, trim($motivo));
+                Ajustes::preparar();   // RN-TEL-02: ajustes en configuración
             }
             Events::emit($encender ? 'module.enabled' : 'module.disabled', 'tenant_modules', $fila?->id, ['module' => $code, 'reason' => trim($motivo)]);
             Access::forget();
