@@ -18,6 +18,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
+        // CRM instala en INT el procesador de los webhooks de WhatsApp y lo que pasa cuando el proveedor acepta un mensaje.
+        \App\Modulos\Int\Services\Webhooks::$procesadores['WHATSAPP_CLOUD'] = [\App\Modulos\Crm\Services\Recepcion::class, 'webhookWhatsApp'];
+        \App\Modulos\Int\Services\Salientes::$alEnviar['CRM'] = [\App\Modulos\Crm\Services\Mensajes::class, 'aceptado'];
         // RN-SEG-09: una sesión sin uso por más del límite se cierra (antes de anotar este uso).
         Sanctum::authenticateAccessTokensUsing(function (PersonalAccessToken $token, bool $valido) {
             if (! $valido) {

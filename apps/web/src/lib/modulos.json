@@ -985,8 +985,8 @@
  },
  {
   "code": "TEL",
-  "name": "Telefonía (incluida y apagada)",
-  "title": "Telefonía con grabación (incluida y desactivada)",
+  "name": "Telefonía",
+  "title": "Telefonía con grabación",
   "phase": 1,
   "objective": "Don Guando decidió el 10/10/2026 incluir la central de llamadas grabadas en la Fase 1 **pero desactivada**: se activa más adelante por configuración, sin desarrollo adicional. El objetivo es cerrar el último canal por fuera del control de la empresa (las llamadas a los celulares de las vendedoras): todas las llamadas pasan por números de la empresa, se graban con aviso, se transcriben si se quiere",
   "screens": [

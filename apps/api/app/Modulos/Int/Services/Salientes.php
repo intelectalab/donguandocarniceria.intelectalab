@@ -28,6 +28,12 @@ final class Salientes
     public const TIPOS = ['MESSAGE' => 'Mensaje', 'EINVOICE' => 'Comprobante', 'SYNC' => 'Sincronización', 'DOMAIN_EVENT' => 'Evento de dominio'];
 
     /**
+     * Lo que hace cada módulo dueño cuando el proveedor acepta su mensaje (por ejemplo CRM marca el mensaje del chat como
+     * enviado y registra su costo): módulo => callable(object $mensaje). Lo instala el módulo al arrancar.
+     */
+    public static array $alEnviar = [];
+
+    /**
      * Registra un mensaje para enviar. Se llama dentro de la transacción del cambio de negocio (RN-INT-08).
      * Devuelve el id, o null si el módulo está apagado (RN-INT-14).
      */
@@ -78,8 +84,12 @@ final class Salientes
                 DB::table('outbox_messages')->where('id', $id)->update(['status' => 'SENT', 'attempts' => $intentos, 'sent_at' => now(), 'provider_ref' => mb_substr((string) $r['ref'], 0, 80),
                     'last_error' => null, 'next_attempt_at' => null, 'tries' => json_encode([...$hechos, ['at' => now()->toIso8601String(), 'ok' => true]]), 'updated_at' => now()]);
                 Conectores::reportar($c->id, true);
+                $enviado = DB::table('outbox_messages')->where('id', $id)->first();
+                if (isset(self::$alEnviar[$m->module])) {
+                    (self::$alEnviar[$m->module])($enviado);
+                }
 
-                return DB::table('outbox_messages')->where('id', $id)->first();
+                return $enviado;
             }
             $max = self::maxIntentos();
             $espera = $intentos < $max ? self::espera($intentos) : null;

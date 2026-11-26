@@ -51,6 +51,9 @@ Route::prefix('v1/publico')->group(function () {
     Route::get('/lotes/{token}', [\App\Modulos\Etq\Http\Controllers\PublicoController::class, 'show'])->middleware('throttle:60,1')->where('token', '[A-Za-z0-9]{8,64}');
 });
 
+// API · la API pública v1 para los sistemas de los clientes (/api/publica/v1), con su clave de API y sin sesión.
+require __DIR__.'/publica.php';
+
 // INT-04 · webhooks de entrada de los proveedores: públicos, sin sesión. La empresa sale del token de la URL y sin firma
 // válida no se procesan (RN-INT-04). Responden 200 a todo evento firmado, también a uno repetido (RN-INT-05).
 Route::post('/hooks/{token}', [WebhookController::class, 'recibir'])->middleware('throttle:120,1')->where('token', '[A-Za-z0-9]{16,80}');
