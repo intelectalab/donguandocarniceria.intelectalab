@@ -10,8 +10,8 @@ const PUBLICAS = ["/login", "/forgot-password", "/reset-password"];
 // Páginas públicas de GestionCarnica (landing): se ven con o sin sesión; con dos dominios, en el de la página.
 const PAGINAS = ["/", "/precios", "/registro"];
 const INICIO = "/inicio";
-// Lo que abre un cliente sin cuenta (el enlace de ubicación de CLI-07): con o sin sesión, en el dominio del sistema.
-const ABIERTAS = ["/u"];
+// Lo que abre un cliente sin cuenta (el enlace de ubicación de CLI-07 o el QR de un lote de ETQ-08): con o sin sesión, en el dominio del sistema.
+const ABIERTAS = ["/u", "/l"];
 // Consola de Intelectalab: lo que se abre sin su sesión (ingreso y activación de la cuenta).
 const CONSOLA_PUBLICAS = ["/consola/ingreso", "/consola/activar"];
 

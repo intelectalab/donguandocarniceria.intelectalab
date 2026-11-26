@@ -26,6 +26,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'soporte' => \App\Http\Middleware\SesionSoporte::class,
             'consola' => \App\Http\Middleware\ConsolaSesion::class,
             'suscripcion' => \App\Http\Middleware\SuscripcionVigente::class,
+            'portal' => \App\Modulos\B2b\Http\Middleware\SoloPortal::class,
+            'portal.fuera' => \App\Modulos\B2b\Http\Middleware\FueraDelPortal::class,
         ]);
         // Laravel ordena la autenticación antes que el resto: la empresa debe ir antes, porque el
         // token y el usuario solo se encuentran con app.tenant_id fijado (RLS).

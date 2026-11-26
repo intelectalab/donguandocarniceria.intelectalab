@@ -62,6 +62,11 @@ class PrototipoSeeder extends Seeder
         $this->leerEsquema();
 
         $filas = $this->data['tenants'];
+        foreach (glob(__DIR__.'/data/prototipo-*.json.gz') ?: [] as $extra) {
+            foreach (json_decode(gzdecode(file_get_contents($extra)), true)['tenants'] ?? [] as $t => $rows) {
+                $filas[$t] = array_merge($filas[$t] ?? [], $rows);
+            }
+        }
         $filas['tenant_hostnames'] = array_merge($filas['tenant_hostnames'], array_map(
             fn ($t, $h) => ['id' => 'th-local-'.$t, 'tenant_ref' => $t, 'hostname' => $h, 'is_primary' => false, 'status' => 'ACTIVE'],
             array_keys(self::DOMINIOS_LOCALES), self::DOMINIOS_LOCALES
@@ -337,7 +342,7 @@ class PrototipoSeeder extends Seeder
 
         return match ($tipo) {
             'uuid' => is_string($v) && ! Uuid::isValid($v) ? $this->uid($clave ?? '', $v) : (is_string($v) ? $v : null),
-            'jsonb', 'json' => json_encode($v, JSON_UNESCAPED_UNICODE),
+            'jsonb', 'json' => json_encode($this->traducirJson($v, $clave ?? ''), JSON_UNESCAPED_UNICODE),
             'bool' => (bool) $v,
             'varchar', 'text' => is_array($v) ? json_encode($v, JSON_UNESCAPED_UNICODE) : (is_bool($v) ? ($v ? 'true' : 'false') : (string) $v),
             'int4', 'int8' => is_numeric($v) ? (int) round($v) : null,
@@ -391,6 +396,26 @@ class PrototipoSeeder extends Seeder
     private function uid(string $empresa, string $id): string
     {
         return (string) Uuid::uuid5(self::NS, $empresa.':'.$id);
+    }
+
+    private function traducirJson(mixed $v, string $clave): mixed
+    {
+        if (! is_array($v) || $clave === '') {
+            return $v;
+        }
+        foreach ($v as $k => &$item) {
+            if (is_array($item)) {
+                $item = $this->traducirJson($item, $clave);
+            } elseif (is_string($item) && $item !== '' && ! Uuid::isValid($item)) {
+                if ((is_string($k) && str_ends_with($k, '_id'))
+                    || (is_int($k) && preg_match('/^(lo|lot|or|so|va|pr|br|cc|us|wh|eq|cu|su)-[A-Za-z0-9_-]+$/', $item))) {
+                    $item = $this->uid($clave, $item);
+                }
+            }
+        }
+        unset($item);
+
+        return $v;
     }
 
     private function leerEsquema(): void

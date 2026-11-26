@@ -42,3 +42,9 @@ Schedule::command('ops:leer-salud')->everyMinute()->withoutOverlapping();
 Schedule::command('aud:depurar')->monthlyOn(1, '03:30')->timezone('America/Lima')->withoutOverlapping();
 Schedule::command('aud:revision-trimestral')->dailyAt('07:10')->timezone('America/Lima')->withoutOverlapping();
 Schedule::command('ops:cerrar-tickets')->dailyAt('05:30')->timezone('America/Lima')->withoutOverlapping();
+// CAL · RN-CAL-09, RN-CAL-13 y RN-CAL-14: tareas diarias de calidad, puntos sin lectura y registros sanitarios.
+Schedule::command('cal:diario')->dailyAt('06:15')->timezone('America/Lima')->withoutOverlapping();
+// B2B y CMP: crédito, cobranza, segmentos, puntos y corrida de recurrentes de las 18:00 (RN-B2B-09).
+Schedule::command('canales:diario b2b')->dailyAt('06:30')->timezone('America/Lima')->withoutOverlapping();
+Schedule::command('canales:diario cmp')->dailyAt('06:40')->timezone('America/Lima')->withoutOverlapping();
+Schedule::command('canales:diario corrida')->dailyAt('18:00')->timezone('America/Lima')->withoutOverlapping();

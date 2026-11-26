@@ -28,22 +28,29 @@ final class LotesService
         'RECALLED' => [],
     ];
 
-    /** @param  array{mover_a?: ?string}  $opciones */
+    /** @param  array{mover_a?: ?string, decision_calidad?: bool, retiro?: bool}  $opciones */
     public static function cambiarEstado(string $lotId, string $estado, ?string $motivo, User $quien, array $opciones = []): array
     {
         return DB::transaction(function () use ($lotId, $estado, $motivo, $quien, $opciones) {
             $lot = DB::table('lots')->where('id', $lotId)->lockForUpdate()->first() ?? RuleError::fail('RN-ALM-07', 'Lote no encontrado.');
+            $porCalidad = ! empty($opciones['decision_calidad']);
+            if (! $porCalidad && in_array($lot->origin, ['PRODUCTION', 'CUTTING'], true)
+                && DB::table('tenant_modules')->where('module_code', 'CAL')->where('enabled', true)->exists()) {
+                RuleError::fail('RN-CAL-01', 'El estado de calidad de un lote de producción o despiece solo cambia con una decisión de calidad.');
+            }
             $de = $lot->qc_status;
             $motivo = trim((string) $motivo);
             if (! in_array($estado, self::FLUJO[$de] ?? [], true)) {
                 RuleError::fail('RN-ALM-07', "El lote {$lot->code} está ".InventarioService::estado($de).': no puede pasar a '.InventarioService::estado($estado)
                     .(in_array($de, ['REJECTED', 'RECALLED'], true) ? ' (un lote rechazado o retirado ya no cambia)' : '').'.');
             }
-            if ($estado === 'RELEASED' && ! Access::can($quien, 'alm.lot.release')) {
-                RuleError::fail('RN-ALM-07', 'No tienes el permiso alm.lot.release para liberar lotes.');
-            }
-            if ($estado !== 'RELEASED' && ! Access::can($quien, 'alm.lot.block')) {
-                RuleError::fail('RN-ALM-07', 'No tienes el permiso alm.lot.block.');
+            if (! $porCalidad) {
+                if ($estado === 'RELEASED' && ! Access::can($quien, 'alm.lot.release')) {
+                    RuleError::fail('RN-ALM-07', 'No tienes el permiso alm.lot.release para liberar lotes.');
+                }
+                if ($estado !== 'RELEASED' && ! Access::can($quien, 'alm.lot.block')) {
+                    RuleError::fail('RN-ALM-07', 'No tienes el permiso alm.lot.block.');
+                }
             }
             if ($estado !== 'RELEASED' && mb_strlen($motivo) < 5) {
                 RuleError::fail('RN-ALM-07', 'Bloquear, rechazar o retirar un lote exige motivo.');
@@ -53,6 +60,9 @@ final class LotesService
                 RuleError::fail('RN-ALM-04', "El lote {$lot->code} venció el ".InventarioService::fecha($lot->expiry_date).': no se libera; regístralo como merma por vencido.');
             }
 
+            if ($porCalidad) {
+                DB::select("SELECT set_config('app.cal_decision', 'on', true)");
+            }
             $cambios = ['qc_status' => $estado, 'updated_at' => now()];
             $cambios += $estado === 'RELEASED'
                 ? ['released_at' => now(), 'released_by' => mb_substr((string) $quien->name, 0, 255), 'block_reason' => null]
@@ -97,7 +107,7 @@ final class LotesService
         });
     }
 
-    /** Crea un lote nuevo en cuarentena con su primer registro de historial (lo usa la recepción). */
+    /** Crea un lote nuevo en cuarentena con su primer registro de historial (lo usa la recepción, producción y despiece). */
     public static function crear(array $d, User $quien, string $motivo): object
     {
         $id = DB::table('lots')->insertGetId([
@@ -105,11 +115,20 @@ final class LotesService
             'supplier_id' => $d['supplier_id'] ?? null, 'production_date' => $d['production_date'] ?? null, 'expiry_date' => $d['expiry_date'],
             'qc_status' => 'QUARANTINE', 'unit_cost' => $d['unit_cost'] ?? 0, 'received_weight_kg' => $d['received_weight_kg'] ?? null,
             'supplier_lot_code' => $d['supplier_lot_code'] ?? null, 'created_by_user_id' => $quien->id, 'cost_basis' => $d['cost_basis'] ?? null,
+            'production_order_ref' => $d['production_order_ref'] ?? null, 'supervisor_user_id' => $d['supervisor_user_id'] ?? null,
+            'parent_lots' => isset($d['parent_lots']) ? (is_string($d['parent_lots']) ? $d['parent_lots'] : json_encode($d['parent_lots'], JSON_UNESCAPED_UNICODE)) : '[]',
+            'requested_qc_status' => $d['requested_qc_status'] ?? null, 'ccp_deviation' => (bool) ($d['ccp_deviation'] ?? false),
         ], 'id');
         DB::table('lot_status_changes')->insert([
             'lot_id' => $id, 'from_status' => 'NEW', 'to_status' => 'QUARANTINE', 'reason' => mb_substr($motivo, 0, 255), 'changed_at' => now(), 'changed_by' => $quien->id,
         ]);
 
         return DB::table('lots')->find($id);
+    }
+
+    /** Actualiza el costo unitario del lote al cerrar una orden de producción o despiece (RN-PRO-17, RN-DES-06). */
+    public static function fijarCosto(string $lotId, float $unitCost): void
+    {
+        DB::table('lots')->where('id', $lotId)->update(['unit_cost' => round($unitCost, 6), 'updated_at' => now()]);
     }
 }

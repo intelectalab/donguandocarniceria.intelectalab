@@ -47,6 +47,8 @@ Route::prefix('v1/publico')->group(function () {
     Route::post('/ubicacion/{token}', [EnlaceController::class, 'completar'])->middleware('throttle:10,1')->where('token', '[A-Za-z0-9]{32}');
     // SUS · aviso firmado de la pasarela de cobro (RN-SUS-20): sin firma válida no tiene efecto.
     Route::post('/pasarela/{gateway}', PasarelaController::class)->middleware('throttle:120,1')->where('gateway', '[a-z]{3,12}');
+    // ETQ-08: página pública del QR de un lote (sin sesión, RN-ETQ-09).
+    Route::get('/lotes/{token}', [\App\Modulos\Etq\Http\Controllers\PublicoController::class, 'show'])->middleware('throttle:60,1')->where('token', '[A-Za-z0-9]{8,64}');
 });
 
 // INT-04 · webhooks de entrada de los proveedores: públicos, sin sesión. La empresa sale del token de la URL y sin firma

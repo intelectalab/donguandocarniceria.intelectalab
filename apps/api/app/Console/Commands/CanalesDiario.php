@@ -60,6 +60,9 @@ class CanalesDiario extends Command
 
     private function con(?string $f): string
     {
+        if (! class_exists(VisitasService::class) || ! class_exists(LiquidacionesService::class)) {
+            return 'Módulo CON no instalado.';
+        }
         $plan = VisitasService::planificar($f, 7);
         $urg = 0;
         foreach (DB::table('lots')->where('qc_status', 'RECALLED')->pluck('id') as $lot) {
