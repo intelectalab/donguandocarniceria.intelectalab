@@ -265,6 +265,22 @@ final class Empresas
             'actor_type' => $e['actor_type'], 'actor_id' => $e['actor_id'], 'actor_name' => $e['actor_name'],
             'detail' => json_encode(['plan' => $e['plan']->code, 'trial_days' => $e['dias']]), 'occurred_at' => $ahora,
         ]);
+
+        // Unidades de medida base y cliente "Clientes varios" para boletas rápidas y primera venta (ONB-10, ONB-15).
+        foreach ([['NIU', 'Unidad', 'UNIT', 'NIU'], ['KGM', 'Kilogramo', 'WEIGHT', 'KGM'], ['ZZ', 'Servicio', 'SERVICE', 'ZZ']] as [$code, $name, $kind, $sunat]) {
+            if (! $db->table('units_of_measure')->where('code', $code)->exists()) {
+                $db->table('units_of_measure')->insert([
+                    'tenant_id' => $id, 'code' => $code, 'name' => $name, 'kind' => $kind, 'sunat_code' => $sunat,
+                    'status' => 'ACTIVE', 'is_system' => true, 'created_at' => $ahora,
+                ]);
+            }
+        }
+        if (! $db->table('customers')->where('customer_type', 'OTHER')->exists()) {
+            $db->table('customers')->insert([
+                'tenant_id' => $id, 'doc_type' => 'NONE', 'doc_number' => null, 'full_name' => 'Clientes varios',
+                'customer_type' => 'OTHER', 'status' => 'ACTIVE', 'marketing_opt_in' => false, 'created_at' => $ahora,
+            ]);
+        }
     }
 
     /* ------------------------------------------------------------------ internos */
@@ -322,6 +338,21 @@ final class Empresas
         $porCodigo = [];
         foreach ($de('roles') as $r) {
             $porCodigo[$r['code']] = $roles[$r['id']];
+        }
+        if ($db->getSchemaBuilder()->hasTable('kpi_definitions') && ! $db->table('kpi_definitions')->exists()) {
+            $colsKpi = array_flip($db->getSchemaBuilder()->getColumnListing('kpi_definitions'));
+            foreach ($de('kpi_definitions') as $k) {
+                $filaKpi = array_intersect_key($k, $colsKpi);
+                unset($filaKpi['id'], $filaKpi['tenant']);
+                foreach ($filaKpi as $col => $val) {
+                    if (is_array($val)) {
+                        $filaKpi[$col] = json_encode($val, JSON_UNESCAPED_UNICODE);
+                    }
+                }
+                $filaKpi['tenant_id'] = $tenant;
+                $filaKpi['created_at'] = $ahora;
+                $db->table('kpi_definitions')->insert($filaKpi);
+            }
         }
         $filas = [];
         foreach ($plantilla['access'] as $codigo => $matriz) {

@@ -28,6 +28,13 @@ final class Ruc
             : "El RUC no es válido: con esos primeros 10 dígitos debería terminar en {$digito}.";
     }
 
+    public static function conVerificador(string $primeros10): string
+    {
+        $primeros10 = substr(trim($primeros10), 0, 10);
+
+        return $primeros10.self::digito($primeros10);
+    }
+
     private static function digito(string $primeros10): int
     {
         $suma = 0;

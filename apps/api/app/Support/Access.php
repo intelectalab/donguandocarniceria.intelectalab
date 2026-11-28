@@ -17,9 +17,10 @@ final class Access
 {
     private static array $cache = [];
 
-    /** Permisos del servicio (soporte y la propia suscripción): valen aunque el plan no tenga su módulo (OPS, SUS). */
+    /** Permisos del servicio (soporte, suscripción y alta inicial): valen aunque el plan no tenga su módulo (OPS, SUS, ONB). */
     public const DEL_SERVICIO = ['ops.ticket.create', 'ops.ticket.view_all', 'ops.support_access.approve', 'ops.support_access.revoke', 'ops.support_access.view_log',
-        'sus.subscription.view', 'sus.subscription.change_plan', 'sus.subscription.cancel', 'sus.invoice.view', 'sus.payment_method.manage'];
+        'sus.subscription.view', 'sus.subscription.change_plan', 'sus.subscription.cancel', 'sus.invoice.view', 'sus.payment_method.manage',
+        'onb.setup.run', 'onb.template.apply', 'onb.import.run', 'onb.import.release_opening_stock', 'onb.balance.import'];
 
     public static function for(User $user): array
     {
