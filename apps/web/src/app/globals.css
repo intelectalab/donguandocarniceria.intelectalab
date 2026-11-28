@@ -162,3 +162,8 @@ h1, h2, h3 {
 @media (prefers-reduced-motion: reduce) {
   [class*="animate-[ui-"] { animation: none !important; }
 }
+
+select option {
+  background-color: var(--surface);
+  color: var(--ink);
+}

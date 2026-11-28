@@ -29,6 +29,13 @@ abstract class TestCase extends BaseTestCase
     {
         parent::setUp();
         if (! self::$preparada) {
+            // Con más de 300 tablas, políticas RLS y disparadores, borrarlas todas en una sola sentencia supera max_locks_per_transaction (64) en Postgres por defecto.
+            $db = \Illuminate\Support\Facades\DB::connection('pgsql_owner');
+            $db->statement('DROP SCHEMA IF EXISTS audit CASCADE');
+            foreach (array_chunk($db->select("SELECT tablename FROM pg_tables WHERE schemaname = 'public'"), 40) as $lote) {
+                $tablas = implode(', ', array_map(fn ($t) => '"'.$t->tablename.'"', $lote));
+                $db->statement("DROP TABLE IF EXISTS {$tablas} CASCADE");
+            }
             Artisan::call('migrate:fresh', ['--database' => 'pgsql_owner', '--seed' => true, '--force' => true]);
             self::$preparada = true;
         }

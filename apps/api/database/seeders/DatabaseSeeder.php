@@ -17,5 +17,10 @@ class DatabaseSeeder extends Seeder
         $this->call(EquDemoSeeder::class);
         $this->call(CalDemoSeeder::class);
         $this->call(CanalesDemoSeeder::class);
+        $this->call(WebDemoSeeder::class);
+        $this->call(FloDemoSeeder::class);
+        $this->call(PerDemoSeeder::class);
+        $this->call(PrsDemoSeeder::class);
+        $this->call(TabDemoSeeder::class);
     }
 }

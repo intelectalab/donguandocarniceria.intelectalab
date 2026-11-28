@@ -110,7 +110,8 @@ export function Select({ id, className = "", options, placeholder, children, sea
   }
   return (
     <div className="relative">
-      <select {...a11y} {...rest} className={`${CONTROL} ${border} cursor-pointer appearance-none pr-9 ${className}`}>
+      <select {...a11y} {...rest} className={`${CONTROL} ${border} cursor-pointer appearance-none pr-9  ${className}`}>
+
         {placeholder !== undefined && <option value="">{placeholder}</option>}
         {options?.map((o) => <option key={o.value} value={o.value} disabled={o.disabled}>{o.label}</option>)}
         {children}
@@ -234,7 +235,7 @@ function SelectConBuscador({ id, border, className, options, placeholder, value,
             {visibles.map((o, i) => (
               <li key={o.value || "_vacio"} id={`${listaId}-${i}`} data-i={i} role="option" aria-selected={o.value === value} aria-disabled={o.disabled || undefined}
                 onMouseDown={(e) => e.preventDefault()} onClick={() => elegir(o)} onMouseMove={() => setActivo(i)}
-                className={`flex cursor-pointer items-center gap-2 px-3 py-1.5 text-[13px] ${i === activo ? "bg-surface-2" : ""} ${o.disabled ? "cursor-not-allowed opacity-50" : ""} ${o.value === "" ? "text-muted" : "text-ink"}`}>
+                className={`flex cursor-pointer items-center gap-2 px-3 py-1.5 text-[13px] ${i === activo ? "bg-surface-2" : "bg-surface"} ${o.disabled ? "cursor-not-allowed opacity-50" : ""} ${o.value === "" ? "text-muted" : "text-ink"}`}>
                 <span className="min-w-0 flex-1 truncate" title={o.label}>{o.label}</span>
                 {o.value === value && <Check size={14} aria-hidden="true" className="shrink-0 text-primary" />}
               </li>

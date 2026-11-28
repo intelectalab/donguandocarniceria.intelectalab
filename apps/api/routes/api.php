@@ -49,6 +49,8 @@ Route::prefix('v1/publico')->group(function () {
     Route::post('/pasarela/{gateway}', PasarelaController::class)->middleware('throttle:120,1')->where('gateway', '[a-z]{3,12}');
     // ETQ-08: página pública del QR de un lote (sin sesión, RN-ETQ-09).
     Route::get('/lotes/{token}', [\App\Modulos\Etq\Http\Controllers\PublicoController::class, 'show'])->middleware('throttle:60,1')->where('token', '[A-Za-z0-9]{8,64}');
+    // DEL-08: enlace público de seguimiento del reparto (sin sesión, RN-DEL-08).
+    Route::get('/seguimiento/{token}', [\App\Modulos\Del\Http\Controllers\SeguimientoController::class, 'publico'])->middleware('throttle:60,1')->where('token', '[A-Za-z0-9]{16,64}');
 });
 
 // API · la API pública v1 para los sistemas de los clientes (/api/publica/v1), con su clave de API y sin sesión.

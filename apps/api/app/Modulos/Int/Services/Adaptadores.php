@@ -35,7 +35,10 @@ final class Adaptadores
      * Adaptadores reales ya instalados en el sistema: clase que implementa probar(object $conector): array{ok: bool, error?: string}.
      * Cada módulo agrega aquí el suyo cuando lo construye.
      */
-    private const INSTALADOS = [];
+    private const INSTALADOS = [
+        'WooCommerceRestAdapter' => \App\Modulos\Web\Services\Proveedores\WooCommerce::class,
+        'MercadoPagoAdapter' => \App\Modulos\Web\Services\Proveedores\MercadoPago::class,
+    ];
 
     public static function nombreTipo(string $tipo): string
     {

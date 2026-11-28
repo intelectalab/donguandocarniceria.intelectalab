@@ -56,3 +56,9 @@ Schedule::command('crm:posventa recompra')->dailyAt('06:00')->timezone('America/
 
 // TEL · purga nocturna de grabaciones vencidas (RN-TEL-10), en las empresas con Telefonía encendida.
 Schedule::command('tel:purga')->dailyAt('03:00')->timezone('America/Lima')->withoutOverlapping();
+// FAC-07 · RN-FAC-06: procesa la cola de envío de comprobantes y guías al OSE y sus reintentos.
+Schedule::command('fac:procesar-cola')->everyMinute()->withoutOverlapping();
+// WEB · RN-WEB-05: sincroniza stock, precios y consulta de respaldo de pedidos de las tiendas WooCommerce.
+Schedule::command('web:sincronizar')->everyMinute()->withoutOverlapping();
+// TAB · RN-TAB-10: congela los indicadores del mes anterior el día tab_snapshot_day (3) a las 02:00 de Lima.
+Schedule::command('tab:congelar')->dailyAt('02:00')->timezone('America/Lima')->withoutOverlapping();
