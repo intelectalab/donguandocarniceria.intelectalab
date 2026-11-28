@@ -79,7 +79,11 @@ final class Notas
             if (mb_strlen($motivo) < 5) {
                 RuleError::fail('RN-FAC-07', 'Escribe el sustento de la nota (al menos 5 letras).');
             }
-            $serie = Emision::serie($tipo, $ref->brand_id, $ref->establishment_id, ['applies_to' => $ref->doc_type, 'series_id' => $d['series_id'] ?? null]);
+            $serie = Emision::serie($tipo, $ref->brand_id, $ref->establishment_id, [
+                'applies_to' => $ref->doc_type,
+                'series_id' => $d['series_id'] ?? null,
+                'company_id' => $ref->company_id,
+            ]);
 
             // Líneas: por ítem (cantidad de cada línea del comprobante) o un monto global.
             $lineas = [];

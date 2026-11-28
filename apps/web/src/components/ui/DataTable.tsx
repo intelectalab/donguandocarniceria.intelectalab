@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type MouseEvent, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Inbox, Search } from "lucide-react";
 import { Button } from "./Button";
 
@@ -55,7 +55,7 @@ type Props<T> = {
   empty?: ReactNode;
   onRowClick?: (row: T) => void;
   /** Caja de búsqueda sobre la tabla. */
-  search?: { value: string; onChange: (v: string) => void; placeholder?: string };
+  search?: { value: string; onChange: (v: string) => void; placeholder?: string; fullWidth?: boolean };
   /** Orden actual: 'campo' o '-campo'. */
   sort?: string;
   /** Recibe el nuevo orden; "" pide volver al orden inicial. */
@@ -99,6 +99,15 @@ export function DataTable<T>({
   const datosTarjeta = columns.filter((c) => c !== titulo && c !== estado && !c.hideInCard);
   const ordenables = columns.filter((c) => c.sortable);
 
+  function abrirFila(event: MouseEvent<HTMLElement>, row: T) {
+    const target = event.target;
+    const interactivo = target instanceof Element
+      ? target.closest("a, button, input, select, textarea, [role='button'], [data-row-click-ignore]")
+      : null;
+    if (interactivo && interactivo !== event.currentTarget) return;
+    onRowClick?.(row);
+  }
+
   // Selección: la casilla del encabezado marca o desmarca las filas de esta página.
   const marcadas = new Set(selection?.selected ?? []);
   const marcables = selection ? rows.filter((r) => selection.canSelect?.(r) ?? true).map(rowKey) : [];
@@ -128,7 +137,7 @@ export function DataTable<T>({
         // todos del mismo ancho y alineados en columnas aunque bajen a otra fila.
         <div className={`flex flex-wrap items-center gap-2 border-b border-line p-3 ${toolbar ? "sm:grid sm:grid-cols-[repeat(auto-fill,minmax(190px,1fr))] sm:[&>div>*]:!w-full" : ""}`}>
           {search && (
-            <label className={`relative min-w-[200px] flex-1 ${toolbar ? "sm:col-span-2" : "sm:max-w-[320px]"}`}>
+            <label className={`relative min-w-[200px] flex-1 ${toolbar ? "sm:col-span-2" : search.fullWidth ? "sm:max-w-none" : "sm:max-w-[320px]"}`}>
               <span className="sr-only">Buscar</span>
               <Search size={15} aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
               <input type="search" value={search.value} onChange={(e) => search.onChange(e.target.value)}
@@ -189,8 +198,8 @@ export function DataTable<T>({
               {rows.map((row) => (
                 <li key={rowKey(row)}>
                   <div role={onRowClick ? "button" : undefined} tabIndex={onRowClick ? 0 : undefined}
-                    onClick={onRowClick ? () => onRowClick(row) : undefined}
-                    onKeyDown={onRowClick ? (e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onRowClick(row)) : undefined}
+                    onClick={onRowClick ? (e) => abrirFila(e, row) : undefined}
+                    onKeyDown={onRowClick ? (e) => (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) && (e.preventDefault(), onRowClick(row)) : undefined}
                     className={`rounded-xl border px-3.5 py-3 ${marcadas.has(rowKey(row)) ? "border-primary/50 bg-primary-soft/60" : "border-line"} ${onRowClick ? "cursor-pointer outline-none active:bg-surface-2/60 focus-visible:border-primary focus-visible:bg-primary-soft" : ""}`}>
                     <div className="flex items-start justify-between gap-3">
                       {selection && casilla(row, "mt-0.5")}
@@ -256,7 +265,7 @@ export function DataTable<T>({
                   </tr>
                 ))
               ) : rows.map((row) => (
-                <tr key={rowKey(row)} onClick={onRowClick ? () => onRowClick(row) : undefined}
+                <tr key={rowKey(row)} onClick={onRowClick ? (e) => abrirFila(e, row) : undefined}
                   onKeyDown={onRowClick ? (e) => (e.key === "Enter" || e.key === " ") && e.target === e.currentTarget && (e.preventDefault(), onRowClick(row)) : undefined}
                   tabIndex={onRowClick ? 0 : undefined}
                   className={`border-b border-line last:border-0 ${marcadas.has(rowKey(row)) ? "bg-primary-soft/60" : ""} ${onRowClick ? "cursor-pointer outline-none hover:bg-surface-2/60 focus-visible:bg-primary-soft" : ""}`}>

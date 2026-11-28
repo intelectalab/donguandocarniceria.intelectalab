@@ -160,8 +160,14 @@ final class Exportaciones
         Bitacora::registrar($x->contains_personal_data ? 'EXPORT_DOWNLOADED' : 'REPORT_EXPORTED', ['user' => $u, 'entity' => 'data_exports', 'entity_id' => $id,
             'detail' => "{$x->number} · {$x->report_name} · ".number_format($x->rows_count, 0, ',', '.').' filas'.($x->contains_personal_data ? ' con datos personales' : '')]);
 
+        $contentType = match (strtolower(pathinfo($x->file_name, PATHINFO_EXTENSION))) {
+            'zip' => 'application/zip',
+            'csv' => 'text/csv; charset=UTF-8',
+            default => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        };
+
         return Storage::disk(self::DISCO)->download($x->storage_key, $x->file_name, [
-            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'X-Content-Type-Options' => 'nosniff', 'Cache-Control' => 'private, no-store',
+            'Content-Type' => $contentType, 'X-Content-Type-Options' => 'nosniff', 'Cache-Control' => 'private, no-store',
         ]);
     }
 

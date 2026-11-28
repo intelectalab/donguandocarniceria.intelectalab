@@ -16,7 +16,8 @@
     "next": "16.4.6",
     "qrcode-generator": "1.4.4",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "recharts": "^3.11.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

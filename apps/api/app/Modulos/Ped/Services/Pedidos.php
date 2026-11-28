@@ -114,7 +114,7 @@ final class Pedidos
             if (! $marca) {
                 RuleError::fail('RN-PED-02', 'Elige la marca del pedido: un pedido es de una sola marca.');
             }
-            Marcas::activa($marca);
+            Marcas::activa($marca, 'RN-SEP-06');
             if ($antes && $antes->brand_id !== $marca && DB::table('sales_order_lines')->where('sales_order_id', $antes->id)->exists() && ! array_key_exists('lines', $d)) {
                 RuleError::fail('RN-PED-02', 'Cambiar la marca cambia los productos: vuelve a elegirlos.');
             }

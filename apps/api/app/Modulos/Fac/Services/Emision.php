@@ -30,11 +30,18 @@ final class Emision
 
     /**
      * Serie para emitir: la indicada (validada) o la de la marca en ese local.
-     * $opc: series_id, applies_to (notas: INVOICE o RECEIPT), mostrador (serie sin marca del mostrador).
+     * $opc: series_id, applies_to (notas: INVOICE o RECEIPT), mostrador (serie sin marca del mostrador),
+     *       issue_date, company_id (para notas que siguen la empresa del comprobante referenciado, RN-SEP-05).
      */
     public static function serie(string $tipo, string $marca, string $local, array $opc = []): object
     {
-        $empresa = DB::table('establishments')->where('id', $local)->value('company_id') ?? RuleError::fail('RN-FAC-02', 'El local no existe.');
+        $fecha = $opc['issue_date'] ?? now('America/Lima')->toDateString();
+        $vigente = ! empty($opc['company_id']) ? null : Marcas::empresaParaFecha($marca, $fecha);
+        $empresa = $opc['company_id']
+            ?? $vigente?->company_id
+            ?? DB::table('brands')->where('id', $marca)->value('company_id')
+            ?? DB::table('establishments')->where('id', $local)->value('company_id')
+            ?? RuleError::fail('RN-FAC-02', 'El local no existe.');
         if (! empty($opc['series_id'])) {
             $s = DB::table('document_series')->where('id', $opc['series_id'])->first() ?? RuleError::fail('RN-FAC-02', 'La serie no existe.');
             self::validarSerie($s, $tipo, $marca, $local, $empresa, $opc);
@@ -61,6 +68,9 @@ final class Emision
     {
         $nombre = fn (?string $id) => $id ? DB::table('brands')->where('id', $id)->value('name') : null;
         if ($s->company_id !== $empresa) {
+            if (! empty($opc['issue_date']) && Marcas::empresaParaFecha($marca, $opc['issue_date'])) {
+                RuleError::fail('RN-SEP-05', "La serie {$s->series} pertenece a otra razón social: en {$opc['issue_date']} la marca {$nombre($marca)} factura con la empresa vigente en esa fecha.");
+            }
             RuleError::fail('RN-FAC-02', "La serie {$s->series} no pertenece a la empresa emisora.");
         }
         if ($s->doc_type !== $tipo) {
@@ -207,30 +217,43 @@ final class Emision
             }
         }
         $cli = $c['customer'];
-        $marca = Marcas::activa($c['brand_id']);
+        $marca = Marcas::activa($c['brand_id'], 'RN-SEP-05');
         $local = DB::table('establishments')->where('id', $c['establishment_id'])->first(['id', 'company_id', 'address']);
         $fecha = $c['issue_date'] ?? now('America/Lima')->toDateString();
+        $esNota = in_array($c['doc_type'], ['CREDIT_NOTE', 'DEBIT_NOTE'], true);
+        $refCompanyId = ($esNota && ! empty($c['related_document_id']))
+            ? DB::table('sales_documents')->where('id', $c['related_document_id'])->value('company_id')
+            : null;
+        if (! $esNota && DB::getSchemaBuilder()->hasTable('brand_company_history') && DB::table('brand_company_history')->where('brand_id', $marca->id)->exists()) {
+            $vigente = Marcas::empresaParaFecha($marca->id, $fecha);
+            if (! $vigente) {
+                RuleError::fail('RN-SEP-05', "En {$fecha} la marca {$marca->name} ya no tiene empresa emisora vigente en esta plataforma.");
+            }
+            $empresaEmisora = $vigente->company_id;
+        } else {
+            $empresaEmisora = $refCompanyId ?? $marca->company_id ?? $local->company_id;
+        }
         $m = self::montos($lineas);
         $costo = round(array_sum(array_map(fn ($l) => (float) ($l['cost'] ?? 0), $lineas)), 2);
         $credito = ($c['payment_terms'] ?? 'CASH') === 'CREDIT';
         $resumen = $c['doc_type'] === 'RECEIPT' && Catalogos::modoBoletas() === 'SUMMARY';
 
-        $doc = Correlativo::emitir($c['series_id'], function (DocumentSeries $serie, int $numero) use ($c, $cli, $marca, $local, $fecha, $m, $costo, $credito, $resumen, $u) {
+        $doc = Correlativo::emitir($c['series_id'], function (DocumentSeries $serie, int $numero) use ($c, $cli, $marca, $local, $empresaEmisora, $fecha, $m, $costo, $credito, $resumen, $u) {
             // RN-FAC-17: dentro de la misma transacción.
             try {
-                Periodos::abierto($fecha, $local->company_id);
+                Periodos::abierto($fecha, $empresaEmisora);
             } catch (RuleError $e) {
                 RuleError::fail('RN-FAC-17', 'No se emite con fecha de un período cerrado: '.$e->getMessage());
             }
             if ($serie->doc_type !== $c['doc_type']) {
                 RuleError::fail('RN-FAC-02', "La serie {$serie->series} no es de ".mb_strtolower(Catalogos::TIPOS[$c['doc_type']]).'.');
             }
-            if ($serie->company_id !== $local->company_id) {
-                RuleError::fail('RN-FAC-02', "La serie {$serie->series} no pertenece a la empresa emisora.");
+            if ($serie->company_id !== $empresaEmisora) {
+                RuleError::fail('RN-SEP-05', "La serie {$serie->series} pertenece a otra empresa: en {$fecha} la marca {$marca->name} factura con su empresa vigente.");
             }
             $full = Correlativo::numeroCompleto($serie->series, $numero);
             $id = DB::table('sales_documents')->insertGetId([
-                'company_id' => $local->company_id, 'establishment_id' => $local->id, 'brand_id' => $marca->id,
+                'company_id' => $empresaEmisora, 'establishment_id' => $local->id, 'brand_id' => $marca->id,
                 'series_id' => $serie->id, 'doc_type' => $c['doc_type'], 'series' => $serie->series, 'number' => $numero, 'full_number' => $full,
                 'issue_date' => $fecha, 'issued_at' => now(),
                 'customer_id' => $cli->id, 'customer_doc_type' => $cli->doc_type ?: 'NONE', 'customer_doc_number' => $cli->doc_number ?: null,
@@ -329,7 +352,10 @@ final class Emision
                 RuleError::fail('RN-FAC-13', 'El vencimiento no puede ser antes de la fecha de emisión.');
             }
         }
-        $serie = self::serie($d['doc_type'], $d['brand_id'], $d['establishment_id'], ['series_id' => $d['series_id'] ?? null]);
+        $serie = self::serie($d['doc_type'], $d['brand_id'], $d['establishment_id'], [
+            'series_id' => $d['series_id'] ?? null,
+            'issue_date' => $fecha,
+        ]);
 
         return self::registrar($extra + [
             'doc_type' => $d['doc_type'], 'series_id' => $serie->id, 'brand_id' => $d['brand_id'], 'establishment_id' => $d['establishment_id'],
