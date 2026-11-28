@@ -64,3 +64,5 @@ Schedule::command('web:sincronizar')->everyMinute()->withoutOverlapping();
 Schedule::command('tab:congelar')->dailyAt('02:00')->timezone('America/Lima')->withoutOverlapping();
 // API · RN-API-08: procesa cada minuto los reintentos vencidos de entregas de webhooks salientes.
 Schedule::command('api:procesar-webhooks')->everyMinute()->withoutOverlapping();
+// ADS · RN-ADS-01: importa cada mañana a las 06:00 (Lima) los últimos ads_import_lookback_days (3) días de cada cuenta activa.
+Schedule::command('ads:importar-gasto')->dailyAt('06:00')->timezone('America/Lima')->withoutOverlapping();
