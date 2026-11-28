@@ -1,6 +1,7 @@
 // Token de Sanctum en una cookie: el proxy la lee para redirigir y el cliente de la API la envía.
 // Con "Mantener la sesión", dura lo mismo que el token largo de la API (30 días).
 export const TOKEN_COOKIE = "aycha_token";
+export const CONSOLA_COOKIE = "aycha_consola";
 const REMEMBER_MAX_AGE = 60 * 60 * 24 * 30;
 
 export function getToken(): string | null {

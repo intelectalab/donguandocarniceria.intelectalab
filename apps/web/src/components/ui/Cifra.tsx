@@ -15,6 +15,8 @@ const TONO = {
  * - icono: en un cuadro de color suave, como en erp-saas.
  * - tono: borde de color a la izquierda y el ícono del mismo color, para llamar la atención.
  * - destacada: fondo con el degradado del menú; para la cifra principal de la pantalla (una sola).
+ * - En el celular (menos de 640 px) el ícono no se muestra y el valor es más chico: así un monto como
+ *   «S/ 19,844.72» entra en media pantalla sin montarse sobre el ícono.
  */
 export function Cifra({ titulo, valor, detalle, tono, icono: Icono, destacada }: {
   titulo: string; valor?: string; detalle?: string; tono?: "ok" | "warn" | "bad"; icono?: LucideIcon; destacada?: boolean;
@@ -29,13 +31,13 @@ export function Cifra({ titulo, valor, detalle, tono, icono: Icono, destacada }:
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <p className={`text-[11.5px] font-semibold tracking-wide uppercase ${destacada ? "text-white/75" : "text-muted"}`}>{titulo}</p>
-          <p className={`font-display text-[24px] leading-tight font-bold tabular-nums ${destacada ? "text-white" : "text-ink"}`}>{valor ?? "…"}</p>
+          <p className={`font-display text-[20px] leading-tight sm:text-[24px] font-bold tabular-nums ${destacada ? "text-white" : "text-ink"}`}>{valor ?? "…"}</p>
           {detalle !== undefined && (
             <p className={`truncate text-[12px] ${destacada ? "text-white/75" : "text-muted"}`} title={detalle}>{detalle || " "}</p>
           )}
         </div>
         {Icono && (
-          <span aria-hidden="true" className={`grid size-9 shrink-0 place-items-center rounded-[10px] ${destacada
+          <span aria-hidden="true" className={`hidden size-9 shrink-0 sm:grid place-items-center rounded-[10px] ${destacada
             ? "bg-white/15 text-white" : t ? t.icono : "bg-primary-soft text-primary"}`}>
             <Icono size={18} />
           </span>

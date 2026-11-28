@@ -11,3 +11,6 @@ export { Cifra } from "./Cifra";
 export { Franja } from "./Franja";
 export { Badge, StatusBadge, Alert, PageHeader, Tabs, DetailList, type Tone } from "./display";
 export { toast, confirmAction, UiHost } from "./feedback";
+export { FiltroFecha } from "./FiltroFecha";
+export { FiltroSelect } from "./FiltroSelect";
+export { ArchivoImportar } from "./ArchivoImportar";
