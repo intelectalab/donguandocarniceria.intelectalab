@@ -5,11 +5,14 @@ namespace App\Modulos\Api\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modulos\Api\Services\Catalogo;
 use App\Modulos\Api\Services\Claves;
+use App\Modulos\Api\Services\Documentacion;
+use App\Modulos\Api\Services\Sandbox;
 use App\Modulos\Api\Services\Uso;
+use App\Modulos\Api\Services\Webhooks;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
-/** API-01 Claves, API-02 Crear clave, API-03 Detalle de clave y API-11 Eventos y alcances. */
+/** API-01 a API-11: Claves, Webhooks, Entregas, Documentación, Sandbox, Uso y Catálogo de eventos y alcances. */
 class ClaveController extends Controller
 {
     public function lista(Request $request)
@@ -85,5 +88,189 @@ class ClaveController extends Controller
         }
 
         return response()->json(Uso::panel($f, $request->user()));
+    }
+
+    /* ------------------------------------------------------------------ API-04 y API-05 Destinos de webhooks */
+
+    public function destinos(Request $request)
+    {
+        $f = $request->validate([
+            'estado' => ['nullable', Rule::in(array_keys(Webhooks::ESTADOS_DESTINO))],
+            'entorno' => ['nullable', Rule::in(array_keys(Claves::ENTORNOS))],
+            'buscar' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        return response()->json(Webhooks::listaDestinos($f, $request->user()));
+    }
+
+    public function formularioDestino(Request $request)
+    {
+        $f = $request->validate(['id' => ['nullable', 'uuid']]);
+
+        return response()->json(Webhooks::formularioDestino($f['id'] ?? null, $request->user()));
+    }
+
+    public function revisarUrl(Request $request)
+    {
+        $d = $request->validate(['url' => ['required', 'string', 'max:500']]);
+
+        return response()->json(Webhooks::revisarUrl($d['url']));
+    }
+
+    public function verDestino(Request $request, string $id)
+    {
+        return response()->json(Webhooks::verDestino($id, $request->user()));
+    }
+
+    public function crearDestino(Request $request)
+    {
+        $d = $request->validate([
+            'name' => ['required', 'string', 'min:3', 'max:120'],
+            'description' => ['nullable', 'string', 'max:500'],
+            'url' => ['required', 'string', 'max:500'],
+            'environment' => ['nullable', Rule::in(array_keys(Claves::ENTORNOS))],
+            'events' => ['required', 'array', 'min:1', 'max:20'],
+            'events.*' => ['string', 'max:60'],
+            'brand_ids' => ['nullable', 'array', 'max:20'],
+            'brand_ids.*' => ['uuid'],
+            'customer_id' => ['nullable', 'uuid'],
+            'sim_mode' => ['nullable', Rule::in(array_keys(Webhooks::SIMULADOR))],
+        ], [], ['name' => 'nombre', 'url' => 'URL', 'events' => 'eventos']);
+
+        return response()->json(Webhooks::guardarDestino(null, $d, $request->user()), 201);
+    }
+
+    public function editarDestino(Request $request, string $id)
+    {
+        $d = $request->validate([
+            'name' => ['required', 'string', 'min:3', 'max:120'],
+            'description' => ['nullable', 'string', 'max:500'],
+            'url' => ['required', 'string', 'max:500'],
+            'events' => ['required', 'array', 'min:1', 'max:20'],
+            'events.*' => ['string', 'max:60'],
+            'brand_ids' => ['nullable', 'array', 'max:20'],
+            'brand_ids.*' => ['uuid'],
+            'customer_id' => ['nullable', 'uuid'],
+            'sim_mode' => ['nullable', Rule::in(array_keys(Webhooks::SIMULADOR))],
+        ], [], ['name' => 'nombre', 'url' => 'URL', 'events' => 'eventos']);
+
+        return response()->json(Webhooks::guardarDestino($id, $d, $request->user()));
+    }
+
+    public function estadoDestino(Request $request, string $id)
+    {
+        $d = $request->validate([
+            'status' => ['required', Rule::in(['ACTIVE', 'PAUSED'])],
+            'reason' => ['nullable', 'string', 'max:500'],
+        ], [], ['status' => 'estado', 'reason' => 'motivo']);
+
+        return response()->json(Webhooks::cambiarEstado($id, $d['status'], $d['reason'] ?? null, $request->user()));
+    }
+
+    public function rotarSecretoDestino(Request $request, string $id)
+    {
+        return response()->json(Webhooks::rotarSecreto($id, $request->user()));
+    }
+
+    public function probarDestino(Request $request, string $id)
+    {
+        return response()->json(Webhooks::enviarPrueba($id, $request->user()));
+    }
+
+    /* ------------------------------------------------------------------ API-06 y API-07 Entregas */
+
+    public function entregas(Request $request)
+    {
+        $f = $request->validate([
+            'estado' => ['nullable', Rule::in(array_keys(Webhooks::ESTADOS_ENTREGA))],
+            'destino' => ['nullable', 'uuid'],
+            'evento' => ['nullable', 'string', 'max:60'],
+            'entorno' => ['nullable', Rule::in(array_keys(Claves::ENTORNOS))],
+            'fecha' => ['nullable', 'date_format:Y-m-d'],
+            'buscar' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        return response()->json(Webhooks::listaEntregas($f, $request->user()));
+    }
+
+    public function procesarEntregas(Request $request)
+    {
+        $d = $request->validate([
+            'all' => ['nullable', 'boolean'],
+            'endpoint' => ['nullable', 'uuid'],
+        ]);
+        $n = Webhooks::procesarCola(['all' => ! empty($d['all']), 'endpoint' => $d['endpoint'] ?? null]);
+
+        return response()->json(['procesadas' => $n]);
+    }
+
+    public function verEntrega(Request $request, string $id)
+    {
+        return response()->json(Webhooks::verEntrega($id, $request->user()));
+    }
+
+    public function intentarEntrega(Request $request, string $id)
+    {
+        Webhooks::intentar($id);
+
+        return response()->json(Webhooks::verEntrega($id, $request->user()));
+    }
+
+    public function reenviarEntrega(Request $request, string $id)
+    {
+        return response()->json(Webhooks::reenviar($id, $request->user()));
+    }
+
+    /* ------------------------------------------------------------------ API-08 Documentación y API-09 Sandbox */
+
+    public function documentacion(Request $request)
+    {
+        return response()->json(Documentacion::ver($request->getSchemeAndHttpHost()));
+    }
+
+    public function openapi(Request $request)
+    {
+        return response()->json(Documentacion::openapi($request->getSchemeAndHttpHost()));
+    }
+
+    public function calcularFirma(Request $request)
+    {
+        $d = $request->validate([
+            'secret' => ['required', 'string', 'max:200'],
+            't' => ['required', 'string', 'max:30'],
+            'body' => ['present', 'string', 'max:20000'],
+        ]);
+        $v1 = Webhooks::firma($d['secret'], $d['t'], $d['body']);
+
+        return response()->json([
+            'message' => "{$d['t']}.{$d['body']}",
+            'v1' => $v1,
+            'header' => "GestionCarnica-Signature: t={$d['t']}, v1={$v1}",
+        ]);
+    }
+
+    public function probarConsola(Request $request)
+    {
+        $d = $request->validate([
+            'key_id' => ['nullable', 'uuid'],
+            'token' => ['nullable', 'string', 'max:120'],
+            'method' => ['required', Rule::in(['GET', 'POST'])],
+            'path' => ['required', 'string', 'max:255'],
+            'ip' => ['nullable', 'string', 'max:45'],
+            'idempotency_key' => ['nullable', 'string', 'max:80'],
+            'body' => ['nullable', 'array'],
+        ]);
+
+        return response()->json(Documentacion::probar($d));
+    }
+
+    public function sandbox(Request $request)
+    {
+        return response()->json(Sandbox::panel($request->user()));
+    }
+
+    public function reiniciarSandbox(Request $request)
+    {
+        return response()->json(Sandbox::reiniciar($request->user()));
     }
 }

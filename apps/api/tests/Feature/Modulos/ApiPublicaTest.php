@@ -68,8 +68,8 @@ class ApiPublicaTest extends TestCase
         $this->api('hola', 'GET', '/orders')->assertStatus(401);
         $this->api('ak_live_zzzzzzzz_'.str_repeat('A', 40), 'GET', '/orders')->assertStatus(401)->assertJsonPath('code', 'RN-API-11');
         $this->api(substr($tk, 0, 17).str_repeat('B', 40), 'GET', '/orders')->assertStatus(401)->assertJsonPath('message', 'El secreto no corresponde a la clave.');
-        // Pruebas solo en el sandbox; IP fuera de la lista; alcance que no tiene.
-        $this->api($prueba, 'GET', '/orders')->assertStatus(403)->assertJsonPath('code', 'RN-API-16');
+        // Pruebas: opera en el sandbox emparejado, nunca lee producción (RN-API-16).
+        $this->api($prueba, 'GET', '/orders')->assertOk()->assertJsonPath('sandbox', true);
         $this->api($conIp, 'GET', '/orders')->assertStatus(403)->assertJsonPath('code', 'RN-API-11');
         $this->api($conIp, 'GET', '/orders', ip: '181.65.70.44')->assertOk();
         $this->api($soloStock, 'GET', '/orders')->assertStatus(403)->assertJsonPath('code', 'RN-API-03');
@@ -176,8 +176,8 @@ class ApiPublicaTest extends TestCase
         // Las reglas de Pedidos: un SKU que no existe y la falta de líneas no crean nada.
         $this->api($tk, 'POST', '/orders', ['lines' => [['sku' => 'NO-EXISTE', 'qty' => 1]]] + $cuerpo, ['Idempotency-Key' => 'mal-1'])->assertStatus(422)->assertJsonPath('code', 'RN-PED-02');
         $this->api($tk, 'POST', '/orders', ['lines' => []] + $cuerpo, ['Idempotency-Key' => 'mal-2'])->assertStatus(422)->assertJsonPath('code', 'RN-PED-01');
-        // El comprobante por la API llega con Comprobantes.
-        $this->api($tk, 'POST', "/orders/{$numero}/documents", [], ['Idempotency-Key' => 'doc-1'])->assertStatus(501)->assertJsonPath('code', 'RN-API-14');
+        // El comprobante por la API solo se emite cuando el pedido está entregado (RN-API-14).
+        $this->api($tk, 'POST', "/orders/{$numero}/documents", [], ['Idempotency-Key' => 'doc-1'])->assertStatus(422)->assertJsonPath('code', 'RN-API-14');
 
         // Cliente nuevo con RUC; una clave con cliente vinculado no registra clientes ni pide para otros.
         $c = $this->api($tk, 'POST', '/customers', ['doc_type' => 'DNI', 'doc_number' => '45879632', 'name' => 'Rosa Elena Pinto', 'phone' => '987654210'], ['Idempotency-Key' => 'cli-1']);

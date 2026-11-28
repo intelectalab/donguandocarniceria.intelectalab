@@ -87,9 +87,18 @@ final class Catalogo
             $p = '%'.addcslashes($t, '%_\\').'%';
             $q->where(fn ($w) => $w->where('e.code', 'ilike', $p)->orWhere('e.description', 'ilike', $p));
         }
+        $suscritos = [];
+        if (DB::selectOne("SELECT to_regclass('public.api_webhook_endpoints') AS t")?->t) {
+            foreach (DB::table('api_webhook_endpoints')->where('status', 'ACTIVE')->pluck('events') as $evJson) {
+                foreach (json_decode((string) $evJson, true) ?: [] as $evCode) {
+                    $suscritos[$evCode] = ($suscritos[$evCode] ?? 0) + 1;
+                }
+            }
+        }
         $eventos = $q->orderBy('e.sort_order')->get(['e.*', 's.name as alcance'])->map(fn ($e) => [
             'code' => $e->code, 'module_code' => $e->module_code, 'modulo' => self::MODULOS[$e->module_code] ?? $e->module_code, 'scope_code' => $e->scope_code, 'alcance' => $e->alcance,
             'description' => $e->description, 'version' => $e->version, 'status' => $e->status, 'estado' => self::ESTADOS_EVENTO[$e->status] ?? $e->status, 'retired_at' => $e->retired_at,
+            'destinos_activos' => (int) ($suscritos[$e->code] ?? 0),
             'ejemplo' => self::ejemplo($e->code),
         ])->all();
         $mods = DB::table('api_event_types')->distinct()->orderBy('module_code')->pluck('module_code');

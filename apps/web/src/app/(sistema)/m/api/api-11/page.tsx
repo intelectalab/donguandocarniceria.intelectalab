@@ -7,7 +7,7 @@ import { fecha } from "@/lib/formato";
 import type { Alcance } from "@/modulos/api/comun";
 
 type Opcion = { value: string; label: string };
-type Evento = { code: string; module_code: string; modulo: string; scope_code: string; alcance: string; description: string; version: string; status: string; estado: string; retired_at: string | null; ejemplo: unknown };
+type Evento = { code: string; module_code: string; modulo: string; scope_code: string; alcance: string; description: string; version: string; status: string; estado: string; retired_at: string | null; destinos_activos?: number; ejemplo: unknown };
 type Catalogo = { eventos: Evento[]; alcances: Alcance[]; opciones: { modulos: Opcion[]; estados: Opcion[]; alcances: Opcion[] }; firma: { cabecera: string; formato: string; reintentos: number[] } };
 
 /** API-11 Eventos y alcances: los eventos que pueden recibir los webhooks, con su alcance, versión y ejemplo; y los alcances con sus operaciones. */
@@ -39,6 +39,7 @@ export default function EventosYAlcances() {
     { key: "modulo", header: "Módulo", hideOnMobile: true, render: (e) => <span className="text-[12.5px]">{e.modulo}</span> },
     { key: "alcance", header: "Alcance que exige", render: (e) => <span className="font-mono text-[12px]">{e.scope_code}</span> },
     { key: "version", header: "Versión", hideOnMobile: true, render: (e) => <span className="font-mono text-[12.5px]">{e.version}</span> },
+    { key: "destinos_activos", header: "Destinos activos", align: "right", hideOnMobile: true, render: (e) => <span className="text-[12.5px]">{e.destinos_activos ?? 0}</span> },
     { key: "estado", header: "Estado", render: (e) => <Badge tone={e.status === "ACTIVE" ? "ok" : "neutral"}>{e.status === "RETIRED" && e.retired_at ? `Retirado el ${fecha(e.retired_at)}` : e.estado}</Badge> },
   ];
   const colAlcances: Column<Alcance>[] = [
@@ -72,7 +73,7 @@ export default function EventosYAlcances() {
             <DetailList items={[
               { label: "Módulo", value: ver.modulo }, { label: "Alcance que exige", value: <span className="font-mono">{ver.scope_code}</span> },
               { label: "Versión del contenido", value: ver.version }, { label: "Estado", value: ver.status === "RETIRED" && ver.retired_at ? `Retirado el ${fecha(ver.retired_at)}` : ver.estado },
-              { label: "Destinos suscritos", value: "Se ven cuando haya destinos de webhooks" },
+              { label: "Destinos activos suscritos", value: String(ver.destinos_activos ?? 0) },
             ]} />
             {ver.code === "stock.low" && <Alert tone="info">El umbral es el mínimo de la presentación en Almacenes; si no tiene, el parámetro de stock bajo de la API.</Alert>}
             <div className="grid gap-1.5">

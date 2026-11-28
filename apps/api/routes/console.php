@@ -62,3 +62,5 @@ Schedule::command('fac:procesar-cola')->everyMinute()->withoutOverlapping();
 Schedule::command('web:sincronizar')->everyMinute()->withoutOverlapping();
 // TAB · RN-TAB-10: congela los indicadores del mes anterior el día tab_snapshot_day (3) a las 02:00 de Lima.
 Schedule::command('tab:congelar')->dailyAt('02:00')->timezone('America/Lima')->withoutOverlapping();
+// API · RN-API-08: procesa cada minuto los reintentos vencidos de entregas de webhooks salientes.
+Schedule::command('api:procesar-webhooks')->everyMinute()->withoutOverlapping();

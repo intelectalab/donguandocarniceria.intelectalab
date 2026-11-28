@@ -5,6 +5,7 @@ namespace App\Modulos\Api\Services;
 use App\Models\User;
 use App\Modulos\Cat\Services\Precios;
 use App\Modulos\Cli\Services\Clientes;
+use App\Modulos\Fac\Services\Emision;
 use App\Modulos\Ped\Services\Pedidos;
 use App\Support\Events;
 use App\Support\RuleError;
@@ -81,6 +82,9 @@ final class Publica
 
     public static function listarPedidos(object $k, array $q): array
     {
+        if ($k->environment === 'TEST') {
+            return Sandbox::listarPedidos($k, $q);
+        }
         $b = self::pedidos($k)->where('o.status', '<>', 'DRAFT');
         if (! empty($q['status'])) {
             $b->where('o.status', strtoupper((string) $q['status']));
@@ -96,6 +100,9 @@ final class Publica
 
     public static function verPedido(object $k, string $numero): array
     {
+        if ($k->environment === 'TEST') {
+            return Sandbox::verPedido($k, $numero);
+        }
         $o = self::pedidos($k)->where('o.number', $numero)->first(['o.*', 'cu.full_name', 'cu.trade_name']) ?? abort(response()->json(['code' => 'RN-API-15', 'message' => "No existe el pedido {$numero}."], 404));
 
         return self::pedidoSalida($o, self::lineas([$o->id])[$o->id] ?? []);
@@ -104,6 +111,9 @@ final class Publica
     /** Crea y confirma el pedido con las reglas de Pedidos. Si falta algo para confirmarlo, no queda nada creado. */
     public static function crearPedido(object $k, array $b): array
     {
+        if ($k->environment === 'TEST') {
+            return Sandbox::crearPedido($k, $b);
+        }
         $quien = User::find($k->created_by);
         if (! $quien || ($quien->status ?? 'ACTIVE') !== 'ACTIVE') {
             RuleError::fail('RN-API-11', 'Quien creó la clave ya no está activo en la empresa: crea una clave nueva.');
@@ -159,14 +169,65 @@ final class Publica
             return $o;
         });
         Events::emit('api.order_created', 'sales_orders', $o->id, ['key' => $k->prefix, 'number' => $o->number]);
+        $salida = self::verPedido($k, $o->number);
+        Webhooks::publicar('order.created', $salida, ['brand_id' => $o->brand_id, 'customer_id' => $o->customer_id, 'source_id' => $o->id]);
+        Webhooks::publicar('order.confirmed', $salida, ['brand_id' => $o->brand_id, 'customer_id' => $o->customer_id, 'source_id' => $o->id.'|CONFIRMED']);
 
-        return self::verPedido($k, $o->number);
+        return $salida;
+    }
+
+    /** Emite el comprobante de un pedido entregado (o en el sandbox usa el OSE FAKE, RN-API-14, RN-API-16, CA-API-07). */
+    public static function emitirComprobante(object $k, string $numero): array
+    {
+        if ($k->environment === 'TEST') {
+            return Sandbox::emitirComprobante($k, $numero);
+        }
+        $o = self::pedidos($k)->where('o.number', $numero)->first(['o.*'])
+            ?? abort(response()->json(['code' => 'RN-API-15', 'message' => "No existe el pedido {$numero}."], 404));
+        $existente = DB::table('sales_documents')->where('order_id', $o->id)->whereIn('doc_type', ['INVOICE', 'RECEIPT'])
+            ->where('status', 'ISSUED')->where('sunat_status', '<>', 'REJECTED')->first();
+        if (! $existente) {
+            if (! in_array($o->status, ['DELIVERED', 'CLOSED'], true)) {
+                $est = Emision::estadoPedido($o->status);
+                RuleError::fail('RN-API-14', "El pedido {$o->number} está «{$est}»: el comprobante por la API se emite cuando el pedido está entregado.");
+            }
+            $quien = User::find($k->created_by);
+            if (! $quien || ($quien->status ?? 'ACTIVE') !== 'ACTIVE') {
+                RuleError::fail('RN-API-11', 'Quien creó la clave ya no está activo en la empresa: crea una clave nueva.');
+            }
+            $existente = Emision::desdePedido($o->id, [], $quien);
+        }
+        $salida = [
+            'type' => $existente->doc_type,
+            'doc_type' => $existente->doc_type,
+            'number' => $existente->full_number,
+            'full_number' => $existente->full_number,
+            'issue_date' => $existente->issue_date,
+            'brand' => self::codigoMarca($existente->brand_id),
+            'customer' => ['doc_type' => $existente->customer_doc_type, 'doc_number' => $existente->customer_doc_number, 'name' => $existente->customer_name],
+            'order' => $o->number,
+            'order_number' => $o->number,
+            'currency' => $existente->currency ?: 'PEN',
+            'subtotal' => (float) $existente->subtotal,
+            'igv' => (float) $existente->igv,
+            'total' => (float) $existente->total,
+            'sunat_status' => $existente->sunat_status,
+            'status' => $existente->status,
+        ];
+        if ($existente->sunat_status === 'ACCEPTED') {
+            Webhooks::publicar('document.accepted', $salida, ['brand_id' => $existente->brand_id, 'customer_id' => $existente->customer_id, 'source_id' => $existente->id]);
+        }
+
+        return $salida;
     }
 
     /* ------------------------------------------------------------------ clientes */
 
     public static function listarClientes(object $k, array $q): array
     {
+        if ($k->environment === 'TEST') {
+            return Sandbox::listarClientes($k, $q);
+        }
         $b = DB::table('customers')->whereNull('merged_into_id')->where('status', '<>', 'INACTIVE');
         if ($k->customer_id) {
             $b->where('id', $k->customer_id);
@@ -187,6 +248,9 @@ final class Publica
 
     public static function crearCliente(object $k, array $b): array
     {
+        if ($k->environment === 'TEST') {
+            return Sandbox::crearCliente($k, $b);
+        }
         if ($k->customer_id) {
             RuleError::fail('RN-API-11', 'Una clave con cliente vinculado no registra clientes.');
         }
@@ -221,6 +285,9 @@ final class Publica
 
     public static function productos(object $k, array $q): array
     {
+        if ($k->environment === 'TEST') {
+            return Sandbox::productos($k, $q);
+        }
         $vs = self::variantes($k, $q)->orderBy('v.sku')->limit(self::limite($q))->get(['v.sku', 'v.name', 'v.brand_id', 'v.sale_mode', 'v.nominal_weight_kg', 'v.min_order_qty', 'v.qty_step', 'p.name as product']);
 
         return ['data' => $vs->map(fn ($v) => ['sku' => $v->sku, 'name' => $v->name, 'product' => $v->product, 'brand' => self::codigoMarca($v->brand_id), 'sale_mode' => $v->sale_mode,
@@ -230,6 +297,9 @@ final class Publica
 
     public static function precios(object $k, array $q): array
     {
+        if ($k->environment === 'TEST') {
+            return Sandbox::precios($k, $q);
+        }
         $vs = self::variantes($k, $q)->orderBy('v.sku')->limit(self::limite($q))->get(['v.id', 'v.sku', 'v.name', 'v.brand_id']);
         $tipo = $k->customer_id ? (DB::table('customers')->where('id', $k->customer_id)->value('customer_type') ?? 'BUSINESS') : 'PERSON';
         $ps = Precios::vigentes($vs->pluck('id')->all(), ['canal' => self::canal($k), 'tipo_cliente' => $tipo]);
@@ -240,6 +310,9 @@ final class Publica
 
     public static function stock(object $k, array $q): array
     {
+        if ($k->environment === 'TEST') {
+            return Sandbox::stock($k, $q);
+        }
         $vs = self::variantes($k, $q)->orderBy('v.sku')->limit(self::limite($q))->get(['v.id', 'v.sku', 'v.name', 'v.brand_id', 'v.sale_mode']);
         $saldo = DB::table('stock_balances as s')->join('warehouses as w', 'w.id', '=', 's.warehouse_id')->where('w.allows_sale', true)->where('w.status', 'ACTIVE')
             ->whereIn('s.variant_id', $vs->pluck('id'))->groupBy('s.variant_id')
@@ -253,6 +326,9 @@ final class Publica
 
     public static function comprobantes(object $k, array $q): array
     {
+        if ($k->environment === 'TEST') {
+            return Sandbox::comprobantes($k, $q);
+        }
         $b = DB::table('sales_documents as d')->leftJoin('sales_orders as o', 'o.id', '=', 'd.order_id');
         if ($m = self::marcasDe($k)) {
             $b->whereIn('d.brand_id', $m);
@@ -276,6 +352,9 @@ final class Publica
 
     public static function cobros(object $k, array $q): array
     {
+        if ($k->environment === 'TEST') {
+            return Sandbox::cobros($k, $q);
+        }
         $b = DB::table('payments as p')->leftJoin('payment_methods as m', 'm.id', '=', 'p.payment_method_id');
         if ($m = self::marcasDe($k)) {
             $b->whereIn('p.brand_id', $m);
@@ -294,11 +373,52 @@ final class Publica
 
     public static function entregas(object $k, array $q): array
     {
+        if ($k->environment === 'TEST') {
+            return Sandbox::entregas($k, $q);
+        }
         $dia = ! empty($q['date']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $q['date']) ? $q['date'] : now('America/Lima')->toDateString();
         $b = self::pedidos($k)->join('delivery_stops as s', 's.order_id', '=', 'o.id')->join('delivery_routes as r', 'r.id', '=', 's.route_id')->where('r.route_date', $dia);
         $xs = $b->orderBy('r.code')->orderBy('s.seq')->limit(self::LIMITE)->get(['o.number', 'o.brand_id', 'cu.full_name', 'cu.trade_name', 'r.code as route', 's.seq', 's.status', 's.eta', 's.closed_at', 's.fail_reason']);
 
         return ['date' => $dia, 'data' => $xs->map(fn ($x) => ['order' => $x->number, 'brand' => self::codigoMarca($x->brand_id), 'customer' => $x->trade_name ?: $x->full_name,
             'route' => $x->route, 'stop' => (int) $x->seq, 'status' => $x->status, 'eta' => $x->eta, 'closed_at' => $x->closed_at, 'fail_reason' => $x->fail_reason])->all()];
+    }
+
+    /* ------------------------------------------------------------------ destinos de webhooks por API (webhooks:write) */
+
+    public static function listarDestinosWebhook(object $k): array
+    {
+        $filas = DB::table('api_webhook_endpoints')->where('environment', $k->environment)->orderByDesc('created_at')->get();
+
+        return [
+            'data' => $filas->map(fn ($e) => [
+                'id' => $e->id,
+                'name' => $e->name,
+                'url' => $e->url,
+                'events' => json_decode((string) $e->events, true) ?: [],
+                'status' => $e->status,
+                'failure_streak' => (int) $e->failure_streak,
+            ])->all(),
+        ];
+    }
+
+    public static function crearDestinoWebhook(object $k, array $b): array
+    {
+        $r = Webhooks::guardarDestino(null, [
+            'name' => $b['name'] ?? 'Destino creado por API',
+            'url' => $b['url'] ?? '',
+            'events' => $b['events'] ?? [],
+            'environment' => $k->environment,
+            'brand_ids' => self::marcasDe($k),
+            'customer_id' => $k->customer_id,
+        ], null, "API {$k->prefix}");
+
+        return [
+            'id' => $r['destino']['id'],
+            'name' => $r['destino']['name'],
+            'url' => $r['destino']['url'],
+            'events' => $r['destino']['events'],
+            'secret' => $r['secret'],
+        ];
     }
 }

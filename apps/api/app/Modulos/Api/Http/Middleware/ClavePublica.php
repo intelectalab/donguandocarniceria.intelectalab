@@ -67,9 +67,6 @@ final class ClavePublica
         if ($estado === 'EXPIRED') {
             return $this->error($id, 401, 'RN-API-02', "La clave {$k->prefix} venció el ".date('d/m/Y', strtotime($k->expires_at)).'.');
         }
-        if ($k->environment === 'TEST') {
-            return $this->error($id, 403, 'RN-API-16', 'Las claves de pruebas funcionan solo en el sandbox, que todavía no está disponible. Usa una clave de producción.');
-        }
         $ips = json_decode((string) $k->allowed_ips, true) ?: [];
         if ($ips && ! array_filter($ips, fn ($r) => self::ipEn((string) $request->ip(), $r))) {
             return $this->error($id, 403, 'RN-API-11', 'La IP '.$request->ip().' no está en la lista permitida de la clave.');

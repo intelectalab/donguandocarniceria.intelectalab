@@ -43,7 +43,17 @@ class PublicaController extends Controller
 
     public function comprobantePedido(Request $r, string $numero)
     {
-        return $this->escritura($r, fn () => [501, ['code' => 'RN-API-14', 'message' => 'La emisión de comprobantes por la API llega con el módulo de Comprobantes. El pedido no se modificó.']]);
+        return $this->escritura($r, fn () => [201, Publica::emitirComprobante($this->clave($r), $numero)]);
+    }
+
+    public function destinosWebhook(Request $r)
+    {
+        return response()->json(Publica::listarDestinosWebhook($this->clave($r)));
+    }
+
+    public function crearDestinoWebhook(Request $r)
+    {
+        return $this->escritura($r, fn () => [201, Publica::crearDestinoWebhook($this->clave($r), $r->json()->all())]);
     }
 
     public function clientes(Request $r)

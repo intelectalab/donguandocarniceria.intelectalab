@@ -19,6 +19,8 @@ Route::prefix('publica/v1')->middleware('throttle:600,1,apipublica-ip')->group(f
     Route::get('/documents', [PublicaController::class, 'comprobantes'])->middleware('clave:documents:read');
     Route::get('/payments', [PublicaController::class, 'cobros'])->middleware('clave:payments:read');
     Route::get('/deliveries', [PublicaController::class, 'entregas'])->middleware('clave:deliveries:read');
+    Route::get('/webhook-endpoints', [PublicaController::class, 'destinosWebhook'])->middleware('clave:webhooks:write');
+    Route::post('/webhook-endpoints', [PublicaController::class, 'crearDestinoWebhook'])->middleware('clave:webhooks:write');
 
     // Una ruta que no existe en la v1 responde con el código de la API, no con la página de error de la app.
     Route::any('/{resto?}', [PublicaController::class, 'noExiste'])->where('resto', '.*');
